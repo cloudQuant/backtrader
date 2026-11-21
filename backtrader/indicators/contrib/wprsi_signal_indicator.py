@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -37,9 +39,13 @@ class WPRSISignalIndicator(Indicator):
 
     def _calc_wpr(self, ago=0):
         period = self._period
-        highest = max(float(self.data.high[-(ago + i)]) for i in range(period))
-        lowest = min(float(self.data.low[-(ago + i)]) for i in range(period))
+        highs = tuple(float(self.data.high[-(ago + i)]) for i in range(period))
+        lows = tuple(float(self.data.low[-(ago + i)]) for i in range(period))
+        highest = max(highs)
+        lowest = min(lows)
         close = float(self.data.close[-ago])
+        if any(math.isnan(value) for value in (*highs, *lows, close)):
+            return float("nan")
         if highest == lowest:
             return -50.0
         return -100.0 * (highest - close) / (highest - lowest)
@@ -77,29 +83,40 @@ class WPRSISignalIndicator(Indicator):
         cur_low = float(self.data.low[0])
         rng = cur_high - cur_low
 
+        if any(math.isnan(value) for value in (wpr_0, wpr_1, rsi_0)):
+            self.lines.sell_arrow[0] = float("nan")
+            self.lines.buy_arrow[0] = float("nan")
+            return
+
         # Buy: WPR crosses above -20 from below, RSI > 50
         if wpr_0 > -20.0 and wpr_1 < -20.0 and rsi_0 > 50.0:
             z = 0
+            unknown = False
             for k in range(2, self._filter_up + 3):
                 if k < len(self.data):
                     wk = self._calc_wpr(k)
-                    if wk > -20.0:
+                    if math.isnan(wk):
+                        unknown = True
+                    elif wk > -20.0:
                         z = 1
                         break
             if z == 0:
-                buy_val = cur_low - rng / 2.0
+                buy_val = float("nan") if unknown else cur_low - rng / 2.0
 
         # Sell: WPR crosses below -80 from above, RSI < 50
         if wpr_1 > -80.0 and wpr_0 < -80.0 and rsi_0 < 50.0:
             h = 0
+            unknown = False
             for c in range(2, self._filter_dn + 3):
                 if c < len(self.data):
                     wk = self._calc_wpr(c)
-                    if wk < -80.0:
+                    if math.isnan(wk):
+                        unknown = True
+                    elif wk < -80.0:
                         h = 1
                         break
             if h == 0:
-                sell_val = cur_high + rng / 2.0
+                sell_val = float("nan") if unknown else cur_high + rng / 2.0
 
         self.lines.sell_arrow[0] = sell_val
         self.lines.buy_arrow[0] = buy_val
