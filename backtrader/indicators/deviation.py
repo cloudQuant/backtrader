@@ -27,6 +27,38 @@ import math
 from . import Indicator, MovAv
 
 
+def _add_fsum_partial(partials, value):
+    """Add a finite float to a non-overlapping exact-sum expansion.
+
+    This is the same error-free high/low decomposition used by ``fsum``.  The
+    caller can then remove outgoing rolling-window terms without losing the
+    rounded-sum contract of recalculating each window with ``math.fsum``.
+    Return false if an intermediate overflow makes the expansion unusable.
+    """
+    if not math.isfinite(value):
+        return False
+
+    index = 0
+    for partial in partials:
+        if abs(value) < abs(partial):
+            value, partial = partial, value
+
+        high = value + partial
+        if not math.isfinite(high):
+            return False
+
+        low = partial - (high - value)
+        if low:
+            partials[index] = low
+            index += 1
+        value = high
+
+    del partials[index:]
+    if value:
+        partials.append(value)
+    return True
+
+
 class StandardDeviation(Indicator):
     """
     Calculates the standard deviation of the passed data for a given period
@@ -106,6 +138,28 @@ class StandardDeviation(Indicator):
             diff = abs(diff)
         return math.sqrt(max(0.0, diff))
 
+    def _once_simple_fsum(
+        self, actual_end, darray, larray, period, mean_array, nan_val, first_index
+    ):
+        """Retain the original per-window math.fsum calculation as fallback."""
+        for i in range(first_index, actual_end):
+            start_idx = i - period + 1
+            end_idx = i + 1
+            window = darray[start_idx:end_idx]
+            if len(window) != period or any(value != value for value in window):
+                larray[i] = nan_val
+                continue
+
+            meansq = math.fsum(value * value for value in window) / period
+            if mean_array is not None:
+                if i >= len(mean_array) or mean_array[i] != mean_array[i]:
+                    larray[i] = nan_val
+                    continue
+                mean = mean_array[i]
+            else:
+                mean = math.fsum(window) / period
+            larray[i] = self._finish(meansq, mean)
+
     def next(self):
         """Calculate standard deviation for the current bar."""
         period = self.p.period
@@ -184,6 +238,105 @@ class StandardDeviation(Indicator):
             alpha = None
 
         if alpha is None:
+            # For larger simple windows, keep exact floating-point expansions
+            # for the rolling sum and sum of squares.  This preserves each
+            # window's math.fsum result while avoiding a slice and two full
+            # scans per bar.  Small windows and unusual values keep the
+            # original path, where its lower overhead and edge behavior are
+            # preferable.
+            if (
+                period >= 64
+                and mean_array is None
+                and actual_end >= period
+                and type(self) is _STANDARD_DEVIATION_CLASS
+                and getattr(getattr(self, "_finish"), "__func__", None)
+                is _STANDARD_DEVIATION_FINISH
+            ):
+                sum_partials = []
+                square_partials = []
+
+                for index in range(period):
+                    value = float(darray[index])
+                    square = value * value
+                    if (
+                        not math.isfinite(value)
+                        or not math.isfinite(square)
+                        or not _add_fsum_partial(sum_partials, value)
+                        or not _add_fsum_partial(square_partials, square)
+                    ):
+                        self._once_simple_fsum(
+                            actual_end,
+                            darray,
+                            larray,
+                            period,
+                            mean_array,
+                            nan_val,
+                            period - 1,
+                        )
+                        return
+
+                try:
+                    total_sq = math.fsum(square_partials)
+                    total = math.fsum(sum_partials)
+                except OverflowError:
+                    self._once_simple_fsum(
+                        actual_end,
+                        darray,
+                        larray,
+                        period,
+                        mean_array,
+                        nan_val,
+                        period - 1,
+                    )
+                    return
+
+                for index in range(period - 1, actual_end):
+                    if index >= period:
+                        outgoing = float(darray[index - period])
+                        incoming = float(darray[index])
+                        outgoing_sq = outgoing * outgoing
+                        incoming_sq = incoming * incoming
+                        if (
+                            not math.isfinite(outgoing)
+                            or not math.isfinite(incoming)
+                            or not math.isfinite(outgoing_sq)
+                            or not math.isfinite(incoming_sq)
+                            or not _add_fsum_partial(sum_partials, -outgoing)
+                            or not _add_fsum_partial(sum_partials, incoming)
+                            or not _add_fsum_partial(square_partials, -outgoing_sq)
+                            or not _add_fsum_partial(square_partials, incoming_sq)
+                        ):
+                            self._once_simple_fsum(
+                                actual_end,
+                                darray,
+                                larray,
+                                period,
+                                mean_array,
+                                nan_val,
+                                index,
+                            )
+                            return
+
+                        try:
+                            total_sq = math.fsum(square_partials)
+                            total = math.fsum(sum_partials)
+                        except OverflowError:
+                            self._once_simple_fsum(
+                                actual_end,
+                                darray,
+                                larray,
+                                period,
+                                mean_array,
+                                nan_val,
+                                index,
+                            )
+                            return
+
+                    larray[index] = self._finish(
+                        total_sq / period, total / period
+                    )
+                return
+
             for i in range(period - 1, actual_end):
                 start_idx = i - period + 1
                 end_idx = i + 1
@@ -247,6 +400,13 @@ class StandardDeviation(Indicator):
                 mean = prev_mean
 
             larray[i] = self._finish(prev_meansq, mean)
+
+
+# Pin the definitions that were loaded with this module.  Looking up the class
+# or method on ``StandardDeviation`` at call time would let a monkeypatch make
+# an overridden _finish appear to be the original fast-path contract.
+_STANDARD_DEVIATION_CLASS = StandardDeviation
+_STANDARD_DEVIATION_FINISH = StandardDeviation._finish
 
 
 # Average deviation
