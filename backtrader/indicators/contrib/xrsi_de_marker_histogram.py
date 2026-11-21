@@ -18,6 +18,28 @@ __all__ = [
 ]
 
 
+def _resolve_rsi_price_line(data, mode):
+    """Resolve an OHLC/applied-price selector, defaulting unknown modes to close."""
+    price_mode = str(mode).lower()
+    if price_mode in ("price_open", "open"):
+        return data.open
+    if price_mode in ("price_high", "high"):
+        return data.high
+    if price_mode in ("price_low", "low"):
+        return data.low
+    if price_mode in ("price_median", "median"):
+        return (data.high + data.low) / 2.0
+    if price_mode in ("price_typical", "typical"):
+        return (data.high + data.low + data.close) / 3.0
+    if price_mode in ("price_weighted", "weighted"):
+        return (2.0 * data.close + data.high + data.low) / 4.0
+    if price_mode in ("price_simpl", "simpl"):
+        return (data.open + data.close) / 2.0
+    if price_mode in ("price_quarter", "quarter"):
+        return (data.high + data.low + data.open + data.close) / 4.0
+    return data.close
+
+
 class XrsiDeMarkerHistogram(Indicator):
     """Blend RSI and DeMarker into a smoothed histogram line."""
 
@@ -34,7 +56,8 @@ class XrsiDeMarkerHistogram(Indicator):
 
     def __init__(self):
         """Instantiate RSI and DeMarker and initialize smoothing buffers."""
-        self.rsi = RSI(self.data.close, period=self.p.ind_period)
+        rsi_price_line = _resolve_rsi_price_line(self.data, self.p.rsi_price)
+        self.rsi = RSI(rsi_price_line, period=self.p.ind_period)
         self.demarker = DeMarker(self.data, period=self.p.ind_period)
         self._raw_buf = []
         self._smooth_prev = None
