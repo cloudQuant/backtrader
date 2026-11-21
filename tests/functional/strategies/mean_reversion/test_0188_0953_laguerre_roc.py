@@ -548,11 +548,28 @@ def _extract_metrics_compat(strat, cerebro, inputs, config):
     raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
-def test_189_0188_0953_laguerre_roc() -> None:
+def test_189_0188_0953_laguerre_roc(monkeypatch) -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0188_0953_laguerre_roc.
     """
+    events = []
+    class ObservedStrategy(LaguerreRocStrategy):
+        def notify_order(self, order):
+            if order.status == order.Completed:
+                events.append((self.data.datetime.datetime(0).isoformat(), 'order',
+                               'buy' if order.isbuy() else 'sell',
+                               float(order.executed.size), float(order.executed.price)))
+            super().notify_order(order)
+
+        def notify_trade(self, trade):
+            if trade.isopen or trade.isclosed:
+                events.append((self.data.datetime.datetime(0).isoformat(),
+                               'open' if trade.isopen else 'close', float(trade.size),
+                               float(trade.price), float(trade.pnlcomm)))
+            super().notify_trade(trade)
+
+    monkeypatch.setitem(globals(), 'LaguerreRocStrategy', ObservedStrategy)
     config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
@@ -560,26 +577,38 @@ def test_189_0188_0953_laguerre_roc() -> None:
     metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 6094, f"bar_num: expected=6094, got={metrics.get('bar_num')!r}"
-    assert metrics.get('win_count') == 49, f"win_count: expected=49, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 66, f"loss_count: expected=66, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 115, f"total_trades: expected=115, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 115, f"trade_count: expected=115, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 49, f"won: expected=49, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 66, f"lost: expected=66, got={metrics.get('lost')!r}"
+    assert metrics.get('win_count') == 77, f"win_count: expected=77, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 118, f"loss_count: expected=118, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 195, f"total_trades: expected=195, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 195, f"trade_count: expected=195, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 77, f"won: expected=77, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 118, f"lost: expected=118, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('buy_signal_count'), 50.0, tol=5.000000e-05, key='buy_signal_count')
-    _close(metrics.get('sell_signal_count'), 66.0, tol=6.600000e-05, key='sell_signal_count')
-    _close(metrics.get('completed_order_count'), 230.0, tol=2.300000e-04, key='completed_order_count')
+    _close(metrics.get('buy_signal_count'), 98.0, tol=9.800000e-05, key='buy_signal_count')
+    _close(metrics.get('sell_signal_count'), 112.0, tol=1.120000e-04, key='sell_signal_count')
+    _close(metrics.get('completed_order_count'), 390.0, tol=3.900000e-04, key='completed_order_count')
     _close(metrics.get('rejected_order_count'), 0.0, tol=1.000000e-06, key='rejected_order_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1000753.0000000005, tol=1.000753e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 753.0000000004657, tol=7.530000e-04, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.075271663773938, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 42.608695652173914, tol=4.260870e-05, key='win_rate')
-    _close(metrics.get('sharpe_ratio'), 1.8879962257242011, tol=1.887996e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 4.557411870691705, tol=4.557412e-06, key='annual_return_pct')
-    _close(metrics.get('max_drawdown'), 0.21783081889536576, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sqn'), 0.2227303532576553, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 996328.0999999996, tol=9.963281e-01, key='final_value')
+    _close(metrics.get('net_pnl'), -3671.9000000003725, tol=3.671900e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -0.3678657972944609, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 39.48717948717949, tol=3.948718e-05, key='win_rate')
+    _close(metrics.get('sharpe_ratio'), -6.681489298599674, tol=6.681489e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), -19.571571248481277, tol=1.957157e-05, key='annual_return_pct')
+    _close(metrics.get('max_drawdown'), 0.6186106391800016, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sqn'), -1.0227886285155767, tol=1.022789e-06, key='sqn')
+    # The corrected secondary-clock recurrence changes the first trade and
+    # the complete event totals, so snapshot the execution trace as well.
+    assert events[:4] == [
+        ('2025-12-03T23:15:00', 'order', 'sell', -0.1, 4206.15),
+        ('2025-12-03T23:15:00', 'open', -0.1, 4206.15, 0.0),
+        ('2025-12-04T03:15:00', 'order', 'buy', 0.1, 4211.28),
+        ('2025-12-04T03:15:00', 'close', 0.0, 4206.15, pytest.approx(-51.3)),
+    ]
+    assert sum(event[1] == 'order' for event in events) == 390
+    assert sum(event[1] == 'open' for event in events) == 195
+    assert sum(event[1] == 'close' for event in events) == 195
+    assert sum(event[4] for event in events if event[1] == 'close') == pytest.approx(-3671.9)
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
