@@ -33,11 +33,18 @@ class XDeMarkerHistogramVolDirectIndicator(Indicator):
 
     def __init__(self):
         """Initialize de_marker state deques and warm-up period."""
-        self._demax = deque(maxlen=max(1, int(self.p.de_marker_period)))
-        self._demin = deque(maxlen=max(1, int(self.p.de_marker_period)))
-        self._raw = deque(maxlen=max(1, int(self.p.ma_length)))
-        self._vol = deque(maxlen=max(1, int(self.p.ma_length)))
-        self.addminperiod(max(int(self.p.de_marker_period), int(self.p.ma_length)) + 2)
+        de_marker_period = max(int(self.p.de_marker_period), 1)
+        ma_length = max(int(self.p.ma_length), 1)
+        self._demax = deque(maxlen=de_marker_period)
+        self._demin = deque(maxlen=de_marker_period)
+        self._raw = deque(maxlen=ma_length)
+        self._vol = deque(maxlen=ma_length)
+        self._sample_length = None
+        self._sample_before = None
+        self._sample_after = None
+        self._last_high = None
+        self._last_low = None
+        self.addminperiod(de_marker_period + ma_length)
 
     @staticmethod
     def _nan():
@@ -56,17 +63,111 @@ class XDeMarkerHistogramVolDirectIndicator(Indicator):
         raw = float(self.data.volume[0])
         return raw if math.isfinite(raw) else 0.0
 
-    def next(self):
-        """Compute de_marker-derived raw value, smoothing, and colors."""
-        if len(self.data) < 2:
-            for line in self.lines:
-                line[0] = self._nan()
-            return
+    def _state_snapshot(self):
+        """Capture the bounded rolling state before the current data bar."""
+        return (
+            tuple(
+                tuple(values)
+                for values in (self._demax, self._demin, self._raw, self._vol)
+            ),
+            self._last_high,
+            self._last_low,
+        )
 
+    def _restore_state(self, snapshot):
+        """Restore rolling state after a revised bar or a failed calculation."""
+        values_snapshot, self._last_high, self._last_low = snapshot
+        for values, saved in zip(
+            (self._demax, self._demin, self._raw, self._vol), values_snapshot
+        ):
+            values.clear()
+            values.extend(saved)
+
+    def prenext(self):
+        """Prime rolling state before the first complete output window."""
+        self._sample(publish=False)
+
+    def next(self):
+        """Compute the current DeMarker value and replace replay revisions."""
+        self._sample(publish=True)
+
+    def _sample(self, publish):
+        """Advance one input bar, transactionally replacing same-length updates.
+
+        All derived values are computed before mutating output lines. If an
+        exception occurs while computing or writing any output line, rolling
+        state is restored to the last committed state and any already-written
+        current-bar output slots are rolled back on a best-effort basis. If
+        restoring an output slot itself raises, the original exception remains
+        authoritative and partial current-bar output may persist until a
+        subsequent same-bar revision/retry overwrites it.
+        """
+        sample_length = len(self.data)
+        is_revision = sample_length == self._sample_length
+        if is_revision:
+            before = self._sample_before
+            failure_state = self._sample_after
+            self._restore_state(before)
+        else:
+            before = self._state_snapshot()
+            failure_state = before
+
+        output_lines = (
+            self.lines.value,
+            self.lines.color_zone,
+            self.lines.color_direct,
+            self.lines.upper2,
+            self.lines.upper1,
+            self.lines.lower1,
+            self.lines.lower2,
+        )
+        previous_outputs = None
+        written = 0
+        try:
+            outputs = self._compute_sample(publish)
+            previous_outputs = tuple(line[0] for line in output_lines)
+            for line, new_value in zip(output_lines, outputs):
+                written += 1
+                line[0] = new_value
+        except BaseException:
+            # A failed revision must leave the most recent successful version
+            # of this bar in place. A failed new bar rolls back to the prior
+            # bar, so a retry can safely apply it later.
+            self._restore_state(failure_state)
+            if previous_outputs is not None and written:
+                for line, old_value in zip(
+                    output_lines[:written], previous_outputs[:written]
+                ):
+                    try:
+                        line[0] = old_value
+                    except BaseException:
+                        # Best-effort output rollback: keep the original
+                        # failure authoritative if restoring a line slot fails.
+                        pass
+            raise
+
+        self._sample_length = sample_length
+        self._sample_before = before
+        self._sample_after = self._state_snapshot()
+
+    def _compute_sample(self, publish):
+        """Compute this bar from the bounded history before it."""
         high_now = float(self.data.high[0])
-        high_prev = float(self.data.high[-1])
         low_now = float(self.data.low[0])
-        low_prev = float(self.data.low[-1])
+        if len(self.data) < 2:
+            self._last_high = high_now
+            self._last_low = low_now
+            nan_val = self._nan()
+            return (nan_val,) * 7
+
+        high_prev = (
+            self._last_high
+            if self._last_high is not None
+            else float(self.data.high[-1])
+        )
+        low_prev = (
+            self._last_low if self._last_low is not None else float(self.data.low[-1])
+        )
         vol_now = self._bar_volume()
 
         self._demax.append(max(high_now - high_prev, 0.0))
@@ -136,10 +237,18 @@ class XDeMarkerHistogramVolDirectIndicator(Indicator):
                 else:
                     color_direct = prev_direct
 
-        self.lines.value[0] = value
-        self.lines.color_zone[0] = color_zone
-        self.lines.color_direct[0] = color_direct
-        self.lines.upper2[0] = upper2
-        self.lines.upper1[0] = upper1
-        self.lines.lower1[0] = lower1
-        self.lines.lower2[0] = lower2
+        self._last_high = high_now
+        self._last_low = low_now
+
+        if publish:
+            return (
+                value,
+                color_zone,
+                color_direct,
+                upper2,
+                upper1,
+                lower1,
+                lower2,
+            )
+        nan_val = self._nan()
+        return (nan_val,) * 7

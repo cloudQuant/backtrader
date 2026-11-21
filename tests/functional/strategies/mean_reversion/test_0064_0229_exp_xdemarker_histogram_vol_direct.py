@@ -640,13 +640,15 @@ def test_64_0064_0229_exp_xdemarker_histogram_vol_direct() -> None:
     assert metrics.get('loss_count') == 49, f"loss_count: expected=49, got={metrics.get('loss_count')!r}"
     assert metrics.get('trade_num') == 87, f"trade_num: expected=87, got={metrics.get('trade_num')!r}"
     assert metrics.get('total_trades') == 87, f"total_trades: expected=87, got={metrics.get('total_trades')!r}"
-    _close(metrics.get('final_value'), 1000456.699999999, tol=1.000457e+00, key='final_value')
+    # The indicator now warms from its first input bar and publishes at the
+    # p+q formula boundary; the strategy's existing finite-signal guard remains.
+    _close(metrics.get('final_value'), 1000649.8999999989, tol=1.000650e+00, key='final_value')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('max_drawdown'), 0.19406126606005744, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('annual_return'), 0.10867879425752233, tol=1.000000e-06, key='annual_return')
-    _close(metrics.get('return_rate'), 0.0004565957442952677, tol=1.000000e-06, key='return_rate')
-    _close(metrics.get('sharpe_ratio'), 2.622774971996763, tol=2.622775e-06, key='sharpe_ratio')
-    _close(metrics.get('sqn'), 0.33713427300155085, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('max_drawdown'), 0.1940238459697837, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('annual_return'), 0.15812109697517926, tol=1.000000e-06, key='annual_return')
+    _close(metrics.get('return_rate'), 0.0006496889064487188, tol=1.000000e-06, key='return_rate')
+    _close(metrics.get('sharpe_ratio'), 3.709276510818422, tol=3.709277e-06, key='sharpe_ratio')
+    _close(metrics.get('sqn'), 0.4751042732280727, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
