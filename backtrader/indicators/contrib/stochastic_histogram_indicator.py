@@ -9,7 +9,7 @@ import array as array_module
 from collections import deque
 
 from .. import Indicator
-from ...linebuffer import LineBuffer, _factor_context_for_line
+from ...linebuffer import LineBuffer, _ACTIVE_FACTOR_CONTEXT, _factor_context_for_line
 from ...parameters import ParameterAccessor, ParameterManager
 
 
@@ -27,6 +27,31 @@ class _ProjectedHistory:
 __all__ = [
     "StochasticHistogramIndicator",
 ]
+
+
+def _check_strict_ma(self, values, period, previous, mode, value, context):
+    """Check native intermediate floats before a later NaN can hide overflow."""
+    from ...research.strict import reject_infinity
+
+    def check(result):
+        reject_infinity(context, result, context.phase, operation=self.lines.main)
+        return result
+
+    if mode in {"ema", "mode_ema"} and previous is not None and previous == previous:
+        delta = check(value - previous)
+        weighted = check((2.0 / (period + 1.0)) * delta)
+        check(previous + weighted)
+    elif mode in {"smma", "mode_smma"} and previous is not None and previous == previous:
+        weighted = check((period - 1.0) * previous)
+        check(weighted + value)
+    elif mode in {"lwma", "wma", "mode_lwma"}:
+        total = 0.0
+        for weight, item in enumerate(values, 1):
+            total = check(total + check(item * weight))
+    elif mode not in {"ema", "mode_ema", "smma", "mode_smma"}:
+        total = 0.0
+        for item in values:
+            total = check(total + item)
 
 
 class StochasticHistogramIndicator(Indicator):
@@ -84,6 +109,14 @@ class StochasticHistogramIndicator(Indicator):
             return float("nan")
         mode = str(self.p.ma_method).strip().lower()
         value = float(values[-1])
+        context = _ACTIVE_FACTOR_CONTEXT.get()
+        if (
+            context is not None
+            and type(period) is int
+            and (previous is None or type(previous) is float)
+            and all(type(item) is float for item in values)
+        ):
+            _check_strict_ma(self, values, period, previous, mode, value, context)
         if mode in {"ema", "mode_ema"}:
             if previous is None or previous != previous:
                 return value
@@ -322,6 +355,9 @@ class StochasticHistogramIndicator(Indicator):
         slowing = max(1, int(self.p.slowing))
         d_period = max(1, int(self.p.d_period))
         fast_values = []
+        context = _ACTIVE_FACTOR_CONTEXT.get()
+        if context is not None:
+            from ...research.strict import reject_infinity
         for ago in range(slowing - 1, -1, -1):
             if len(self.data) <= ago + k_period - 1:
                 return
@@ -330,9 +366,22 @@ class StochasticHistogramIndicator(Indicator):
             lowest = min(low_values)
             highest = max(high_values)
             denom = highest - lowest
-            fast_values.append(
-                100.0 * (float(self.data.close[-ago]) - lowest) / denom if denom else 50.0
-            )
+            if context is None:
+                fast_values.append(
+                    100.0 * (float(self.data.close[-ago]) - lowest) / denom if denom else 50.0
+                )
+            else:
+                reject_infinity(context, denom, context.phase, operation=self.lines.main)
+                if denom:
+                    delta = float(self.data.close[-ago]) - lowest
+                    reject_infinity(context, delta, context.phase, operation=self.lines.main)
+                    numerator = 100.0 * delta
+                    reject_infinity(context, numerator, context.phase, operation=self.lines.main)
+                    fast = numerator / denom
+                    reject_infinity(context, fast, context.phase, operation=self.lines.main)
+                    fast_values.append(fast)
+                else:
+                    fast_values.append(50.0)
         prev_main = float(self.lines.main[-1]) if len(self) > 1 else None
         prev_signal = float(self.lines.signal[-1]) if len(self) > 1 else None
         main = self._ma_value(fast_values, slowing, prev_main)
@@ -440,8 +489,44 @@ class StochasticHistogramIndicator(Indicator):
         self._stream_state_count = data_count
         self._stream_state_index = high_index
 
+    def _once_strict_from_next(self, start, end):
+        lines = list(self.data.lines) + list(self.lines)
+        unique = list({id(line): line for line in lines}.values())
+        saved = [(line, line._idx, line.lencount) for line in unique]
+        try:
+            for i in range(start, end):
+                for line in unique:
+                    line._idx = i
+                    line.lencount = i + 1
+                self.next()
+        finally:
+            for line, index, count in saved:
+                line._idx = index
+                line.lencount = count
+
     def once(self, start, end):
         """Compute indicator arrays for run-once mode from ``start`` to ``end`` indices."""
+        if (
+            _ACTIVE_FACTOR_CONTEXT.get() is not None
+            and type(self) is StochasticHistogramIndicator
+            and all(
+                getattr(getattr(self, name), "__func__", None) is method
+                and method.__code__ is code
+                for name, (method, code) in _STRICT_ONCE_HOOKS.items()
+            )
+            and vars(ParameterAccessor).get("__getattribute__") is _PARAM_GETATTRIBUTE
+            and _PARAM_GETATTRIBUTE.__code__ is _PARAM_GETATTRIBUTE_CODE
+            and vars(ParameterManager).get("get") is _PARAM_MANAGER_GET
+            and _PARAM_MANAGER_GET.__code__ is _PARAM_MANAGER_GET_CODE
+            and _PARAM_MANAGER_GET.__defaults__ is _PARAM_MANAGER_GET_DEFAULTS
+            and type(self.p.k_period) is int
+            and type(self.p.slowing) is int
+            and type(self.p.d_period) is int
+            and type(self.p.ma_method) is str
+            and type(self.p.high_level) in (int, float)
+            and type(self.p.low_level) in (int, float)
+        ):
+            return self._once_strict_from_next(start, end)
         high_array = self.data.high.array
         low_array = self.data.low.array
         close_array = self.data.close.array
@@ -501,4 +586,14 @@ _DEFAULT_STREAM_HOOKS = {
     "_ma_value": StochasticHistogramIndicator._ma_value,
     "next": StochasticHistogramIndicator.next,
     "once": StochasticHistogramIndicator.once,
+}
+
+_STRICT_ONCE_HOOKS = {
+    name: (method, method.__code__)
+    for name, method in {
+        "next": StochasticHistogramIndicator.next,
+        "_next_legacy": StochasticHistogramIndicator._next_legacy,
+        "_fast_k_at": StochasticHistogramIndicator._fast_k_at,
+        "_ma_value": StochasticHistogramIndicator._ma_value,
+    }.items()
 }
