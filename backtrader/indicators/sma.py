@@ -22,12 +22,19 @@ Example:
 import array
 import math
 import sys
+import types
 
 from ..utils.log_message import get_logger
 from .mabase import MovingAverageBase
 
 logger = get_logger(__name__)
 _MIN_PERIOD_FOR_ROLLING_ONCE = 32
+_ORIGINAL_FSUM = math.fsum
+_ORIGINAL_FSUM_IS_NATIVE = (
+    type(_ORIGINAL_FSUM) is types.BuiltinFunctionType
+    and _ORIGINAL_FSUM.__module__ == "math"
+    and _ORIGINAL_FSUM.__name__ == "fsum"
+)
 
 
 def _add_fsum_partial(partials, value):
@@ -75,7 +82,9 @@ def _once_exact_sma(src, dst, calc_start, actual_end, period, nan_val):
     non-finite value or overflow is inside the window, and cleanly re-seeds
     once those values exit the window.
     """
-    fsum = math.fsum
+    # once() only enters this path when its captured binding is this object.
+    # Do not reread math.fsum: it can change after once() captured it.
+    fsum = _ORIGINAL_FSUM
     isfinite = math.isfinite
     # Rolling updates can bypass order-dependent fsum intermediate overflow.
     # Near the float limit, retain the original ordered window calculation.
@@ -349,6 +358,8 @@ class MovingAverageSimple(MovingAverageBase):
                 and start >= 0
                 and end >= 0
                 and actual_end - calc_start >= 4
+                and fsum is _ORIGINAL_FSUM
+                and _ORIGINAL_FSUM_IS_NATIVE
                 and type(src) is array.array
                 and src.typecode == "d"
                 and type(dst) is array.array
