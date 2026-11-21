@@ -400,8 +400,18 @@ class LineIteratorMixin:
         the owner chain here is a defensive fallback for custom construction
         paths that attach an owner after ``donew``.
         """
-        current = self
-        seen = set()
+        context = getattr(self, "_factor_strict_context", None)
+        if context is not None:
+            return context
+        owner = getattr(self, "_owner", None)
+        if owner is None:
+            lines = getattr(self, "lines", None)
+            owner = getattr(lines, "_owner_ref", None) if lines is not None else None
+        if owner is None:
+            return None
+        owner_ref = getattr(owner, "_owner_ref", None)
+        current = owner_ref if owner_ref is not None else owner
+        seen = {id(self)}
         while current is not None and id(current) not in seen:
             seen.add(id(current))
             context = getattr(current, "_factor_strict_context", None)

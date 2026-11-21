@@ -100,26 +100,29 @@ _FACTOR_RUNTIME_PHASES = frozenset(("next", "once", "once_via_next"))
 
 def _factor_context_for_line(line):
     """Find a factor context attached to a line or active in this callback."""
+    if line is None:
+        return _ACTIVE_FACTOR_CONTEXT.get()
+
     try:
         context = getattr(line, "_factor_strict_context", None)
+        if context is not None:
+            return context
+
+        owner = getattr(line, "_owner", None)
+        if owner is None:
+            return _ACTIVE_FACTOR_CONTEXT.get()
+        owner_ref = getattr(owner, "_owner_ref", None)
+        current = owner_ref if owner_ref is not None else owner
     except ReferenceError:
         return _ACTIVE_FACTOR_CONTEXT.get()
-    if context is not None:
-        return context
 
-    current = line
-    seen = set()
-    first = True
+    seen = {id(line)}
     while current is not None and id(current) not in seen:
         seen.add(id(current))
         try:
-            # The first node was checked before allocating ``seen``; keep the
-            # owner walk for late-attached contexts on any ancestor.
-            if not first:
-                context = getattr(current, "_factor_strict_context", None)
-                if context is not None:
-                    return context
-            first = False
+            context = getattr(current, "_factor_strict_context", None)
+            if context is not None:
+                return context
             owner = getattr(current, "_owner", None)
             owner_ref = getattr(owner, "_owner_ref", None) if owner is not None else None
         except ReferenceError:
