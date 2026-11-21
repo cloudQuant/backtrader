@@ -117,6 +117,13 @@ from ..execution.reconciliation_projection import (
 )
 from ._live_bar_queue import StoreLiveBarQueue
 from ._bar_history_cache import StoreBarHistoryCache, history_timeframe
+from ._contract_metadata import (
+    StoreContractMetadataCache,
+    bounded_metadata_probe_shutdown_proven as _bounded_metadata_probe_shutdown_proven,
+    configure_bounded_metadata_probe_sdk_market_data_only,
+    contract_metadata_aliases as _contract_metadata_aliases,
+    verify_bounded_metadata_probe_sdk_market_data_only,
+)
 from ._latest_tick_cache import StoreLatestTickCache
 from ._market_delivery_state import StoreMarketDeliveryState
 from ._tick_stream_resync import TickStreamResyncPolicy
@@ -398,13 +405,6 @@ def _is_supported_api_facade(api: Any) -> Tuple[bool, bool]:
             "bt_api_py.facade_protocol.UnifiedBtApiFacade is required"
         ) from exc
     return bool(is_unified_bt_api_facade(api)), False
-
-
-def _contract_metadata_aliases(symbol: Any) -> List[str]:
-    """Return symbol aliases used when matching configured contract metadata."""
-    from bt_api_py.instrument_metadata_aliases import contract_metadata_aliases
-
-    return contract_metadata_aliases(_coerce_text(symbol))
 
 
 def _is_gateway_provider(provider: Any) -> bool:
@@ -1049,6 +1049,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             self.contract_metadata = {
                 str(key): dict(value or {}) for key, value in (contract_metadata or {}).items()
             }
+        self._contract_metadata_cache = StoreContractMetadataCache(
+            mapping_getter=lambda: self.contract_metadata,
+        )
         self.session_id = (
             f"{self.provider}-"
             f"{_dt.datetime.now(_dt.timezone.utc).strftime('%Y%m%d%H%M%S')}-"
@@ -2024,65 +2027,24 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
     @staticmethod
     def _bounded_metadata_probe_shutdown_proven(health: Any) -> bool:
         """Return whether a one-shot probe has no live Store work left behind."""
-
-        return bool(
-            isinstance(health, Mapping)
-            and health.get("shutdown_state") == "PASS"
-            and int(health.get("queue_depth", 0) or 0) == 0
-            and not health.get("inflight")
-            and not health.get("worker_alive")
-            and not health.get("close_thread_alive")
-            and health.get("broker_update_conservation") is True
-            and not health.get("last_error_code")
-        )
+        return _bounded_metadata_probe_shutdown_proven(health)
 
     def _configure_bounded_metadata_probe_sdk_market_data_only(self) -> None:
         """Require the SDK assembly to apply the probe's zero-write settings."""
-        try:
-            # Reapply the same identity contract used to create the owned
-            # client.  The probe has already forced ``market_data_only`` in
-            # that mapping; dropping required environments here would make a
-            # second idempotency check fail before public metadata is read.
-            assembly = self._sdk_direct_api_assembly
-            if assembly is None:
-                raise BtApiStoreError("direct SDK assembly is unavailable")
-            assembly.reapply_execution_config()
-        except Exception as exc:
-            _safe_log("error", "btapistore:4070 exception before re-raise (Exception)")
-            self.sanitize_exception(exc)
-            raise BtApiStoreError(
-                "bounded read-only metadata probe could not configure SDK market-data-only mode"
-            ) from None
-
-        self._verify_bounded_metadata_probe_sdk_market_data_only()
+        return configure_bounded_metadata_probe_sdk_market_data_only(
+            self,
+            error_type=BtApiStoreError,
+            safe_log=_safe_log,
+        )
 
     def _verify_bounded_metadata_probe_sdk_market_data_only(self) -> None:
         """Require public SDK state after every probe lifecycle transition."""
-
-        api = self._api
-        get_execution_summary = getattr(api, "get_execution_summary", None)
-        if not callable(get_execution_summary):
-            raise BtApiStoreError(
-                "bounded read-only metadata probe cannot verify SDK market-data-only mode"
-            )
-        try:
-            summary = get_execution_summary()
-        except Exception as exc:
-            _safe_log("error", "btapistore:4089 exception before re-raise (Exception)")
-            self.sanitize_exception(exc)
-            raise BtApiStoreError(
-                "bounded read-only metadata probe cannot verify SDK market-data-only mode"
-            ) from None
-        try:
-            from bt_api_py.bounded_metadata_probe import is_market_data_only_execution_summary
-        except ImportError as exc:
-            raise BtApiMissingDependencyError(
-                "bt_api_py metadata probe summary contract is required"
-            ) from exc
-        if not is_market_data_only_execution_summary(summary):
-            raise BtApiStoreError(
-                "bounded read-only metadata probe cannot verify SDK market-data-only mode"
-            )
+        return verify_bounded_metadata_probe_sdk_market_data_only(
+            self,
+            error_type=BtApiStoreError,
+            missing_dependency_error_type=BtApiMissingDependencyError,
+            safe_log=_safe_log,
+        )
 
     def run_bounded_read_only_metadata_probe(
         self,
@@ -4948,18 +4910,22 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
     def get_contract_metadata(self, dataname: Optional[str] = None):
         """Return configured or SDK-normalized metadata; missing SDK contracts fail closed."""
         if dataname is None:
-            return {key: dict(value) for key, value in self.contract_metadata.items()}
+            return self._contract_metadata_cache.snapshot_all()
 
         from bt_api_py.instrument_metadata_aliases import find_alias_match
 
         aliases = _contract_metadata_aliases(dataname)
-        found, value = find_alias_match(
-            self.contract_metadata, aliases,
-            alias_fn=_contract_metadata_aliases, require_truthy=True,
+        metadata = self.contract_metadata
+        alias_fn = _contract_metadata_aliases
+        found, value = self._contract_metadata_cache.lookup(
+            dataname,
+            metadata=metadata,
+            aliases=aliases,
+            alias_fn=alias_fn,
+            find_alias_match=find_alias_match,
         )
         if found:
-            self.contract_metadata.setdefault(str(dataname), dict(value))
-            return dict(value)
+            return value
 
         if not self._sdk_mode:
             raise BtApiStoreError(
@@ -4983,7 +4949,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         from bt_api_py.instrument_metadata_aliases import legacy_instrument_spec_fields
 
         legacy_instrument_spec_fields(metadata)
-        self.contract_metadata[str(dataname)] = deepcopy(metadata)
+        self._contract_metadata_cache.store_normalized(dataname, metadata)
         return deepcopy(metadata)
 
     def get_typed_instrument_spec(self, dataname: str):
