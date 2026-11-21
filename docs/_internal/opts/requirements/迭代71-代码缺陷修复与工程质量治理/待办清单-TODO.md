@@ -296,7 +296,7 @@
 
 - [ ] **B11-01** `[P1]` `python -m ruff check backtrader` → **0 errors**（原 45 处全量消除）；`ocr delegate rule <files>` 无 Dead Code/高危告警。
 - [ ] **B11-02** **忽略 / 待后续重构（用户决定，2026-11-21；未修复、未验收）** `[P1]` Gateway 异常注入：`pytest tests/unit/brokers/test_iter63_gateway_*.py -q`，未映射状态不击穿循环；连接/文件句柄计数无泄漏。
-- [ ] **B11-03** `[P1]` 指标 runonce/runnext 全序列 parity（含 Aroon/ATR/Bollinger/contrib）、minperiod 断言；`pytest tests/unit/stores/ tests/unit/futures/ -q` 100% 通过。
+- [ ] **B11-03** `[P1]` 指标 runonce/runnext 全序列 parity（含 Aroon/ATR/Bollinger/contrib）、minperiod 断言；`pytest tests/unit/stores/ tests/unit/futures/ -q` 100% 通过。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 局部 UNIT+Cerebro**（Python 3.11.5 / pytest 8.4.2：Aroon、Aroon oscillator、ATR seed、Bollinger 均线四个专项及 Bollinger replay 功能回归合计 34 项通过，覆盖逐根/批量和 replay 样本。其他指标、参数及完整回归矩阵未覆盖；用户决定忽略的 BtApiStore/Broker/Feed 范围不纳入本轮，本项保持未完成。）
 - [ ] **B11-04** `[P1]` `pytest --collect-only tests/` 不触发 `PermissionError`；`make test-fast` 无新增失败（0 regression）；性能条目逐项给可复现 before/after 数字；guard/合同修复做 mutation check（移除 guard 应使目标测试失败）。
 - [ ] **B11-05** `[P2]` 更新 `docs/_internal/opts/requirements/` 下状态矩阵与交接说明；把 `REVIEW_PENDING` 逐项改为实际状态（用户 ACCEPTED 后才算通过）；同步 AGENTS.md 若编号引用变化。
 
