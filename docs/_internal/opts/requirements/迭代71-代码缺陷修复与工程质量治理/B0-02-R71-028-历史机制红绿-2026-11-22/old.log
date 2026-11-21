@@ -1,0 +1,64 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.5, pytest-8.4.2, pluggy-1.5.0 -- C:\anaconda3\python.exe
+rootdir: D:\temp\i71-r71-028-redgreen-6e0cba79\old
+configfile: ..\empty.ini
+collecting ... collected 3 items
+
+::test_existing_updates_avoid_per_row_index_equality_scans[3] FAILED     [ 33%]
+::test_existing_updates_avoid_per_row_index_equality_scans[7] FAILED     [ 66%]
+::test_existing_updates_avoid_per_row_index_equality_scans[11] FAILED    [100%]
+
+================================== FAILURES ===================================
+_________ test_existing_updates_avoid_per_row_index_equality_scans[3] _________
+..\test_r71_028_common_entry.py:69: in test_existing_updates_avoid_per_row_index_equality_scans
+    assert scans == [], f"per-row full-index equality scans: {scans!r}"
+E   AssertionError: per-row full-index equality scans: [(96, 20), (96, 21), (96, 22)]
+E   assert [(96, 20), (96, 21), (96, 22)] == []
+E     
+E     Left contains 3 more items, first extra item: (96, 20)
+E     
+E     Full diff:
+E     - []
+E     + [
+E     +     (...
+E     
+E     ...Full output truncated (12 lines hidden), use '-vv' to show
+_________ test_existing_updates_avoid_per_row_index_equality_scans[7] _________
+..\test_r71_028_common_entry.py:69: in test_existing_updates_avoid_per_row_index_equality_scans
+    assert scans == [], f"per-row full-index equality scans: {scans!r}"
+E   AssertionError: per-row full-index equality scans: [(96, 20), (96, 21), (96, 22), (96, 23), (96, 24), (96, 25), (96, 26)]
+E   assert [(96, 20), (9...(96, 25), ...] == []
+E     
+E     Left contains 7 more items, first extra item: (96, 20)
+E     
+E     Full diff:
+E     - []
+E     + [
+E     +     (...
+E     
+E     ...Full output truncated (28 lines hidden), use '-vv' to show
+________ test_existing_updates_avoid_per_row_index_equality_scans[11] _________
+..\test_r71_028_common_entry.py:69: in test_existing_updates_avoid_per_row_index_equality_scans
+    assert scans == [], f"per-row full-index equality scans: {scans!r}"
+E   AssertionError: per-row full-index equality scans: [(96, 20), (96, 21), (96, 22), (96, 23), (96, 24), (96, 25), (96, 26), (96, 27), (96, 28), (96, 29), (96, 30)]
+E   assert [(96, 20), (9...(96, 25), ...] == []
+E     
+E     Left contains 11 more items, first extra item: (96, 20)
+E     
+E     Full diff:
+E     - []
+E     + [
+E     +     (...
+E     
+E     ...Full output truncated (44 lines hidden), use '-vv' to show
+============================== warnings summary ===============================
+backtrader\feeds\__init__.py:56
+  D:\temp\i71-r71-028-redgreen-6e0cba79\old\backtrader\feeds\__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED ::test_existing_updates_avoid_per_row_index_equality_scans[3] - Assert...
+FAILED ::test_existing_updates_avoid_per_row_index_equality_scans[7] - Assert...
+FAILED ::test_existing_updates_avoid_per_row_index_equality_scans[11] - Asser...
+======================== 3 failed, 1 warning in 2.27s =========================

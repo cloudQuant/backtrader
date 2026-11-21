@@ -1,0 +1,17 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.5, pytest-8.4.2, pluggy-1.5.0 -- C:\anaconda3\python.exe
+rootdir: D:\temp\i71-r71-028-redgreen-6e0cba79\fixed
+configfile: ..\empty.ini
+collecting ... collected 3 items
+
+::test_existing_updates_avoid_per_row_index_equality_scans[3] PASSED     [ 33%]
+::test_existing_updates_avoid_per_row_index_equality_scans[7] PASSED     [ 66%]
+::test_existing_updates_avoid_per_row_index_equality_scans[11] PASSED    [100%]
+
+============================== warnings summary ===============================
+backtrader\feeds\__init__.py:56
+  D:\temp\i71-r71-028-redgreen-6e0cba79\fixed\backtrader\feeds\__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 3 passed, 1 warning in 2.27s =========================
