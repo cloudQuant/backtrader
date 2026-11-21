@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -68,15 +70,20 @@ class XCCIHistogramVolIndicator(Indicator):
         up_level = self.p.high_level1 * avg_vol
         dn_level = self.p.low_level1 * avg_vol
         min_level = self.p.low_level2 * avg_vol
-        clr = 2.0
-        if scaled > max_level:
-            clr = 0.0
-        elif scaled > up_level:
-            clr = 1.0
-        elif scaled < min_level:
-            clr = 4.0
-        elif scaled < dn_level:
-            clr = 3.0
+        if math.isfinite(scaled):
+            clr = 2.0
+            if scaled > max_level:
+                clr = 0.0
+            elif scaled > up_level:
+                clr = 1.0
+            elif scaled < min_level:
+                clr = 4.0
+            elif scaled < dn_level:
+                clr = 3.0
+        else:
+            # A finite neutral color is an actionable state for consumers; do
+            # not collapse an invalid value or level into that state.
+            clr = float("nan")
         self.lines.value[0] = scaled
         self.lines.max_level[0] = max_level
         self.lines.up_level[0] = up_level
