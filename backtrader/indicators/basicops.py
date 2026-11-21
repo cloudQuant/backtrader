@@ -55,7 +55,12 @@ import operator
 import types
 from collections import deque
 
-from ..parameters import ParameterAccessor
+from ..parameters import (
+    ParameterAccessor, ParameterManager,
+    _INDEX_MANAGER_GET, _INDEX_MANAGER_GET_CODE, _INDEX_MANAGER_GET_DEFAULTS,
+    _INDEX_ACCESSOR_GETATTRIBUTE as _INDEX_NATIVE_ACCESSOR_GETATTRIBUTE,
+    _INDEX_ACCESSOR_GETATTRIBUTE_CODE,
+)
 from ..utils.log_message import get_logger
 from ..utils.py3 import map, range
 from . import Indicator
@@ -120,6 +125,64 @@ def _plain_index_evalfunc_is(indicator, expected):
     if type(state) is not dict or any(type(key) is not str for key in state):
         return False
     return state.get("_evalfunc") is expected
+
+
+_INDEX_MANAGER_DICT = vars(ParameterManager).get("__dict__")
+_INDEX_MANAGER_CLASS = ParameterManager
+
+
+def _plain_last_index_period(indicator, period):
+    """Use the deque only when each p.period read is an inert native lookup."""
+    if (
+        ParameterManager is not _INDEX_MANAGER_CLASS
+        or vars(ParameterManager).get("get") is not _INDEX_MANAGER_GET
+        or _INDEX_MANAGER_GET.__code__ is not _INDEX_MANAGER_GET_CODE
+        or _INDEX_MANAGER_GET.__defaults__ is not _INDEX_MANAGER_GET_DEFAULTS
+        or vars(ParameterAccessor).get("__getattribute__") is not _INDEX_NATIVE_ACCESSOR_GETATTRIBUTE
+        or _INDEX_NATIVE_ACCESSOR_GETATTRIBUTE.__code__ is not _INDEX_ACCESSOR_GETATTRIBUTE_CODE
+    ):
+        return False
+    for base in type.__getattribute__(ParameterManager, "__mro__"):
+        namespace = type.__getattribute__(base, "__dict__")
+        if "__getattribute__" in namespace:
+            if namespace["__getattribute__"] is not object.__getattribute__:
+                return False
+            break
+    else:
+        return False
+    if vars(ParameterManager).get("__dict__") is not _INDEX_MANAGER_DICT:
+        return False
+    for base in type.__getattribute__(ParameterAccessor, "__mro__"):
+        if "_param_manager" in type.__getattribute__(base, "__dict__"):
+            return False
+    for base in type.__getattribute__(ParameterManager, "__mro__"):
+        namespace = type.__getattribute__(base, "__dict__")
+        if any(name in namespace for name in ("_values", "_descriptors", "_lazy_defaults")):
+            return False
+    direct = _INDEX_NATIVE_ACCESSOR_GETATTRIBUTE.__globals__.get("_PARAMETER_ACCESSOR_DIRECT_ATTRS")
+    if type(direct) is not frozenset or any(type(key) is not str for key in direct) or "period" in direct:
+        return False
+    instance = object.__getattribute__(indicator, "__dict__")
+    if type(instance) is not dict or any(type(key) is not str for key in instance):
+        return False
+    params = instance.get("_params_instance")
+    if type(params) is not ParameterAccessor:
+        return False
+    params_state = object.__getattribute__(params, "__dict__")
+    if type(params_state) is not dict or any(type(key) is not str for key in params_state):
+        return False
+    manager = params_state.get("_param_manager")
+    if type(manager) is not ParameterManager:
+        return False
+    state = object.__getattribute__(manager, "__dict__")
+    if type(state) is not dict or any(type(key) is not str for key in state) or "get" in state:
+        return False
+    for name in ("_values", "_descriptors", "_lazy_defaults"):
+        mapping = state.get(name)
+        if type(mapping) is not dict or any(type(key) is not str for key in mapping):
+            return False
+    value = state["_values"].get("period")
+    return type(value) is int and value == period
 
 
 def _add_fsum_partial(partials, value):
@@ -644,6 +707,7 @@ class OperationN(PeriodN):
                 and type(dst) is array.array
                 and dst.typecode == "d"
                 and src is not dst
+                and (choose_latest or _plain_last_index_period(self, period))
             ):
                 # The generic path's NaN-left behavior includes a StopIteration
                 # fallback. Skip the fast path for any affected window so that

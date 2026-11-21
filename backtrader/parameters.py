@@ -1252,6 +1252,16 @@ def _normalize_legacy_params(params) -> "OrderedDict[str, Any]":
     return pairs
 
 
+# Capture framework-defined accessors while this module initializes.  Consumers
+# can reject runtime replacements without mistaking a pre-import patch for the
+# original implementation.
+_INDEX_MANAGER_GET = ParameterManager.__dict__["get"]
+_INDEX_MANAGER_GET_CODE = _INDEX_MANAGER_GET.__code__
+_INDEX_MANAGER_GET_DEFAULTS = _INDEX_MANAGER_GET.__defaults__
+_INDEX_ACCESSOR_GETATTRIBUTE = ParameterAccessor.__dict__["__getattribute__"]
+_INDEX_ACCESSOR_GETATTRIBUTE_CODE = _INDEX_ACCESSOR_GETATTRIBUTE.__code__
+
+
 class LegacyParamsSchema:
     """Callable legacy params schema backed by the modern parameter manager.
 
