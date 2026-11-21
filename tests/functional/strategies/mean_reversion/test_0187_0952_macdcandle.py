@@ -186,7 +186,8 @@ class MacdCandleStrategy(bt.Strategy):
         idx = max(int(shift) - 1, 0)
         if len(self.indicator.color.array) <= idx:
             return None
-        return int(float(self.indicator.color[-idx] if idx else self.indicator.color[0]))
+        value = float(self.indicator.color[-idx] if idx else self.indicator.color[0])
+        return int(value) if math.isfinite(value) else None
 
     def _set_entry_risk(self, price, direction):
         stop_distance = self.p.stop_loss_points * self.p.point

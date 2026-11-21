@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     MACD,
     Indicator,
@@ -71,7 +73,9 @@ class MacdCandleIndicator(Indicator):
         self.lines.macd_high[0] = high_value
         self.lines.macd_low[0] = low_value
         self.lines.macd_close[0] = close_value
-        if open_value < close_value:
+        if math.isnan(open_value) or math.isnan(close_value):
+            color = float("nan")
+        elif open_value < close_value:
             color = 2
         elif open_value > close_value:
             color = 0
