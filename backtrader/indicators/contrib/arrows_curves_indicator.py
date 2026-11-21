@@ -36,6 +36,8 @@ class ArrowsCurvesIndicator(Indicator):
         self._old = False
         self._uptrend2 = False
         self._old2 = False
+        self._arrows_replay_length = None
+        self._arrows_before_bar = None
 
     def next(self):
         """Calculates channel lines and signals for each bar.
@@ -43,7 +45,8 @@ class ArrowsCurvesIndicator(Indicator):
         Generates buy/sell and buy_stop/sell_stop triggers based on price crossovers
         and trend state switches.
         """
-        if len(self.data) <= self.p.ssp + self.p.relay:
+        bar_length = len(self.data)
+        if bar_length <= self.p.ssp + self.p.relay:
             for line in self.lines:
                 line[0] = 0.0
             return
@@ -59,6 +62,8 @@ class ArrowsCurvesIndicator(Indicator):
         if any(math.isnan(value) for value in (*high_window, *low_window, close0)):
             for line in self.lines:
                 line[0] = float("nan")
+            if bar_length == self._arrows_replay_length:
+                self._uptrend, self._old, self._uptrend2, self._old2 = self._arrows_before_bar
             return
 
         high_val = max(high_window)
@@ -77,6 +82,11 @@ class ArrowsCurvesIndicator(Indicator):
         uptrend2 = self._uptrend2
         old = self._old
         old2 = self._old2
+        if bar_length == self._arrows_replay_length:
+            bar_start_state = self._arrows_before_bar
+            uptrend, old, uptrend2, old2 = bar_start_state
+        else:
+            bar_start_state = (uptrend, old, uptrend2, old2)
 
         if close0 < smin and close0 < smax and uptrend2 is True:
             uptrend = False
@@ -117,3 +127,5 @@ class ArrowsCurvesIndicator(Indicator):
         self._old2 = uptrend2
         self._uptrend = uptrend
         self._uptrend2 = uptrend2
+        self._arrows_replay_length = bar_length
+        self._arrows_before_bar = bar_start_state
