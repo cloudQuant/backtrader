@@ -7,6 +7,7 @@ helper functions and constants without cross-test name collisions.
 
 import math
 
+from ...linebuffer import _factor_context_for_line, _factor_phase
 from .. import (
     ExponentialMovingAverage,
     Indicator,
@@ -103,12 +104,51 @@ class LRMAIndicator(Indicator):
         xs = list(range(period))
         ys = [float(self.data[-period + 1 + i]) for i in range(period)]
         mean_x = sum(xs) / period
+        context = _factor_context_for_line(self.lines.lrma)
+        if context is not None:
+            from ...research.strict import reject_infinity
+
+            phase = _factor_phase(context)
+
+            def check(value):
+                reject_infinity(context, value, phase, operation=self.lines.lrma)
+
+            running = 0
+            for value in ys:
+                check(value)
+                running += value
+                check(running)
         mean_y = sum(ys) / period
-        num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+        if context is not None:
+            check(mean_y)
+
+            def terms():
+                running = 0
+                for x, y in zip(xs, ys):
+                    difference = y - mean_y
+                    check(difference)
+                    value = (x - mean_x) * difference
+                    check(value)
+                    running += value
+                    check(running)
+                    yield value
+
+            num = sum(terms())
+            check(num)
+        else:
+            num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
         den = sum((x - mean_x) ** 2 for x in xs)
         slope = num / den if den else 0.0
+        if context is not None:
+            check(slope)
+            check(slope * mean_x)
         intercept = mean_y - slope * mean_x
-        self.lines.lrma[0] = intercept + slope * (period - 1)
+        result = intercept + slope * (period - 1)
+        if context is not None:
+            check(intercept)
+            check(slope * (period - 1))
+            check(result)
+        self.lines.lrma[0] = result
 
 
 class ChangeOfVolatilityIndicator(Indicator):
@@ -126,10 +166,14 @@ class ChangeOfVolatilityIndicator(Indicator):
         period = int(self.p.mperiod)
         momentum = self.data.close - self.data.close(-period)
         self._sma_long = SimpleMovingAverage(momentum, period=max(1, int(self.p.long)))
-        self._sma_short = SimpleMovingAverage(momentum, period=max(1, int(self.p.short)))
+        self._sma_short = SimpleMovingAverage(
+            momentum, period=max(1, int(self.p.short))
+        )
         self._std_long = StandardDeviation(momentum, period=max(1, int(self.p.long)))
         self._std_short = StandardDeviation(momentum, period=max(1, int(self.p.short)))
-        self.addminperiod(int(self.p.mperiod) + max(int(self.p.short), int(self.p.long)) + 3)
+        self.addminperiod(
+            int(self.p.mperiod) + max(int(self.p.short), int(self.p.long)) + 3
+        )
 
     def next(self):
         """Emit the short/long volatility ratio scaled to a percentage."""
@@ -139,7 +183,10 @@ class ChangeOfVolatilityIndicator(Indicator):
 
 
 class VininITrendLRMAIndicator(Indicator):
-    """Trend oscillator scoring LRMA against a fan of moving averages."""
+    """Trend oscillator scoring LRMA against a fan of moving averages.
+
+    The secondary smoothing method is selected when the indicator is built.
+    """
 
     lines = ("trend",)
     params = (
@@ -160,23 +207,39 @@ class VininITrendLRMAIndicator(Indicator):
         price_line = resolve_price_line(self.data, self.p.ipc)
         self._lrma = LRMAIndicator(price_line, period=self.p.lrma_period)
         periods = [
-            int(self.p.length1 + idx * self.p.ma_step) for idx in range(int(self.p.ma_count))
+            int(self.p.length1 + idx * self.p.ma_step)
+            for idx in range(int(self.p.ma_count))
         ]
         ma_cls = resolve_ma_class(self.p.ma_method1)
         self._ma_lines = [ma_cls(self._lrma.lrma, period=max(1, p)) for p in periods]
-        smooth_cls = resolve_ma_class(self.p.ma_method2)
-        self._smooth = smooth_cls(self.lines.trend, period=max(1, int(self.p.length2)))
-        self.addminperiod(int(self.p.lrma_period) + max(periods) + int(self.p.length2) + 5)
+        # Parameters configure the fan clock and smoothing together at construction.
+        self._ma_method2_mode = str(self.p.ma_method2).lower()
+        # The new windowed paths revisit fan history by target-feed bars. A fan
+        # owned by a multi-feed strategy may otherwise inherit its primary clock.
+        # Keep the existing legacy EMA-proxy clock unchanged for compatibility.
+        if self._ma_method2_mode in {
+            "sma",
+            "mode_sma",
+            "smma",
+            "mode_smma",
+            "lwma",
+            "mode_lwma",
+            "wma",
+        }:
+            for ma in self._ma_lines:
+                ma._clock = self.data
+        self.addminperiod(
+            int(self.p.lrma_period) + max(periods) + int(self.p.length2) + 5
+        )
 
-    def next(self):
-        """Score LRMA versus the MA fan and exponentially smooth the result."""
-        lrma_value = float(self._lrma.lrma[0])
-        ma_values = [float(ma_line[0]) for ma_line in self._ma_lines]
+    def _raw_score(self, ago=0):
+        """Return a fan score only when the requested history is complete."""
+        lrma_value = float(self._lrma.lrma[-ago])
+        ma_values = [float(ma_line[-ago]) for ma_line in self._ma_lines]
         if not math.isfinite(lrma_value) or not all(
             math.isfinite(value) for value in ma_values
         ):
-            self.lines.trend[0] = float("nan")
-            return
+            return float("nan")
 
         score = 0
         for ma_value in ma_values:
@@ -184,8 +247,33 @@ class VininITrendLRMAIndicator(Indicator):
                 score += 1
             else:
                 score -= 1
-        raw = 100.0 * score / max(1, len(self._ma_lines))
+        return 100.0 * score / max(1, len(self._ma_lines))
+
+    def next(self):
+        """Smooth the raw fan score with the explicitly selected classic MA."""
+        raw = self._raw_score()
+        if not math.isfinite(raw):
+            self.lines.trend[0] = float("nan")
+            return
         period = max(1, int(self.p.length2))
+        mode = self._ma_method2_mode
+        if mode in {"sma", "mode_sma", "lwma", "mode_lwma", "wma", "smma", "mode_smma"}:
+            prev = float(self.lines.trend[-1]) if len(self) > 0 else float("nan")
+            if mode in {"smma", "mode_smma"} and math.isfinite(prev):
+                self.lines.trend[0] = (prev * (period - 1) + raw) / period
+                return
+            scores = [self._raw_score(ago) for ago in range(period - 1, 0, -1)] + [raw]
+            if not all(math.isfinite(value) for value in scores):
+                self.lines.trend[0] = float("nan")
+            elif mode in {"lwma", "mode_lwma", "wma"}:
+                self.lines.trend[0] = sum(
+                    (index + 1) * value for index, value in enumerate(scores)
+                ) / (period * (period + 1) / 2.0)
+            else:
+                self.lines.trend[0] = sum(scores) / period
+            return
+
+        # Existing default JJMA and other legacy aliases remain the EMA proxy.
         alpha = 2.0 / (period + 1.0)
         prev = float(self.lines.trend[-1]) if len(self) > 0 else raw
         if not math.isfinite(prev):
