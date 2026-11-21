@@ -53,6 +53,7 @@ import math
 import sys
 import operator
 import types
+
 from collections import deque
 
 from ..parameters import (
@@ -64,6 +65,17 @@ from ..parameters import (
 from ..utils.log_message import get_logger
 from ..utils.py3 import map, range
 from . import Indicator
+
+# Capture only the native fsum; callers may replace math.fsum before import.
+_candidate_fsum = math.fsum
+_NATIVE_FSUM = (
+    _candidate_fsum
+    if type(_candidate_fsum) is types.BuiltinFunctionType
+    and _candidate_fsum.__module__ == "math"
+    and _candidate_fsum.__name__ == "fsum"
+    else None
+)
+del _candidate_fsum
 
 logger = get_logger(__name__)
 _MIN_PERIOD_FOR_MONOTONIC_ONCE = 32
@@ -754,6 +766,8 @@ class OperationN(PeriodN):
 
             if (
                 type(self) is _SUMN_CLASS
+                and _NATIVE_FSUM is not None
+                and func is _NATIVE_FSUM
                 and func is math.fsum
                 and type(period) is int
                 and period >= _MIN_PERIOD_FOR_SUM_ONCE
