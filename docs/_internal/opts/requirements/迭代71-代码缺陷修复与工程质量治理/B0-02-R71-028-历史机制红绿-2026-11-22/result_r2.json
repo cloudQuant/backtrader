@@ -1,0 +1,12 @@
+{
+  "old_commit": "276776852a09f639db49f489c1345590ac085c14",
+  "fixed_commit": "6e0cba79190290f3708d0db01865b811a7c1c0e8",
+  "old_source_sha256": "bf819b5ec2d28c740c0173a87f8840a515b6c37c8fecf0bad4697472bf329358",
+  "fixed_source_sha256": "373e42fb68c752b3ca911809a025b6f2c09cdb625c8cb7962994eae691dbf5ae",
+  "test_sha256": "c7e599ed37206122439e8eb757858f539c752dd31d711274bb5dac53b67172ec",
+  "old_log_sha256": "a423e19fbbaab7a14d19bc0b416ede8981875038e7567fd7449845cabf3fcad7",
+  "fixed_log_sha256": "d368fd39cb777227f3956ea053bd427a55ac76ef3e8dce46c22d078c1088ec64",
+  "fixed_exit": 0,
+  "old_exit_from_prior_console": 1,
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]"
+}
