@@ -6,6 +6,7 @@ helper functions and constants without cross-test name collisions.
 """
 
 from .. import (
+    DivByZero,
     Indicator,
     MeanDev,
     MovAv,
@@ -35,4 +36,4 @@ class CloseLineCCI(Indicator):
         tp = self.data
         tpmean = self.p.movav(tp, period=self.p.period)
         meandev = MeanDev(tp, tpmean, period=self.p.period)
-        self.lines.cci = (tp - tpmean) / (self.p.factor * meandev)
+        self.lines.cci = DivByZero(tp - tpmean, self.p.factor * meandev, zero=float("nan"))
