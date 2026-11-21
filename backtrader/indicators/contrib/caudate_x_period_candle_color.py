@@ -5,6 +5,9 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
+from ...linebuffer import _reject_factor_infinity
 from .. import (
     Indicator,
     SimpleMovingAverage,
@@ -40,15 +43,26 @@ class CaudateXPeriodCandleColor(Indicator):
         xclose = float(self.smooth_close[0])
         highs = [float(self.smooth_high[-i]) for i in range(lookback)]
         lows = [float(self.smooth_low[-i]) for i in range(lookback)]
-        xhigh = max(highs)
-        xlow = min(lows)
+        for value in (xopen, xclose, *highs, *lows):
+            if math.isinf(value):
+                _reject_factor_infinity(self.lines.color_idx, value)
+        highs_valid = all(math.isfinite(value) for value in highs)
+        lows_valid = all(math.isfinite(value) for value in lows)
+        xhigh = max(highs) if highs_valid else float("nan")
+        xlow = min(lows) if lows_valid else float("nan")
         self.lines.xopen[0] = xopen
         self.lines.xclose[0] = xclose
         self.lines.xhigh[0] = xhigh
         self.lines.xlow[0] = xlow
 
-        color = 2.0 if xopen <= xclose else 4.0
         candle_half = (xhigh + xlow) / 2.0
+        if math.isinf(candle_half):
+            _reject_factor_infinity(self.lines.color_idx, candle_half)
+        if not all(math.isfinite(value) for value in (xopen, xclose, xhigh, xlow, candle_half)):
+            self.lines.color_idx[0] = float("nan")
+            return
+
+        color = 2.0 if xopen <= xclose else 4.0
         if xopen > candle_half and xclose > candle_half:
             color = 0.0 if xopen <= xclose else 1.0
         elif xopen < candle_half and xclose < candle_half:
