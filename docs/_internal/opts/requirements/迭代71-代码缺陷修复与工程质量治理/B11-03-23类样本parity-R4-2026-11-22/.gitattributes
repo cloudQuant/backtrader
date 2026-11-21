@@ -1,0 +1,12 @@
+run_frozen_r4.py -text
+parity_harness_frozen_r4.py -text
+verify_snapshot_r3.py -text
+static_review_r3.py -text
+test_comparison_frozen_r4.py -text
+static_review_attested_r4_20261122.json -text
+expanded_attested_r4_20261122.json -text
+expanded_attested_r4_receipt_20261122.json -text
+independent_review_r4_20261122.md -text
+matrix.json -text
+README.md -text
+.gitattributes -text

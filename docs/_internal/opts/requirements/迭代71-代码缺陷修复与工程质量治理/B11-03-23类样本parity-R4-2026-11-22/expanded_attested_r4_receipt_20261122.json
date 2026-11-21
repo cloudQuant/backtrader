@@ -1,0 +1,114 @@
+{
+  "driver_sha256": "2f128a288b4b3544f66cd3d1e1278a11d25fa3282507ec902bca656cd0733dfa",
+  "verify_sha256": "9d2b735b36609ad0b6e77af5a58dceebaf91f3b4161bef1a6c53319873d10b26",
+  "static_sha256": "52ea6cf31ae3ac7ebccb05d2f6c1562b671a6176f562d1c97c65ec70a80e9928",
+  "runner_sha256": "034749bd4512a836d3034172f2a382a37e29b02bdf862ed857138863c9dc4b36",
+  "result_sha256": "2a1f366d98377a07d9fec2593d3ad0ba8d7c2f924a4c4a9b5584afe490cb4e99",
+  "static_inventory_sha256": "6180a7c2763fb5274750986dfb0041e8c63a993fcc867feb58aaeaa8856c2620",
+  "verify_pre": "git head c5fc2e7e954eae104d4acae5accdd9bf30e9c44d files 172 archive sha256 a16073aec698250c6c7db0a5ec047efe1704dc4be4f6e6486482ae7f051d2b87",
+  "verify_post": "git head c5fc2e7e954eae104d4acae5accdd9bf30e9c44d files 172 archive sha256 a16073aec698250c6c7db0a5ec047efe1704dc4be4f6e6486482ae7f051d2b87",
+  "driver_returncode": 0,
+  "driver_stderr": "r4_CandleStopColor parity_sample\nr4_CCIWoodiesIndicator parity_sample\nr4_CGOscillator parity_sample\nr4_ClosePriceFractals parity_sample\nr4_ColorHMA parity_sample\nr4_ColorMetroWprIndicator parity_sample\nr4_ColorX2MA parity_sample\nr4_DarvasBoxesSystem parity_sample\nr4_DotsIndicator parity_sample\nr4_EFDistanceIndicator parity_sample\nr4_EmaRsiVa parity_sample\nr4_EnvelopesJpAlonso insufficient_history\nr4_F2aAOIndicator insufficient_history\nr4_FatlFilter parity_sample\nr4_FineTuningMA parity_sample\nr4_FisherOrgV1 parity_sample\nr4_FisherOrgV1Sign inconclusive_all_nonfinite\nr4_ForceDiverSign inconclusive_all_nonfinite\nr4_ForceIndexEMA parity_sample\nr4_ForceIndexEma parity_sample\nr4_ForecastOscilator parity_sample\nr4_FractalAMAMBK parity_sample\nr4_FRASMAv2Indicator parity_sample\nderivative_short_history insufficient_history\nunreviewed_example unsupported_unreviewed\n",
+  "case_statuses": [
+    [
+      "r4_CandleStopColor",
+      "parity_sample"
+    ],
+    [
+      "r4_CCIWoodiesIndicator",
+      "parity_sample"
+    ],
+    [
+      "r4_CGOscillator",
+      "parity_sample"
+    ],
+    [
+      "r4_ClosePriceFractals",
+      "parity_sample"
+    ],
+    [
+      "r4_ColorHMA",
+      "parity_sample"
+    ],
+    [
+      "r4_ColorMetroWprIndicator",
+      "parity_sample"
+    ],
+    [
+      "r4_ColorX2MA",
+      "parity_sample"
+    ],
+    [
+      "r4_DarvasBoxesSystem",
+      "parity_sample"
+    ],
+    [
+      "r4_DotsIndicator",
+      "parity_sample"
+    ],
+    [
+      "r4_EFDistanceIndicator",
+      "parity_sample"
+    ],
+    [
+      "r4_EmaRsiVa",
+      "parity_sample"
+    ],
+    [
+      "r4_EnvelopesJpAlonso",
+      "insufficient_history"
+    ],
+    [
+      "r4_F2aAOIndicator",
+      "insufficient_history"
+    ],
+    [
+      "r4_FatlFilter",
+      "parity_sample"
+    ],
+    [
+      "r4_FineTuningMA",
+      "parity_sample"
+    ],
+    [
+      "r4_FisherOrgV1",
+      "parity_sample"
+    ],
+    [
+      "r4_FisherOrgV1Sign",
+      "inconclusive_all_nonfinite"
+    ],
+    [
+      "r4_ForceDiverSign",
+      "inconclusive_all_nonfinite"
+    ],
+    [
+      "r4_ForceIndexEMA",
+      "parity_sample"
+    ],
+    [
+      "r4_ForceIndexEma",
+      "parity_sample"
+    ],
+    [
+      "r4_ForecastOscilator",
+      "parity_sample"
+    ],
+    [
+      "r4_FractalAMAMBK",
+      "parity_sample"
+    ],
+    [
+      "r4_FRASMAv2Indicator",
+      "parity_sample"
+    ],
+    [
+      "derivative_short_history",
+      "insufficient_history"
+    ],
+    [
+      "unreviewed_example",
+      "unsupported_unreviewed"
+    ]
+  ]
+}

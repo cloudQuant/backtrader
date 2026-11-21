@@ -1,0 +1,330 @@
+{
+  "scope": "syntax filter only; not complete import-safety or formula proof",
+  "matrix_sha256": "715784c4666c55686f57284dfeb127734b2808f32deed0d1d2b24f0c08e0096e",
+  "rows": [
+    {
+      "class": "CandleStopColor",
+      "module": "candle_stop_color",
+      "source": "backtrader/indicators/contrib/candle_stop_color.py",
+      "sha256": "0f298216e5ce5e18053ba12fe777ecd4d54032c279ed584a0968095558515379",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "CCIWoodiesIndicator",
+      "module": "cci_woodies_indicator",
+      "source": "backtrader/indicators/contrib/cci_woodies_indicator.py",
+      "sha256": "9f9e13843e39e7946dd9e98f567d60a4e1ced7bf4af83a0e9626369c1e0afd47",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "CGOscillator",
+      "module": "cg_oscillator",
+      "source": "backtrader/indicators/contrib/cg_oscillator.py",
+      "sha256": "d9f3f5e8eac86ae2d5760e50d39f4a550c611a0cc869b326a0751fefb6eee59f",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "ClosePriceFractals",
+      "module": "close_price_fractals",
+      "source": "backtrader/indicators/contrib/close_price_fractals.py",
+      "sha256": "b5cd62ae09a1c85b626232990a350aad7da4ae118a9010ecb15bb7b9cafeb671",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "ColorHMA",
+      "module": "color_hma",
+      "source": "backtrader/indicators/contrib/color_hma.py",
+      "sha256": "1d1fdf88603a842d99ce22a325945cf30e3bce4adf46a46300342987cf4451cc",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "ColorMetroWprIndicator",
+      "module": "color_metro_wpr_indicator",
+      "source": "backtrader/indicators/contrib/color_metro_wpr_indicator.py",
+      "sha256": "6dc821bc5d3cc6a7360cd27b62b30bbd2a0386129efc3ac8eece6822e517c015",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Highest",
+        "Indicator",
+        "Lowest"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "ColorX2MA",
+      "module": "color_x2_ma",
+      "source": "backtrader/indicators/contrib/color_x2_ma.py",
+      "sha256": "b94da0559a4cd97ee8018152e1c1791a5c6461e437498bdf51aaa75fb8b02d6d",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator",
+        "SimpleMovingAverage"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "DarvasBoxesSystem",
+      "module": "darvas_boxes_system",
+      "source": "backtrader/indicators/contrib/darvas_boxes_system.py",
+      "sha256": "e542bb66a01c7e167e82a910f4901a4f4c25ff2c29059fb78685dca9b302e98e",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "DotsIndicator",
+      "module": "dots_indicator",
+      "source": "backtrader/indicators/contrib/dots_indicator.py",
+      "sha256": "2bf661266c444e738191c5d5101b7cb69d0096acd68e33ed0ca298cd30043f31",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "EFDistanceIndicator",
+      "module": "ef_distance_indicator",
+      "source": "backtrader/indicators/contrib/ef_distance_indicator.py",
+      "sha256": "12142c7dbdfef02b31a917f6a8b5e9cdf96a52f3e9d52156a4d86c1cc65a30ca",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "EmaRsiVa",
+      "module": "ema_rsi_va",
+      "source": "backtrader/indicators/contrib/ema_rsi_va.py",
+      "sha256": "e6bf2571537a8d336042caec4c75f7f7a8e697433605c58be1659561f8aef594",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator",
+        "RSI"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "EnvelopesJpAlonso",
+      "module": "envelopes_jp_alonso",
+      "source": "backtrader/indicators/contrib/envelopes_jp_alonso.py",
+      "sha256": "4e49ed5b8f1d79474aa01330b66746e24f1209b3480b9059f353a2e1e0aeabd7",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Indicator",
+        "SimpleMovingAverage"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "F2aAOIndicator",
+      "module": "f2a_ao_indicator",
+      "source": "backtrader/indicators/contrib/f2a_ao_indicator.py",
+      "sha256": "17d1b8197c10f3fcd9902e9424b34f5abb2443f9b64b469796ee3fecb546b212",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "ExponentialMovingAverage",
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "FatlFilter",
+      "module": "fatl_filter",
+      "source": "backtrader/indicators/contrib/fatl_filter.py",
+      "sha256": "8124d41b3d89203a0889718ccd2768b15f1bf0eeae0db384d2aa276a2d9ac674",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "FineTuningMA",
+      "module": "fine_tuning_ma",
+      "source": "backtrader/indicators/contrib/fine_tuning_ma.py",
+      "sha256": "2def5807afba48d8c736dc8dd231c3b1eb6cc6a4677eae4444eb37f244964b52",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "FisherOrgV1",
+      "module": "fisher_org_v1",
+      "source": "backtrader/indicators/contrib/fisher_org_v1.py",
+      "sha256": "3bdca70ac34cf6c99f76eae50e0108cf9c5d38d7d78c13cf9ff962c57aded441",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "FisherOrgV1Sign",
+      "module": "fisher_org_v1_sign",
+      "source": "backtrader/indicators/contrib/fisher_org_v1_sign.py",
+      "sha256": "47d63d67d6158f6dd2ae0b2a74a9eb1544e346f3289f25e54b003335e6318d47",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "ATR",
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "ForceDiverSign",
+      "module": "force_index_ema",
+      "source": "backtrader/indicators/contrib/force_index_ema.py",
+      "sha256": "c35e3018e385ac3810b851f27af740bf027de3a45ebcf968727d744c95393219",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "ATR",
+        "EMA",
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "ForceIndexEMA",
+      "module": "force_index_ema",
+      "source": "backtrader/indicators/contrib/force_index_ema.py",
+      "sha256": "c35e3018e385ac3810b851f27af740bf027de3a45ebcf968727d744c95393219",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "ATR",
+        "EMA",
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "ForceIndexEma",
+      "module": "force_index_ema_2",
+      "source": "backtrader/indicators/contrib/force_index_ema_2.py",
+      "sha256": "0995eb4b2b2904a1f81cc5f482ddd5ea043759f17882269d4d0295d02dc0f856",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "ExponentialMovingAverage",
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "ForecastOscilator",
+      "module": "forecast_oscilator",
+      "source": "backtrader/indicators/contrib/forecast_oscilator.py",
+      "sha256": "924cbeee8789776e1896b41ab3f0c3fab80a0e3ad92385bc37ce00922655f27e",
+      "imports": [
+        ""
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "FractalAMAMBK",
+      "module": "fractal_amambk",
+      "source": "backtrader/indicators/contrib/fractal_amambk.py",
+      "sha256": "e1a94a8721fa4a9532507f4d5a97963ac982513068d6c140afcadd75f4b1aabb",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    },
+    {
+      "class": "FRASMAv2Indicator",
+      "module": "frasm_av2_indicator",
+      "source": "backtrader/indicators/contrib/frasm_av2_indicator.py",
+      "sha256": "783e6f709d238bc8a2aeea164ed2e32330a9c25f0bc946614707dcd8e3703a77",
+      "imports": [
+        "",
+        "math"
+      ],
+      "indicator_exports": [
+        "Indicator"
+      ],
+      "construction": "one-feed/default assumed, runtime verified separately"
+    }
+  ]
+}
