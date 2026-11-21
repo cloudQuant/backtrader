@@ -31,6 +31,9 @@ class TimeLine(Indicator):
         time average price line.
         """
         self.day_close_price_list = []
+        self._current_bar_length = None
+        self._bar_base_prices = []
+        self._reset_pending = False
 
     def next(self):
         """Calculate the time average price for the current bar.
@@ -44,14 +47,30 @@ class TimeLine(Indicator):
         represents the average entry price of all market participants throughout
         the day.
         """
-        self.day_close_price_list.append(self.data.close[0])
-        self.lines.day_avg_price[0] = sum(self.day_close_price_list) / len(
-            self.day_close_price_list
-        )
-
-        self.current_datetime = num2date(self.data.datetime[0])
-        self.current_hour = self.current_datetime.hour
-        self.current_minute = self.current_datetime.minute
+        # Replay can deliver several updates for the same bar. Recalculate
+        # from the completed bars so that only its latest close contributes.
+        # Resolve all inputs before changing the running state, so a failed
+        # conversion can be retried without committing a partial update.
+        bar_length = len(self.data)
+        close = self.data.close[0]
+        current_datetime = num2date(self.data.datetime[0])
+        current_hour = current_datetime.hour
+        current_minute = current_datetime.minute
         day_end_hour, day_end_minute, _ = self.p.day_end_time
-        if self.current_hour == day_end_hour and self.current_minute == day_end_minute:
-            self.day_close_price_list = []
+        reset = current_hour == day_end_hour and current_minute == day_end_minute
+
+        if bar_length != self._current_bar_length or self._reset_pending:
+            base_prices = self.day_close_price_list[:]
+        else:
+            base_prices = self._bar_base_prices
+        prices = base_prices + [close]
+        average = sum(prices) / len(prices)
+
+        self.lines.day_avg_price[0] = average
+        self.day_close_price_list = [] if reset else prices
+        self._current_bar_length = bar_length
+        self._bar_base_prices = base_prices
+        self._reset_pending = reset
+        self.current_datetime = current_datetime
+        self.current_hour = current_hour
+        self.current_minute = current_minute
