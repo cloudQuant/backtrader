@@ -170,3 +170,51 @@ def test_real_strategy_runs_on_replayed_hourly_bars(runonce):
     strategy = engine.run(runonce=runonce, preload=False)[0]
     assert strategy.actions == [("buy", 7, dt.datetime(2025, 1, 7, 9))]
     assert engine.broker.getvalue() == pytest.approx(10003.2)
+
+
+@pytest.mark.parametrize("runonce", [False, True])
+def test_real_strategy_ignores_replaced_replay_buy_signal(runonce):
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    root = next(path for path in Path(__file__).resolve().parents if (path / "backtrader").is_dir())
+    path = (
+        root / "tests/functional/strategies/trend_following/test_0197_0479_arrows_and_curves_ea.py"
+    )
+    spec = importlib.util.spec_from_file_location("_delayed_arrows_strategy", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.modules.pop(spec.name, None)
+
+    class Probe(module.ArrowsAndCurvesEAStrategy):
+        def __init__(self):
+            super().__init__()
+            self.actions = []
+
+        def next(self):
+            # Expose the false final revision without an earlier open position.
+            if len(self.data) < 8:
+                return None
+            return super().next()
+
+        def buy(self, *args, **kwargs):
+            self.actions.append(("buy", len(self.data)))
+            return super().buy(*args, **kwargs)
+
+        def sell(self, *args, **kwargs):
+            self.actions.append(("sell", len(self.data)))
+            return super().sell(*args, **kwargs)
+
+    engine = bt.Cerebro(stdstats=False, runonce=runonce, preload=False)
+    engine.replaydata(
+        bt.feeds.PandasData(dataname=_frame(), timeframe=bt.TimeFrame.Minutes, compression=60),
+        timeframe=bt.TimeFrame.Days,
+    )
+    engine.addstrategy(Probe, ssp=3, relay=1, stop_loss_pips=0, take_profit_pips=0)
+    strategy = engine.run(runonce=runonce, preload=False)[0]
+    assert strategy.actions == []
+    assert engine.broker.getvalue() == 10000.0
