@@ -1,0 +1,215 @@
+diff --git a/backtrader/lineiterator.py b/backtrader/lineiterator.py
+--- a/backtrader/lineiterator.py
++++ b/backtrader/lineiterator.py
+@@ -88,25 +88,7 @@
+         return None
+ 
+     if seen is None:
+-        try:
+-            return object.__getattribute__(lineaction, "_lineaction_source_clock_cache")
+-        except AttributeError:
+-            # Cache not populated yet; resolve below (hot path: no logging).
+-            pass
+         seen = set()
+-        cache_result = True
+-    else:
+-        cache_result = False
+-
+-    def finish(result):
+-        if cache_result and result is not None:
+-            try:
+-                lineaction._lineaction_source_clock_cache = result
+-            except Exception:  # nosec B110
+-                # Object rejects attribute caching (e.g. __slots__); skip caching.
+-                # Unsupported caching is a normal per-bar protocol fallback.
+-                pass
+-        return result
+ 
+     action_id = id(lineaction)
+     if action_id in seen:
+@@ -122,9 +104,9 @@
+         if isinstance(clock, LineActions):
+             source_clock = _lineaction_source_clock(clock, seen)
+             if source_clock is not None:
+-                return finish(source_clock)
++                return source_clock
+         else:
+-            return finish(clock)
++            return clock
+ 
+     for attr in ("_parent_a", "_parent_b", "a", "b", "cond"):
+         try:
+@@ -135,7 +117,7 @@
+         if isinstance(dependency, LineActions):
+             source_clock = _lineaction_source_clock(dependency, seen)
+             if source_clock is not None:
+-                return finish(source_clock)
++                return source_clock
+ 
+         try:
+             dep_clock = dependency._clock
+@@ -146,7 +128,7 @@
+             and dep_clock.__class__.__name__ != "MinimalClock"
+             and not isinstance(dep_clock, LineActions)
+         ):
+-            return finish(dep_clock)
++            return dep_clock
+ 
+     try:
+         args = lineaction.args
+@@ -157,7 +139,7 @@
+         if isinstance(dependency, LineActions):
+             source_clock = _lineaction_source_clock(dependency, seen)
+             if source_clock is not None:
+-                return finish(source_clock)
++                return source_clock
+ 
+         try:
+             dep_clock = dependency._clock
+@@ -168,7 +150,7 @@
+             and dep_clock.__class__.__name__ != "MinimalClock"
+             and not isinstance(dep_clock, LineActions)
+         ):
+-            return finish(dep_clock)
++            return dep_clock
+ 
+     try:
+         datas = lineaction.datas
+@@ -179,7 +161,7 @@
+         if isinstance(data, LineActions):
+             source_clock = _lineaction_source_clock(data, seen)
+             if source_clock is not None:
+-                return finish(source_clock)
++                return source_clock
+ 
+         try:
+             data_clock = data._clock
+@@ -190,7 +172,7 @@
+             and data_clock.__class__.__name__ != "MinimalClock"
+             and not isinstance(data_clock, LineActions)
+         ):
+-            return finish(data_clock)
++            return data_clock
+ 
+     return None
+ 
+diff --git a/tests/unit/core/test_iter71_clock_uncached_source.py b/tests/unit/core/test_iter71_clock_uncached_source.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/core/test_iter71_clock_uncached_source.py
+@@ -0,0 +1,115 @@
++from pathlib import Path
++
++import pandas as pd
++import pytest
++
++import backtrader as bt
++import backtrader.lineiterator as module
++from backtrader.linebuffer import LineActions
++from backtrader.lineiterator import _lineaction_source_clock
++
++
++class Clock:
++    def __init__(self, n):
++        self.n = n
++
++    def __len__(self):
++        return self.n
++
++
++class Action(LineActions):
++    @property
++    def _clock(self):
++        state = object.__getattribute__(self, "__dict__")
++        state["reads"] += 1
++        if state.get("broken"):
++            raise ValueError("clock sentinel")
++        return state.get("current")
++
++
++def new_action(clock):
++    a = object.__new__(Action)
++    a.__dict__.update({"reads": 0, "current": clock})
++    return a
++
++
++def test_dynamic_clock_replacement_without_manual_cache_invalidation():
++    a = new_action(Clock(1))
++    old = a.__dict__["current"]
++    assert _lineaction_source_clock(a) is old
++    changed = Clock(2)
++    a.__dict__["current"] = changed
++    assert _lineaction_source_clock(a) is changed and a.__dict__["reads"] == 2
++    assert "_lineaction_source_clock_cache" not in a.__dict__
++
++
++def test_dynamic_clock_exception_and_read_count():
++    a = new_action(Clock(1))
++    a.__dict__["broken"] = True
++    with pytest.raises(ValueError, match="clock sentinel"):
++        _lineaction_source_clock(a)
++    assert a.__dict__["reads"] == 1
++
++
++def test_nested_source_dynamic_replacement():
++    first = Clock(1)
++    second = Clock(2)
++    b = new_action(first)
++    a = new_action(b)
++    assert _lineaction_source_clock(a) is first
++    b.__dict__["current"] = second
++    assert _lineaction_source_clock(a) is second
++    assert (a.__dict__["reads"], b.__dict__["reads"]) == (2, 2)
++
++
++def test_external_seen_rejects_cycle_without_getter():
++    a = new_action(None)
++    assert _lineaction_source_clock(a, {id(a)}) is None
++    assert a.__dict__["reads"] == 0
++
++
++@pytest.mark.parametrize("bounded", [False, True])
++def test_real_cerebro_resolves_changed_action_clock(bounded):
++    assert (
++        Path(module.__file__).resolve()
++        == (
++            Path(__file__).resolve().parents[3] / "backtrader" / "lineiterator.py"
++        ).resolve()
++    )
++
++    class S(bt.Strategy):
++        def __init__(self):
++            self.expr = self.data0.close + 1.0
++            self.ind = bt.ind.SMA(self.expr, period=2)
++            self.observed = []
++
++        def next(self):
++            n = len(self.data0)
++            if n == 3:
++                self.expr._clock = self.data1
++            if n in (4, 5):
++                self.observed.append(
++                    (
++                        n,
++                        self.ind._clock is self.data1,
++                        "_lineaction_source_clock_cache" in self.expr.__dict__,
++                    )
++                )
++
++    f = pd.DataFrame(
++        {
++            "open": [1.0] * 12,
++            "high": [2.0] * 12,
++            "low": [0.0] * 12,
++            "close": [1.0] * 12,
++            "volume": [1.0] * 12,
++        },
++        index=pd.date_range("2024-01-01", periods=12, freq="min"),
++    )
++    c = bt.Cerebro(
++        stdstats=False, runonce=False, exactbars=int(bounded), preload=not bounded
++    )
++    c.adddata(bt.feeds.PandasData(dataname=f))
++    c.adddata(bt.feeds.PandasData(dataname=f))
++    c.addstrategy(S)
++    assert c.run()[0].observed == [(4, True, False), (5, True, False)]

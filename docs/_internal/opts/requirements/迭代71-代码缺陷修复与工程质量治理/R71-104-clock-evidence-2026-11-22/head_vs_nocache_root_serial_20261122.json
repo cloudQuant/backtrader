@@ -1,0 +1,67 @@
+{
+  "scope": "root sequential nonexclusive",
+  "head": "a2472f5b0baedf460de043847ab9f9189dc3a42f",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "order": [
+    "head",
+    "nocache",
+    "nocache",
+    "head",
+    "head",
+    "nocache",
+    "nocache",
+    "head"
+  ],
+  "records": {
+    "head": [
+      {
+        "seconds": 1.676615900003526,
+        "rows": 4487,
+        "digest": "da058ee85774915fb1a6fc4b189d74048535dc810f0c641941697a34a5b4dfa3"
+      },
+      {
+        "seconds": 1.588743299995258,
+        "rows": 4487,
+        "digest": "da058ee85774915fb1a6fc4b189d74048535dc810f0c641941697a34a5b4dfa3"
+      },
+      {
+        "seconds": 1.5738891000000876,
+        "rows": 4487,
+        "digest": "da058ee85774915fb1a6fc4b189d74048535dc810f0c641941697a34a5b4dfa3"
+      },
+      {
+        "seconds": 1.5839346000066143,
+        "rows": 4487,
+        "digest": "da058ee85774915fb1a6fc4b189d74048535dc810f0c641941697a34a5b4dfa3"
+      }
+    ],
+    "nocache": [
+      {
+        "seconds": 1.6802623999974458,
+        "rows": 4487,
+        "digest": "da058ee85774915fb1a6fc4b189d74048535dc810f0c641941697a34a5b4dfa3"
+      },
+      {
+        "seconds": 1.6117453000042588,
+        "rows": 4487,
+        "digest": "da058ee85774915fb1a6fc4b189d74048535dc810f0c641941697a34a5b4dfa3"
+      },
+      {
+        "seconds": 1.5737019000007422,
+        "rows": 4487,
+        "digest": "da058ee85774915fb1a6fc4b189d74048535dc810f0c641941697a34a5b4dfa3"
+      },
+      {
+        "seconds": 1.581462800000736,
+        "rows": 4487,
+        "digest": "da058ee85774915fb1a6fc4b189d74048535dc810f0c641941697a34a5b4dfa3"
+      }
+    ]
+  },
+  "median": {
+    "head": 1.5863389500009362,
+    "nocache": 1.5966040500024974
+  },
+  "bench_sha256": "7cdb4d5cbf8b1d023cf0a2584c7904fb9a40093a7bc0bfb2dff026eb67f4167c"
+}
