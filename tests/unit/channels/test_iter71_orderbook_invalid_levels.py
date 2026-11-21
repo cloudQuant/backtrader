@@ -10,7 +10,7 @@ from backtrader.channels.orderbook import OrderBookChannel
 
 @pytest.mark.parametrize("side", ["bids", "asks"])
 @pytest.mark.parametrize("file_format", ["jsonl", "csv"])
-@pytest.mark.parametrize("bad_levels", [None, [None], [[None, 1]], {"bad": 1}])
+@pytest.mark.parametrize("bad_levels", [None, [None], [[None, 1]], {"bad": 1}, {"12": 0}])
 def test_invalid_levels_are_skipped_before_next_valid_snapshot(
     tmp_path, side, file_format, bad_levels
 ):
