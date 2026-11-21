@@ -119,4 +119,4 @@ class Color3rdGenXMAIndicator(Indicator):
         value = (self._alpha + 1.0) * self._x1 - self._alpha * self._x2 + self._dprice_shift
         self.lines.value = value
         self.lines.color = If(value > value(-1), 2.0, If(value < value(-1), 0.0, 1.0))
-        self.addminperiod(slength + int(self.p.xlength) + 5)
+        self.updateminperiod(slength + int(self.p.xlength) + 5)

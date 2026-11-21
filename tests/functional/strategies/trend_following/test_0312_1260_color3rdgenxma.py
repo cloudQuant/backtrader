@@ -596,26 +596,28 @@ def test_311_0312_1260_color3rdgenxma() -> None:
 
     assert metrics, "no metrics derived"
 
-    assert metrics.get('bar_num') == 5826, f"bar_num: expected=5826, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 44, f"buy_count: expected=44, got={metrics.get('buy_count')!r}"
+    # Color3rdGenXMA's total 3*xlength+5 warmup now matches the strategy's
+    # explicit signal-bar gate instead of adding those bars twice.
+    assert metrics.get('bar_num') == 5975, f"bar_num: expected=5975, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 45, f"buy_count: expected=45, got={metrics.get('buy_count')!r}"
     assert metrics.get('sell_count') == 21, f"sell_count: expected=21, got={metrics.get('sell_count')!r}"
     assert metrics.get('win_count') == 37, f"win_count: expected=37, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 27, f"loss_count: expected=27, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 65, f"total_trades: expected=65, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 64, f"trade_count: expected=64, got={metrics.get('trade_count')!r}"
+    assert metrics.get('loss_count') == 28, f"loss_count: expected=28, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 66, f"total_trades: expected=66, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 65, f"trade_count: expected=65, got={metrics.get('trade_count')!r}"
     assert metrics.get('won') == 37, f"won: expected=37, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 27, f"lost: expected=27, got={metrics.get('lost')!r}"
+    assert metrics.get('lost') == 28, f"lost: expected=28, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1004128.3, tol=1.004128e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 4128.300000000047, tol=4.128300e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.41283000000000847, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 56.92307692307692, tol=5.692308e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.3008035326480396, tol=1.300804e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.524348400537111, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 4.964579525939157, tol=4.964580e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 27.62439036064757, tol=2.762439e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), 0.6494986099965482, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1004102.9, tol=1.004103e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 4102.900000000023, tol=4.102900e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.41029000000001314, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 56.060606060606055, tol=5.606061e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.298416116305621, tol=1.298416e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.5243617055816522, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 4.9202231062723065, tol=4.920223e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 27.43339099951585, tol=2.743339e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.645465096904305, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
