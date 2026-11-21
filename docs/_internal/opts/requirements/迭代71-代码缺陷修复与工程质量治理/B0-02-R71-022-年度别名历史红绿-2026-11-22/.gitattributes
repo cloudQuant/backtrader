@@ -1,0 +1,12 @@
+.gitattributes -text
+README.md -text
+test_yearly_target_v2.py -text
+run_yearly_target_v3.py -text
+old_target_v3.stdout -text
+fixed_target_v3.stdout -text
+old_target_v3.stderr -text
+fixed_target_v3.stderr -text
+receipt_target_v3_old.json -text
+receipt_target_v3_fixed.json -text
+charts_old.py.txt -text
+charts_fixed.py.txt -text

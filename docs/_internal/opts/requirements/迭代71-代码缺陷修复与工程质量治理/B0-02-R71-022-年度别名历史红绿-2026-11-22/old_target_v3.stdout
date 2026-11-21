@@ -1,0 +1,19 @@
+PRIVATE_READ_SELFTEST OK
+VERSIONS 3.8.20 2.0.3 3.7.5 8.3.5
+SOURCE_ORIGIN D:\temp\i71-r71-022-yearly-20261122\old\backtrader\reports\charts.py
+FF
+================================== FAILURES ===================================
+_________ test_year_end_returns_are_drawn_on_supported_pandas[yearly] _________
+test_yearly_target_v2.py:23: in test_year_end_returns_are_drawn_on_supported_pandas
+    assert figure is not None, "chart was suppressed; warnings=%r" % messages
+E   AssertionError: chart was suppressed; warnings=['Failed to resample returns with period YE: Invalid frequency: YE']
+E   assert None is not None
+__________ test_year_end_returns_are_drawn_on_supported_pandas[auto] __________
+test_yearly_target_v2.py:23: in test_year_end_returns_are_drawn_on_supported_pandas
+    assert figure is not None, "chart was suppressed; warnings=%r" % messages
+E   AssertionError: chart was suppressed; warnings=['Failed to resample returns with period YE: Invalid frequency: YE']
+E   assert None is not None
+=========================== short test summary info ===========================
+FAILED test_yearly_target_v2.py::test_year_end_returns_are_drawn_on_supported_pandas[yearly]
+FAILED test_yearly_target_v2.py::test_year_end_returns_are_drawn_on_supported_pandas[auto]
+2 failed in 0.28s
