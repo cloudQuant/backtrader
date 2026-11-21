@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "D:\temp\i71_r102_hist__m3ukun_\probe.py", line 28, in <module>
+    assert stats['calls'] and stats['self_id'] == stats['calls'], 'self id lookup repeated'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: self id lookup repeated

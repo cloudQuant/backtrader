@@ -1,0 +1,108 @@
+{
+  "scope": "R71-102 one-hop lookup mechanism; no performance acceptance",
+  "before": {
+    "commit": "d02e3d75452c34ff915aebd1d631332ff7a44679",
+    "tree": "169865b4e402dc7e44312768ca223edd9ec62716",
+    "lineiterator_blob": "9ba995049eb6355b067ec5de3fb0117db68b72d6",
+    "linebuffer_blob": "8649105ee930f8afaf65294b31c7376908aef2b8"
+  },
+  "after": {
+    "commit": "1ac60dfe82c62bba83b699f3f153a57ddfe1feb6",
+    "tree": "b895e38e8d5854f724e0d894cea94b961872a797",
+    "lineiterator_blob": "f3f5ed692eacdfd1bf261d1994a2a0a8cc585543",
+    "linebuffer_blob": "b626336cd536cf19da171073ffd5d8bf719b2c0d"
+  },
+  "archive_newline": "CRLF; exact copies preserve observed archive bytes; normalized content matches git blobs",
+  "interpreters": {
+    "py311": "C:/anaconda3/python.exe",
+    "py314": "C:/anaconda3/envs/btcpp-py314/python.exe"
+  },
+  "observed_returncodes": {
+    "py311": {
+      "before": 1,
+      "after": 0
+    },
+    "py314": {
+      "before": 1,
+      "after": 0
+    }
+  },
+  "returncode_provenance": "Recorded after execution from tool output; logs contain stdout and stderr only.",
+  "observed_stats": {
+    "before": {
+      "calls": 1200,
+      "self_id": 2400,
+      "owner_id": 4320
+    },
+    "after": {
+      "calls": 1200,
+      "self_id": 1200,
+      "owner_id": 4320
+    }
+  },
+  "rows": 233,
+  "sequence_sha256": "82dac3b0e238b4fbb6d41b961e01d5c3ce8cb3c87f2908389e8a0b9e9ee350bf",
+  "reproduce_script_executed": false,
+  "files": {
+    "after.linebuffer.py.txt": {
+      "size_bytes": 152387,
+      "sha256": "09ea9d0a467b0ffcdf26d30547e1f826c8327e886af3e1757f2e6a01d3132618"
+    },
+    "after.lineiterator.py.txt": {
+      "size_bytes": 123417,
+      "sha256": "5fb31f333fb7e01e0f1910bb17bb4095b431524f7bd54495bf4f2595b91f0271"
+    },
+    "after.py314.stderr": {
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after.py314.stdout": {
+      "size_bytes": 153,
+      "sha256": "5b386c10a3da0356959919bc07231b305546c690b21c5de9c910f4fa6696c610"
+    },
+    "after.stderr": {
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after.stdout": {
+      "size_bytes": 153,
+      "sha256": "5b386c10a3da0356959919bc07231b305546c690b21c5de9c910f4fa6696c610"
+    },
+    "before.linebuffer.py.txt": {
+      "size_bytes": 152312,
+      "sha256": "f01a9170aada1d18c46b5f014e067db7b8f39bc32696b13508835082cda6c670"
+    },
+    "before.lineiterator.py.txt": {
+      "size_bytes": 122926,
+      "sha256": "3ccdaa08e03096de69fb15b16f32e54c4ec5393e865002b5334c8d9555ca3460"
+    },
+    "before.py314.stderr": {
+      "size_bytes": 303,
+      "sha256": "41b17baa843b9ae5bd8d600f1cb8e8e7d47bd8df55b7c457b00bf7485d014d5a"
+    },
+    "before.py314.stdout": {
+      "size_bytes": 153,
+      "sha256": "baf5d8df12f84bc02224f81bacddb2c8c631ae6e60fa08ccd7ffb09e843e8d47"
+    },
+    "before.stderr": {
+      "size_bytes": 303,
+      "sha256": "75e57188b4185f8b8b713af56fb9f10dc49e26d8e6386b09730f0c85c0b4681d"
+    },
+    "before.stdout": {
+      "size_bytes": 153,
+      "sha256": "baf5d8df12f84bc02224f81bacddb2c8c631ae6e60fa08ccd7ffb09e843e8d47"
+    },
+    "probe.py": {
+      "size_bytes": 1370,
+      "sha256": "ac24ce21f41454efd7c6d6acf5f9efeceda733dbd556d720a2ed806f9e62294a"
+    },
+    "README.md": {
+      "size_bytes": 2973,
+      "sha256": "07c6a24052ed7380c76ab31acd59a2b9c6cf54ddd19a7cbebaf08bbe1f499782"
+    },
+    "reproduce.py": {
+      "size_bytes": 2926,
+      "sha256": "d9f3b69c4a924c6e42930d25bb1eb24b500eee86df0cf500a75bbb1dd52e432e"
+    }
+  }
+}
