@@ -17,6 +17,7 @@ Example:
                 self.buy()
 """
 
+from ..linebuffer import _ACTIVE_FACTOR_CONTEXT, _factor_context_for_line
 from ..utils.log_message import get_logger
 from . import MovingAverageBase
 
@@ -94,6 +95,15 @@ class ExponentialMovingAverage(MovingAverageBase):
             try:
                 self.data.once(0, end)
             except Exception as e:
+                context = (
+                    _factor_context_for_line(self.lines[0])
+                    if _ACTIVE_FACTOR_CONTEXT.get() is not None
+                    else None
+                )
+                if context is not None:
+                    from ..research.strict import fail_computation
+
+                    fail_computation(context, e, "once", operation=self)
                 logger.debug("data.once() failed in EMA: %s", e)
 
         darray = self.data.array
@@ -121,10 +131,22 @@ class ExponentialMovingAverage(MovingAverageBase):
         if seed_idx >= data_len or end <= seed_idx:
             return  # No complete seed window in this range
 
+        # FactorStrategy runs batch callbacks in a computation scope. Avoid
+        # probing user-supplied line descriptors in ordinary backtests.
+        context = (
+            _factor_context_for_line(self.lines[0])
+            if _ACTIVE_FACTOR_CONTEXT.get() is not None
+            else None
+        )
+        if context is not None:
+            from ..research.strict import reject_infinity
+
         if start <= seed_idx:
             seed_sum = 0.0
             for i in range(source_start, seed_idx + 1):
                 seed_sum += darray[i]
+                if context is not None and type(seed_sum) is float:
+                    reject_infinity(context, seed_sum, "once", operation=self.lines[0])
             prev = seed_sum / period
             larray[seed_idx] = prev
             calc_start = seed_idx + 1
@@ -135,10 +157,24 @@ class ExponentialMovingAverage(MovingAverageBase):
             prev = larray[start - 1]
             calc_start = start
 
-        for i in range(calc_start, min(end, data_len)):
-            current_val = darray[i]
-            prev = prev * alpha1 + float(current_val) * alpha
-            larray[i] = prev
+        if context is None:
+            for i in range(calc_start, min(end, data_len)):
+                current_val = darray[i]
+                prev = prev * alpha1 + float(current_val) * alpha
+                larray[i] = prev
+        else:
+            for i in range(calc_start, min(end, data_len)):
+                current_val = darray[i]
+                weighted_prev = prev * alpha1
+                if type(weighted_prev) is float:
+                    reject_infinity(context, weighted_prev, "once", operation=self.lines[0])
+                weighted_current = float(current_val) * alpha
+                if type(weighted_current) is float:
+                    reject_infinity(context, weighted_current, "once", operation=self.lines[0])
+                prev = weighted_prev + weighted_current
+                if type(prev) is float:
+                    reject_infinity(context, prev, "once", operation=self.lines[0])
+                larray[i] = prev
 
 
 EMA = ExponentialMovingAverage
