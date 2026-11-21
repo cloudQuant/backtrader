@@ -181,11 +181,18 @@ class BreadAndButter2Strategy(bt.Strategy):
         self.close_order = self.close()
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
+    def _reverse_inputs_valid(self):
+        signal_values = (float(self.adx.adx[0]), float(self.adx.adx[-1]),
+                         float(self.ama.ama[0]), float(self.ama.ama[-1]))
+        return all(math.isfinite(value) for value in signal_values)
+
     def next(self):
         """Evaluate ADX/AMA relationships and trigger entries/exits."""
         if len(self.data0_feed) < max(self.p.adx_period, self.p.ama_period) + 5:
             return
         if not self.position and self.pending_reverse and self.entry_order is None and self.close_order is None:
+            if not self._reverse_inputs_valid():
+                return
             side = self.pending_reverse
             self.pending_reverse = None
             self._submit_entry(side, 'reverse after close')
@@ -232,9 +239,12 @@ class BreadAndButter2Strategy(bt.Strategy):
                 self.stop_order = None
                 self.limit_order = None
                 reverse = self.pending_reverse
-                self.pending_reverse = None
                 if reverse is not None and not self.position:
-                    self._submit_entry(reverse, 'reverse after close')
+                    if self._reverse_inputs_valid():
+                        self.pending_reverse = None
+                        self._submit_entry(reverse, 'reverse after close')
+                else:
+                    self.pending_reverse = None
             elif order == self.stop_order:
                 self.log(f'STOP FILLED price={order.executed.price:.5f} size={order.executed.size}')
                 self.stop_order = None

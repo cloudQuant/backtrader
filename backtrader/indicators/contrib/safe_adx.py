@@ -5,12 +5,22 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
+from ...linebuffer import _reject_factor_infinity
 from .. import Indicator
 
 __all__ = [
     "SafeADX",
     "SafeAMA",
 ]
+
+
+def _checked(line, value):
+    """Reject float infinity in strict factors without altering ordinary results."""
+    if type(value) is float and math.isinf(value):
+        _reject_factor_infinity(line, value)
+    return value
 
 
 class SafeADX(Indicator):
@@ -34,25 +44,40 @@ class SafeADX(Indicator):
             low0 = float(self.data.low[-idx])
             low1 = float(self.data.low[-idx - 1])
             close1 = float(self.data.close[-idx - 1])
-            up_move = high0 - high1
-            down_move = low1 - low0
+            missing = False
+            for value in (high0, high1, low0, low1, close1):
+                if math.isnan(value):
+                    missing = True
+                else:
+                    _checked(self.lines.adx, value)
+            if missing:
+                self.lines.adx[0] = float("nan")
+                return
+            up_move = _checked(self.lines.adx, high0 - high1)
+            down_move = _checked(self.lines.adx, low1 - low0)
             pdm = up_move if up_move > down_move and up_move > 0 else 0.0
             mdm = down_move if down_move > up_move and down_move > 0 else 0.0
-            tr = max(high0 - low0, abs(high0 - close1), abs(low0 - close1))
+            tr = max(
+                _checked(self.lines.adx, high0 - low0),
+                abs(_checked(self.lines.adx, high0 - close1)),
+                abs(_checked(self.lines.adx, low0 - close1)),
+            )
             pdm_vals.append(pdm)
             mdm_vals.append(mdm)
             tr_vals.append(tr)
-        tr_sum = sum(tr_vals)
+        tr_sum = _checked(self.lines.adx, sum(tr_vals))
         if tr_sum <= 1e-12:
             self.lines.adx[0] = 0.0
             return
-        pdi = 100.0 * sum(pdm_vals) / tr_sum
-        mdi = 100.0 * sum(mdm_vals) / tr_sum
-        denom = pdi + mdi
+        pdi = _checked(self.lines.adx, _checked(self.lines.adx, 100.0 * sum(pdm_vals)) / tr_sum)
+        mdi = _checked(self.lines.adx, _checked(self.lines.adx, 100.0 * sum(mdm_vals)) / tr_sum)
+        denom = _checked(self.lines.adx, pdi + mdi)
         if denom <= 1e-12:
             self.lines.adx[0] = 0.0
             return
-        self.lines.adx[0] = 100.0 * abs(pdi - mdi) / denom
+        difference = _checked(self.lines.adx, pdi - mdi)
+        scaled = _checked(self.lines.adx, 100.0 * abs(difference))
+        self.lines.adx[0] = _checked(self.lines.adx, scaled / denom)
 
 
 class SafeAMA(Indicator):
