@@ -191,7 +191,9 @@ class XDeMarkerHistogramVolDirectIndicator(Indicator):
             sum_max = sum(self._demax)
             sum_min = sum(self._demin)
             denom = sum_max + sum_min
-            demarker = (sum_max / denom) if denom > 0 else 0.5
+            demarker = (
+                self._nan() if math.isnan(denom) else (sum_max / denom if denom > 0 else 0.5)
+            )
             raw = ((demarker * 100.0) - 50.0) * vol_now
             self._raw.append(raw)
             self._vol.append(vol_now)
@@ -236,6 +238,9 @@ class XDeMarkerHistogramVolDirectIndicator(Indicator):
                     color_direct = 1.0
                 else:
                     color_direct = prev_direct
+                if math.isnan(value):
+                    color_zone = self._nan()
+                    color_direct = self._nan()
 
         self._last_high = high_now
         self._last_low = low_now

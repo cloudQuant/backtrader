@@ -79,7 +79,9 @@ def _reference(rows, de_marker_period, ma_length):
             sum_max = sum(demax)
             sum_min = sum(demin)
             denom = sum_max + sum_min
-            demarker = sum_max / denom if denom > 0 else 0.5
+            demarker = (
+                math.nan if math.isnan(denom) else (sum_max / denom if denom > 0 else 0.5)
+            )
             raw.append(((demarker * 100.0) - 50.0) * volume)
             volume_window.append(volume)
             del raw[:-ma_length]
@@ -118,6 +120,9 @@ def _reference(rows, de_marker_period, ma_length):
                     color_direct = 1.0
                 else:
                     color_direct = previous_direct
+                if math.isnan(value):
+                    color_zone = math.nan
+                    color_direct = math.nan
 
         result["value"][index] = value
         result["color_zone"][index] = color_zone
