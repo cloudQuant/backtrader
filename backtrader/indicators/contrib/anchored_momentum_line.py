@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     ExponentialMovingAverage,
     Indicator,
@@ -37,12 +39,17 @@ class AnchoredMomentumLine(Indicator):
     def next(self):
         """Compute the percentage momentum and assign its up/neutral/down zone."""
         sma = float(self.sma[0])
-        if sma == 0:
+        ema = float(self.ema[0])
+        if not math.isfinite(sma) or not math.isfinite(ema):
+            momentum = math.nan
+        elif sma == 0:
             momentum = 0.0
         else:
-            momentum = 100.0 * (float(self.ema[0]) / sma - 1.0)
+            momentum = 100.0 * (ema / sma - 1.0)
         self.lines.momentum[0] = momentum
-        if momentum > float(self.p.up_level):
+        if not math.isfinite(momentum):
+            zone = math.nan
+        elif momentum > float(self.p.up_level):
             zone = 2
         elif momentum < float(self.p.dn_level):
             zone = 0
@@ -97,16 +104,24 @@ class AnchoredMomentumCandleIndicator(Indicator):
     def next(self):
         """Assemble the momentum candle OHLC and colour for the current bar."""
         o = float(self.mom_open.momentum[0])
-        h = max(float(self.mom_high.momentum[0]), o)
-        low_price = min(float(self.mom_low.momentum[0]), o)
+        high = float(self.mom_high.momentum[0])
+        h = max(high, o)
+        low = float(self.mom_low.momentum[0])
+        low_price = min(low, o)
         c = float(self.mom_close.momentum[0])
         h = max(h, c)
         low_price = min(low_price, c)
+        if not all(math.isfinite(value) for value in (high, o, c)):
+            h = math.nan
+        if not all(math.isfinite(value) for value in (low, o, c)):
+            low_price = math.nan
         self.lines.a_open[0] = o
         self.lines.a_high[0] = h
         self.lines.a_low[0] = low_price
         self.lines.a_close[0] = c
-        if o < c:
+        if not math.isfinite(o) or not math.isfinite(c):
+            color = math.nan
+        elif o < c:
             color = 2
         elif o > c:
             color = 0
