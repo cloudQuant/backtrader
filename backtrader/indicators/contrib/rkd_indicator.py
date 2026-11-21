@@ -24,13 +24,26 @@ class RKDIndicator(Indicator):
 
     def __init__(self):
         """Define indicator warm-up length before valid line updates."""
-        self.addminperiod(max(int(self.p.kd_period), int(self.p.m1), int(self.p.m2)) + 2)
+        period, m1, m2 = int(self.p.kd_period), int(self.p.m1), int(self.p.m2)
+        self._staged_warmup = period > 0 and m1 > 0 and m2 > 0
+        if self._staged_warmup:
+            self.addminperiod(period + m1 + m2 - 2)
+        else:
+            # Preserve the existing behavior of unsupported parameter values.
+            self.addminperiod(max(period, m1, m2) + 2)
+
+    def prenext(self):
+        """Populate intermediate windows before all three lines are ready."""
+        if self._staged_warmup:
+            self.next()
 
     def next(self):
         """Update RSV, K, and D for the latest bar."""
         kd_period = int(self.p.kd_period)
         m1 = int(self.p.m1)
         m2 = int(self.p.m2)
+        if self._staged_warmup and len(self.data) < kd_period:
+            return
         highs = [float(self.data.high[-i]) for i in range(kd_period)]
         lows = [float(self.data.low[-i]) for i in range(kd_period)]
         max_high = max(highs)
@@ -42,11 +55,15 @@ class RKDIndicator(Indicator):
             rsv = (float(self.data.close[0]) - min_low) / denom * 100.0
         self.lines.rsv[0] = rsv
 
+        if self._staged_warmup and len(self.data) < kd_period + m1 - 1:
+            return
         if len(self) < m1:
             self.lines.k[0] = 0.0
         else:
             self.lines.k[0] = sum(float(self.lines.rsv[-i]) for i in range(m1)) / m1
 
+        if self._staged_warmup and len(self.data) < kd_period + m1 + m2 - 2:
+            return
         if len(self) < m2:
             self.lines.d[0] = 0.0
         else:

@@ -461,7 +461,7 @@ def test_130_0130_1202_rkd_ea() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
-    assert metrics.get('bar_num') == 6098, f"bar_num: expected=6098, got={metrics.get('bar_num')!r}"
+    assert metrics.get('bar_num') == 6093, f"bar_num: expected=6093, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 517, f"buy_count: expected=517, got={metrics.get('buy_count')!r}"
     assert metrics.get('sell_count') == 517, f"sell_count: expected=517, got={metrics.get('sell_count')!r}"
     assert metrics.get('win_count') == 438, f"win_count: expected=438, got={metrics.get('win_count')!r}"
