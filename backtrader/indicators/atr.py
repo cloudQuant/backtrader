@@ -199,7 +199,12 @@ class AverageTrueRange(Indicator):
         Sets up Wilder's smoothing factors.
         """
         super().__init__()
-        self.addminperiod(self.p.period + 1)
+        self._custom_movav = None
+        if self.p.movav is not MovAv.Smoothed:
+            self._custom_movav = self.p.movav(TrueRange(self.data), period=self.p.period)
+            self.updateminperiod(self._custom_movav._minperiod)
+        else:
+            self.addminperiod(self.p.period + 1)
         # SMMA alpha for Wilder's smoothing
         self.alpha = 1.0 / self.p.period
         self.alpha1 = 1.0 - self.alpha
@@ -221,6 +226,9 @@ class AverageTrueRange(Indicator):
 
     def nextstart(self):
         """Seed ATR with SMA of first period TR values."""
+        if self._custom_movav is not None:
+            self.lines.atr[0] = self._custom_movav[0]
+            return
         # Seed with SMA of first period TR values
         period = self.p.period
         tr_sum = 0.0
@@ -235,11 +243,22 @@ class AverageTrueRange(Indicator):
 
         Uses smoothed moving average: ATR = prev_ATR * alpha1 + TR * alpha
         """
+        if self._custom_movav is not None:
+            self.lines.atr[0] = self._custom_movav[0]
+            return
         tr = self._calc_tr(self.data.high[0], self.data.low[0], self.data.close[-1])
         self.lines.atr[0] = self.lines.atr[-1] * self.alpha1 + tr * self.alpha
 
     def once(self, start, end):
         """Calculate ATR in runonce mode."""
+        if self._custom_movav is not None:
+            source = self._custom_movav.lines[0].array
+            target = self.lines.atr.array
+            while len(target) < end:
+                target.append(float("nan"))
+            for index in range(start, min(end, len(source))):
+                target[index] = source[index]
+            return
         high_array = self.data.high.array
         low_array = self.data.low.array
         close_array = self.data.close.array
