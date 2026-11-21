@@ -29,7 +29,9 @@ class RawCloseCloseStochastic(Indicator):
     def next(self):
         """Compute the raw close-based Stochastic value for the current bar."""
         period = int(self.p.period)
-        closes = [float(self.data.close[-i]) for i in range(period)]
+        closes = [
+            float(self.data.close[-i]) for i in range(period - 1, -1, -1)
+        ]
         highest = max(closes)
         lowest = min(closes)
         denom = highest - lowest
