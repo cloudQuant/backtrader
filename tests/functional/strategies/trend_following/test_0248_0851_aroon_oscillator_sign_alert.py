@@ -173,12 +173,13 @@ def test_247_0248_0851_aroon_oscillator_sign_alert() -> None:
     trade_analysis = strat.analyzers.trade.get_analysis()
     total_trades = trade_analysis.get("total", {}).get("closed", 0)
 
+    # R71-036 corrects the oscillator sign; the trade snapshot uses that formula.
     assert strat.bar_num == 5876, f"bar_num: expected=5876, got={strat.bar_num}"
-    assert strat.buy_count == 28, f"buy_count: expected=28, got={strat.buy_count}"
-    assert strat.sell_count == 13, f"sell_count: expected=13, got={strat.sell_count}"
-    assert strat.win_count == 18, f"win_count: expected=18, got={strat.win_count}"
-    assert strat.loss_count == 23, f"loss_count: expected=23, got={strat.loss_count}"
+    assert strat.buy_count == 13, f"buy_count: expected=13, got={strat.buy_count}"
+    assert strat.sell_count == 28, f"sell_count: expected=28, got={strat.sell_count}"
+    assert strat.win_count == 16, f"win_count: expected=16, got={strat.win_count}"
+    assert strat.loss_count == 25, f"loss_count: expected=25, got={strat.loss_count}"
     assert strat.trade_count == 41, f"trade_count: expected=41, got={strat.trade_count}"
     assert total_trades == 41, f"total_trades: expected=41, got={total_trades}"
-    assert abs(final_value - 1001300.2) < 0.01, f"final_value: expected=1001300.2, got={final_value}"
+    assert abs(final_value - 999318.4) < 0.01, f"final_value: expected=999318.4, got={final_value}"
     assert (strat.buy_count + strat.sell_count) > 0, "must have non-zero activity"
