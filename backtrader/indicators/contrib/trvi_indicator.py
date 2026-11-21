@@ -189,6 +189,7 @@ class ColorRMACDIndicator(Indicator):
         self.trvi = TRVIIndicator(
             self.data, period=self.p.slow_trvi, volume_type=self.p.volume_type
         )
-        self.lines.rmacd = self.rvi - self.trvi.signal
-        self.lines.signal = ma_cls(self.lines.rmacd, period=self.p.signal_xma)
+        rmacd = self.rvi - self.trvi.signal
+        self.lines.rmacd = rmacd
+        self.lines.signal = ma_cls(rmacd, period=self.p.signal_xma)
         self.addminperiod(max(self.p.fast_rvi, self.p.slow_trvi + 8, self.p.signal_xma) + 5)
