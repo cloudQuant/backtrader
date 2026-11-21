@@ -567,25 +567,26 @@ def test_145_0145_1271_vinini_trend_lrma() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
+    # Snapshot reflects R71-033's finite trend seed and its resulting trades.
     assert metrics.get('bar_num') == 5999, f"bar_num: expected=5999, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 1, f"buy_count: expected=1, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 0, f"sell_count: expected=0, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 0, f"win_count: expected=0, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 0, f"loss_count: expected=0, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 1, f"total_trades: expected=1, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 0, f"trade_count: expected=0, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 0, f"won: expected=0, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 0, f"lost: expected=0, got={metrics.get('lost')!r}"
+    assert metrics.get('buy_count') == 317, f"buy_count: expected=317, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 317, f"sell_count: expected=317, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 308, f"win_count: expected=308, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 326, f"loss_count: expected=326, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 634, f"total_trades: expected=634, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 634, f"trade_count: expected=634, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 308, f"won: expected=308, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 326, f"lost: expected=326, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1009737.0000000045, tol=1.009737e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 9737.00000000454, tol=9.737000e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.9737000000004548, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 0.0, tol=1.000000e-06, key='win_rate')
-    _close(metrics.get('max_drawdown'), 1.1173035028017024, tol=1.117304e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 8.548776968050387, tol=8.548777e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 77.48402740280636, tol=7.748403e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), 0.0, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1002556.9000000014, tol=1.002557e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 2556.9000000014203, tol=2.556900e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.25569000000014164, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 48.580441640378545, tol=4.858044e-05, key='win_rate')
+    _close(metrics.get('max_drawdown'), 0.396031010963867, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 6.422524315222978, tol=6.422524e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 16.322147706815784, tol=1.632215e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.835596422055922, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
