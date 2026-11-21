@@ -12,10 +12,45 @@ from .. import (
     Indicator,
     SimpleMovingAverage,
 )
+from ...linebuffer import _reject_factor_infinity
 
 __all__ = [
     "MUVNorDiffCloudIndicator",
 ]
+
+
+def _cloud_values(sma_vals, ema_vals, *, context_line=None):
+    """Calculate a cloud only from complete finite current and history windows."""
+    if context_line is not None:
+        for value in (*sma_vals, *ema_vals):
+            _reject_factor_infinity(context_line, value)
+    if not all(math.isfinite(value) for value in (*sma_vals, *ema_vals)):
+        # The public strategy tests signal lines with ``!= 0``; NaN there would
+        # be interpreted as a signal, so keep missing cloud values neutral.
+        return 0.0, 0.0, float("nan"), float("nan")
+
+    sma_cur, ema_cur = sma_vals[0], ema_vals[0]
+    sma_max, sma_min = max(sma_vals), min(sma_vals)
+    ema_max, ema_min = max(ema_vals), min(ema_vals)
+    sma_range, ema_range = sma_max - sma_min, ema_max - ema_min
+    sma_distance, ema_distance = sma_max - sma_cur, ema_max - ema_cur
+    sma_scaled, ema_scaled = 200.0 * sma_distance, 200.0 * ema_distance
+    intermediates = (sma_range, ema_range, sma_distance, ema_distance, sma_scaled, ema_scaled)
+    if context_line is not None:
+        for value in intermediates:
+            _reject_factor_infinity(context_line, value)
+    if not all(math.isfinite(value) for value in intermediates):
+        return 0.0, 0.0, float("nan"), float("nan")
+    sma_res = 100.0 - sma_scaled / sma_range if sma_range > 0 else 100.0
+    ema_res = 100.0 - ema_scaled / ema_range if ema_range > 0 else 100.0
+    if context_line is not None:
+        _reject_factor_infinity(context_line, sma_res)
+        _reject_factor_infinity(context_line, ema_res)
+    if not math.isfinite(sma_res) or not math.isfinite(ema_res):
+        return 0.0, 0.0, float("nan"), float("nan")
+    buy = 100.0 if sma_res == 100.0 or ema_res == 100.0 else 0.0
+    sell = -100.0 if sma_res == -100.0 or ema_res == -100.0 else 0.0
+    return buy, sell, sma_res, ema_res
 
 
 class MUVNorDiffCloudIndicator(Indicator):
@@ -44,20 +79,13 @@ class MUVNorDiffCloudIndicator(Indicator):
         for i in range(kperiod):
             sma_vals.append(float(self._sma[-i]) - float(self._sma[-i - momentum]))
             ema_vals.append(float(self._ema[-i]) - float(self._ema[-i - momentum]))
-        sma_cur = sma_vals[0]
-        ema_cur = ema_vals[0]
-        sma_max = max(sma_vals)
-        sma_min = min(sma_vals)
-        ema_max = max(ema_vals)
-        ema_min = min(ema_vals)
-        sma_range = sma_max - sma_min
-        ema_range = ema_max - ema_min
-        sma_res = 100.0 - 200.0 * (sma_max - sma_cur) / sma_range if sma_range > 0 else 100.0
-        ema_res = 100.0 - 200.0 * (ema_max - ema_cur) / ema_range if ema_range > 0 else 100.0
+        buy, sell, sma_res, ema_res = _cloud_values(
+            sma_vals, ema_vals, context_line=self.lines.sma_res
+        )
         self.lines.sma_res[0] = sma_res
         self.lines.ema_res[0] = ema_res
-        self.lines.buy[0] = 100.0 if sma_res == 100.0 or ema_res == 100.0 else 0.0
-        self.lines.sell[0] = -100.0 if sma_res == -100.0 or ema_res == -100.0 else 0.0
+        self.lines.buy[0] = buy
+        self.lines.sell[0] = sell
 
     def once(self, start, end):
         """Compute cloud values for a pre-allocated bar range in vectorized mode."""
@@ -77,31 +105,15 @@ class MUVNorDiffCloudIndicator(Indicator):
                 idx = i - j
                 prev = idx - momentum
                 if prev < 0:
-                    continue
-                sma_delta = float(sma[idx]) - float(sma[prev])
-                ema_delta = float(ema[idx]) - float(ema[prev])
-                if math.isfinite(sma_delta):
-                    sma_vals.append(sma_delta)
-                if math.isfinite(ema_delta):
-                    ema_vals.append(ema_delta)
-            if not sma_vals or not ema_vals:
-                sma_res = ema_res = 0.0
-            else:
-                sma_cur = sma_vals[0]
-                ema_cur = ema_vals[0]
-                sma_max = max(sma_vals)
-                sma_min = min(sma_vals)
-                ema_max = max(ema_vals)
-                ema_min = min(ema_vals)
-                sma_range = sma_max - sma_min
-                ema_range = ema_max - ema_min
-                sma_res = (
-                    100.0 - 200.0 * (sma_max - sma_cur) / sma_range if sma_range > 0 else 100.0
-                )
-                ema_res = (
-                    100.0 - 200.0 * (ema_max - ema_cur) / ema_range if ema_range > 0 else 100.0
-                )
+                    sma_vals.append(float("nan"))
+                    ema_vals.append(float("nan"))
+                else:
+                    sma_vals.append(float(sma[idx]) - float(sma[prev]))
+                    ema_vals.append(float(ema[idx]) - float(ema[prev]))
+            buy_value, sell_value, sma_res, ema_res = _cloud_values(
+                sma_vals, ema_vals, context_line=self.lines.sma_res
+            )
             sma_res_line[i] = sma_res
             ema_res_line[i] = ema_res
-            buy[i] = 100.0 if sma_res == 100.0 or ema_res == 100.0 else 0.0
-            sell[i] = -100.0 if sma_res == -100.0 or ema_res == -100.0 else 0.0
+            buy[i] = buy_value
+            sell[i] = sell_value

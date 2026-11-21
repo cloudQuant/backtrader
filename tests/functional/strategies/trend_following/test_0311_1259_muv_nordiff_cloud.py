@@ -119,11 +119,24 @@ class MUVNorDiffCloudStrategy(bt.Strategy):
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
+    def _bar_available(self, ago):
+        """Require both cloud and signal lines before using a bar's signals."""
+        return all(
+            math.isfinite(float(line[ago]))
+            for line in (
+                self.indicator.sma_res, self.indicator.ema_res,
+                self.indicator.buy, self.indicator.sell,
+            )
+        )
+
     def _has_recent_signal(self, line, shift, limit=120):
         start = max(shift + 1, 1)
         max_lookback = min(len(self.data) - 1, start + limit)
         for bar in range(start, max_lookback):
-            if float(line[-bar]) != 0.0:
+            value = float(line[-bar])
+            if not self._bar_available(-bar):
+                return False
+            if value != 0.0:
                 return True
         return False
 
@@ -131,6 +144,12 @@ class MUVNorDiffCloudStrategy(bt.Strategy):
         shift = max(1, int(self.p.signal_bar))
         up_value = float(self.indicator.buy[-shift])
         dn_value = float(self.indicator.sell[-shift])
+        if (
+            any(not self._bar_available(-ago) for ago in range(shift + 1))
+            or not math.isfinite(up_value)
+            or not math.isfinite(dn_value)
+        ):
+            return False, False, False, False
         buy_open = up_value != 0.0
         sell_open = dn_value != 0.0
         buy_close = sell_open
@@ -435,15 +454,15 @@ def test_310_0311_1259_muv_nordiff_cloud() -> None:
     assert metrics.get('lost') == 605, f"lost: expected=605, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1002752.3999999997, tol=1.002752e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 2752.399999999674, tol=2.752400e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.2752399999999655, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('final_value'), 1002749.2999999996, tol=1.002752e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 2749.299999999581, tol=2.752400e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.27492999999996215, tol=1.000000e-06, key='total_return_pct')
     _close(metrics.get('win_rate'), 48.06866952789699, tol=4.806867e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.0594781721763873, tol=1.059478e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.4388388639013516, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 3.581438357023178, tol=3.581438e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 17.67279031447872, tol=1.767279e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), 0.5637667063586999, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('profit_factor'), 1.0594072028505448, tol=1.059478e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.43884021552452396, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 3.577311085726271, tol=3.581438e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 17.65125365344717, tol=1.767279e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.5631308985971237, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
