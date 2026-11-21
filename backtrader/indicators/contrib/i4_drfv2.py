@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -13,7 +15,7 @@ __all__ = [
 
 
 class I4DRFV2(Indicator):
-    """Close-difference indicator producing value and binary color trend state."""
+    """Close-difference indicator; unavailable window comparisons yield NaN."""
 
     lines = ("color", "value")
     params = (("period", 11),)
@@ -28,6 +30,10 @@ class I4DRFV2(Indicator):
         period = int(self.p.period)
         for i in range(period):
             diff = float(self.data.close[-i]) - float(self.data.close[-(i + 1)])
+            if not math.isfinite(diff):
+                self.lines.value[0] = float("nan")
+                self.lines.color[0] = float("nan")
+                return
             total += 1.0 if diff > 0 else -1.0
         value = total / float(period) * 100.0
         self.lines.value[0] = value

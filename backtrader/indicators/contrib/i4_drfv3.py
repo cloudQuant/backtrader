@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -13,7 +15,7 @@ __all__ = [
 
 
 class I4DRFV3(Indicator):
-    """Indicator producing a direction color and synthetic value from highs/lows."""
+    """High/low direction indicator; unavailable window comparisons yield NaN."""
 
     lines = ("color", "value")
     params = (("period", 11),)
@@ -29,6 +31,10 @@ class I4DRFV3(Indicator):
         for i in range(period):
             high_diff = float(self.data.high[-i]) - float(self.data.high[-(i + 1)])
             low_diff = float(self.data.low[-i]) - float(self.data.low[-(i + 1)])
+            if not math.isfinite(high_diff) or not math.isfinite(low_diff):
+                self.lines.value[0] = float("nan")
+                self.lines.color[0] = float("nan")
+                return
             if high_diff > 0:
                 total += 1.0
             if low_diff < 0:
