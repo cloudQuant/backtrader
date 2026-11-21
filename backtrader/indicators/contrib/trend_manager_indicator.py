@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     Indicator,
     SimpleMovingAverage,
@@ -36,4 +38,7 @@ class TrendManagerIndicator(Indicator):
         slow = float(self.slow[0])
         self.lines.fast_line[0] = fast
         self.lines.slow_line[0] = slow
-        self.lines.color_state[0] = 0.0 if fast >= slow else 1.0
+        if math.isnan(fast) or math.isnan(slow):
+            self.lines.color_state[0] = math.nan
+        else:
+            self.lines.color_state[0] = 0.0 if fast >= slow else 1.0

@@ -143,6 +143,7 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
         self.stop_order = None
         self.limit_order = None
         self.pending_reverse = None
+        self._pending_reverse_deferred = False
         self.active_side = None
         self.closing_side = None
         self.last_signal_dt = None
@@ -213,6 +214,7 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
         if not self.position or self.close_order is not None:
             return
         self.pending_reverse = reverse
+        self._pending_reverse_deferred = False
         self.closing_side = self.active_side
         self._cancel_exit_orders()
         self.close_order = self.close()
@@ -228,6 +230,28 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
             return True
         return False
 
+    def _reverse_inputs_valid(self):
+        return all(math.isfinite(float(self.indicator.color_state[ago])) for ago in (0, -1))
+
+    def _submit_pending_reverse(self):
+        if not self._reverse_inputs_valid():
+            self._pending_reverse_deferred = True
+            return True
+        side = self.pending_reverse
+        was_deferred = self._pending_reverse_deferred
+        if was_deferred:
+            expected = 0.0 if side == 'long' else 1.0
+            if float(self.indicator.color_state[0]) != expected:
+                self.pending_reverse = None
+                self._pending_reverse_deferred = False
+                return False
+        self.pending_reverse = None
+        self._pending_reverse_deferred = False
+        self._submit_entry(side, 'reverse after close')
+        if was_deferred and self.entry_order is not None:
+            self._new_signal_bar()
+        return True
+
     def next(self):
         """Apply time-based exits and open/close logic on trend flips."""
         if len(self.signal_data) < max(self.p.length1, self.p.length2) + 5:
@@ -235,10 +259,8 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
         if self._check_time_exit():
             return
         if not self.position and self.pending_reverse and self.entry_order is None and self.close_order is None:
-            side = self.pending_reverse
-            self.pending_reverse = None
-            self._submit_entry(side, 'reverse after close')
-            return
+            if self._submit_pending_reverse():
+                return
         if not self._new_signal_bar():
             return
         if self.entry_order is not None or self.close_order is not None:
@@ -280,10 +302,12 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
                 self.stop_order = None
                 self.limit_order = None
                 reverse = self.pending_reverse
-                self.pending_reverse = None
                 self.position_open_dt = None
                 if reverse is not None and not self.position:
-                    self._submit_entry(reverse, 'reverse after close')
+                    self._submit_pending_reverse()
+                else:
+                    self.pending_reverse = None
+                    self._pending_reverse_deferred = False
             elif order == self.stop_order:
                 self.log(f'STOP FILLED price={order.executed.price:.5f} size={order.executed.size}')
                 self.stop_order = None
@@ -302,6 +326,7 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
             elif order == self.close_order:
                 self.close_order = None
                 self.pending_reverse = None
+                self._pending_reverse_deferred = False
             elif order == self.stop_order:
                 self.stop_order = None
             elif order == self.limit_order:
