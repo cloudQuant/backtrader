@@ -30,7 +30,10 @@ from . import Indicator, MovAv
 
 _MIN_PERIOD_FOR_ROLLING_STDDEV_ONCE = 16
 _PARAMETER_ACCESSOR_GETATTRIBUTE = ParameterAccessor.__getattribute__
+_PARAMETER_ACCESSOR_GETATTRIBUTE_CODE = _PARAMETER_ACCESSOR_GETATTRIBUTE.__code__
 _PARAMETER_MANAGER_GET = ParameterManager.get
+_PARAMETER_MANAGER_GET_CODE = _PARAMETER_MANAGER_GET.__code__
+_PARAMETER_MANAGER_GET_DEFAULTS = _PARAMETER_MANAGER_GET.__defaults__
 _PARAMETER_ACCESSOR_DICT_DESCRIPTOR = vars(ParameterAccessor).get("__dict__")
 _PARAMETER_MANAGER_DICT_DESCRIPTOR = vars(ParameterManager).get("__dict__")
 
@@ -40,7 +43,10 @@ def _has_plain_safepow_parameter(indicator):
     if (
         type(indicator) is not _STANDARD_DEVIATION_CLASS
         or vars(ParameterAccessor).get("__getattribute__") is not _PARAMETER_ACCESSOR_GETATTRIBUTE
+        or _PARAMETER_ACCESSOR_GETATTRIBUTE.__code__ is not _PARAMETER_ACCESSOR_GETATTRIBUTE_CODE
         or vars(ParameterManager).get("get") is not _PARAMETER_MANAGER_GET
+        or _PARAMETER_MANAGER_GET.__code__ is not _PARAMETER_MANAGER_GET_CODE
+        or _PARAMETER_MANAGER_GET.__defaults__ is not _PARAMETER_MANAGER_GET_DEFAULTS
     ):
         return False
     for cls in (type(indicator), ParameterManager):
@@ -462,6 +468,7 @@ class StandardDeviation(Indicator):
                     or type(actual_end) is not int
                     or darray is larray
                     or not plain_safepow
+                    or _STANDARD_DEVIATION_FINISH.__code__ is not _STANDARD_DEVIATION_FINISH_CODE
                 )
                 and legacy_long_period
                 and mean_array is None
@@ -496,6 +503,7 @@ class StandardDeviation(Indicator):
                 and type(self) is _STANDARD_DEVIATION_CLASS
                 and getattr(getattr(self, "_finish"), "__func__", None)
                 is _STANDARD_DEVIATION_FINISH
+                and _STANDARD_DEVIATION_FINISH.__code__ is _STANDARD_DEVIATION_FINISH_CODE
             ):
                 fsum = math.fsum
                 isfinite = math.isfinite
@@ -696,6 +704,7 @@ class StandardDeviation(Indicator):
 # an overridden _finish appear to be the original fast-path contract.
 _STANDARD_DEVIATION_CLASS = StandardDeviation
 _STANDARD_DEVIATION_FINISH = StandardDeviation._finish
+_STANDARD_DEVIATION_FINISH_CODE = _STANDARD_DEVIATION_FINISH.__code__
 _STANDARD_DEVIATION_LEGACY_ROLLING = StandardDeviation._once_legacy_rolling
 _STANDARD_DEVIATION_P_DESCRIPTOR = next(
     vars(base)["p"] for base in StandardDeviation.__mro__ if "p" in vars(base)
