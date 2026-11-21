@@ -726,7 +726,19 @@ class XPeriodCandleColor(Indicator):
         self.smooth_high = SimpleMovingAverage(self.data.high, period=self.p.ma_length)
         self.smooth_low = SimpleMovingAverage(self.data.low, period=self.p.ma_length)
         self.smooth_close = SimpleMovingAverage(self.data.close, period=self.p.ma_length)
-        self.addminperiod(self.p.ma_length + self.p.cperiod)
+        ma_length = self.p.ma_length
+        cperiod = self.p.cperiod
+        legacy_period = ma_length + cperiod
+        if type(ma_length) is int and type(cperiod) is int:
+            smoothed_period = max(
+                self.smooth_open._minperiod,
+                self.smooth_high._minperiod,
+                self.smooth_low._minperiod,
+                self.smooth_close._minperiod,
+            )
+            self.addminperiod(smoothed_period + max(1, cperiod) - 1)
+        else:
+            self.addminperiod(legacy_period)
 
     def next(self):
         """Compute synthetic candle and color value for the current bar."""

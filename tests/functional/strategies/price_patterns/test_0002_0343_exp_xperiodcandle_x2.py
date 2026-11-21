@@ -251,7 +251,7 @@ def test_001_0002_0343_exp_xperiodcandle_x2() -> None:
           f"win={strat.win_count} loss={strat.loss_count} trade={strat.trade_count} "
           f"total={total_trades} fv={final_value:.4f}")
 
-    assert strat.bar_num == 1360
+    assert strat.bar_num == 1383
     assert strat.buy_count == 57
     assert strat.sell_count == 26
     assert strat.win_count == 36

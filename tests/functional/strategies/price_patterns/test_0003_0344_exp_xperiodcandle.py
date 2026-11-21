@@ -230,7 +230,7 @@ def test_002_0003_0344_exp_xperiodcandle() -> None:
     trade_analysis = strat.analyzers.trade.get_analysis()
     total_trades = trade_analysis.get("total", {}).get("closed", 0)
 
-    assert strat.bar_num == 6016
+    assert strat.bar_num == 6032
     assert strat.buy_count == 23
     assert strat.sell_count == 23
     assert strat.win_count == 21
