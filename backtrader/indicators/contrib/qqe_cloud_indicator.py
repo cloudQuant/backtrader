@@ -108,9 +108,14 @@ class QQECloudIndicator(Indicator):
             while len(line) < end:
                 line.append(float("nan"))
 
-        prev_tr = 50.0
+        # Cerebro can split vectorized execution after ``oncestart``. Continue
+        # from the last output when that prefix has already initialized it;
+        # the first segment still uses the original 50.0 seed.
+        prev_tr = float(down_line[start - 1]) if start else 50.0
         actual_end = min(end, len(xrsi_array), len(xxmom_array))
         for i in range(start, actual_end):
+            if prev_tr != prev_tr:
+                prev_tr = 50.0
             xrsi = float(xrsi_array[i])
             prev_xrsi = float(xrsi_array[i - 1]) if i > 0 else xrsi
             dar = float(xxmom_array[i]) * float(self.p.darfactor)
