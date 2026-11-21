@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -40,23 +42,40 @@ class LeManSignalIndicator(Indicator):
         # H2 = max high over [bar+1+LPeriod, bar+1+2*LPeriod) => [-(lp+1) .. -(2*lp)]
         # H3 = max high over [bar+2, bar+2+LPeriod)  => [-2 .. -(lp+1)]
         # H4 = max high over [bar+2+LPeriod, bar+2+2*LPeriod) => [-(lp+2) .. -(2*lp+1)]
-        H1 = max(float(self.data.high[-i]) for i in range(1, lp + 1))
-        H2 = max(float(self.data.high[-i]) for i in range(lp + 1, 2 * lp + 1))
-        H3 = max(float(self.data.high[-i]) for i in range(2, lp + 2))
-        H4 = max(float(self.data.high[-i]) for i in range(lp + 2, 2 * lp + 2))
+        high_missing = False
+        low_missing = False
 
-        L1 = min(float(self.data.low[-i]) for i in range(1, lp + 1))
-        L2 = min(float(self.data.low[-i]) for i in range(lp + 1, 2 * lp + 1))
-        L3 = min(float(self.data.low[-i]) for i in range(2, lp + 2))
-        L4 = min(float(self.data.low[-i]) for i in range(lp + 2, 2 * lp + 2))
+        def highs(start, end):
+            nonlocal high_missing
+            for i in range(start, end):
+                value = float(self.data.high[-i])
+                high_missing |= math.isnan(value)
+                yield value
 
-        buy_val = 0.0
-        sell_val = 0.0
+        def lows(start, end):
+            nonlocal low_missing
+            for i in range(start, end):
+                value = float(self.data.low[-i])
+                low_missing |= math.isnan(value)
+                yield value
+
+        H1 = max(highs(1, lp + 1))
+        H2 = max(highs(lp + 1, 2 * lp + 1))
+        H3 = max(highs(2, lp + 2))
+        H4 = max(highs(lp + 2, 2 * lp + 2))
+
+        L1 = min(lows(1, lp + 1))
+        L2 = min(lows(lp + 1, 2 * lp + 1))
+        L3 = min(lows(2, lp + 2))
+        L4 = min(lows(lp + 2, 2 * lp + 2))
+
+        buy_val = float("nan") if high_missing else 0.0
+        sell_val = float("nan") if low_missing else 0.0
         pt = float(self.p.point)
 
-        if H3 <= H4 and H1 > H2:
+        if not high_missing and H3 <= H4 and H1 > H2:
             buy_val = float(self.data.high[-1]) + pt
-        if L3 >= L4 and L1 < L2:
+        if not low_missing and L3 >= L4 and L1 < L2:
             sell_val = float(self.data.low[-1]) - pt
 
         self.lines.buy_arrow[0] = buy_val
