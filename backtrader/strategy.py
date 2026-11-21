@@ -51,6 +51,8 @@ from ._cerebro.lifecycle import (
     _startup_observer_stop_capture_active,
     _startup_observer_stop_capture_context_active,
 )
+from .indicator import _is_plain_indicator_clock_alias as _safe_indicator_clock_alias
+from .linebuffer import LineBuffer
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
 from .lineseries import Lines, LineSeriesStub
@@ -1385,9 +1387,12 @@ class Strategy(StrategyBase):
 
         # Loop through indicators, advance if indicator clock length exceeds indicator length
         for indicator in self._lineiterators[LineIterator.IndType]:
-            # Honor a pinned secondary-feed clock (set in _periodset) so
-            # indicators following a non-primary feed advance in sync with it.
-            adv_clock = getattr(indicator, "_resolved_secondary_clock", None) or indicator._clock
+            # Avoid treating a known line alias as a clock only when the
+            # underlying standard attribute storage is safe to inspect.
+            secondary = getattr(indicator, "_resolved_secondary_clock", None)
+            if _safe_indicator_clock_alias(indicator, secondary):
+                secondary = None
+            adv_clock = secondary or indicator._clock
             if len(adv_clock) > len(indicator):
                 indicator.advance()
         # If using old data sync method, call advance; otherwise call forward
@@ -1411,23 +1416,30 @@ class Strategy(StrategyBase):
         if has_strategy_next_lineactions:
             self._next_strategy_lineactions()
 
-        # CRITICAL FIX: In runonce mode, ensure indicator lencount matches strategy length
-        # This ensures len(indicator) == len(strategy) at the end of processing
+        # Synchronize each eligible indicator immediately.  Preserve the
+        # clock -> flag -> lines order: later getters may fail or have effects.
         try:
             strategy_len = len(self)
             strategy_clock = getattr(self, "_clock", None)
             for indicator in self._lineiterators[LineIterator.IndType]:
                 if getattr(indicator, "_clock", None) is not strategy_clock:
                     continue
-                # Only update if indicator was processed in runonce mode
-                if hasattr(indicator, "_once_called") and indicator._once_called:
-                    # Update lencount for all lines in the indicator
-                    if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
-                        for line in indicator.lines.lines:
-                            if hasattr(line, "lencount"):
-                                # Set lencount to match strategy length (which equals data length)
-                                # Use the maximum of current lencount and strategy_len to ensure we don't decrease it
-                                line.lencount = max(line.lencount, strategy_len)
+                if hasattr(indicator, "_once_called"):
+                    once_called = indicator._once_called
+                    if once_called:
+                        if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
+                            lines = indicator.lines.lines
+                            if (
+                                type(once_called) is LineBuffer
+                                and type(lines) in (list, tuple)
+                                and any(once_called is line for line in lines)
+                            ):
+                                state = getattr(indicator, "__dict__", {})
+                                if state.get("_bt_once_executed") is not True:
+                                    continue
+                            for line in lines:
+                                if hasattr(line, "lencount"):
+                                    line.lencount = max(line.lencount, strategy_len)
         except Exception:
             logger.debug("Failed to update indicator lencount in _oncepost_nextday", exc_info=True)
 
