@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     RSI,
     Indicator,
@@ -33,11 +35,14 @@ class RSIHistogramIndicator(Indicator):
     def next(self):
         """Update value, midline, and current color state."""
         rsi_value = float(self.rsi[0])
-        color = 1.0
-        if rsi_value > float(self.p.high_level):
+        if not math.isfinite(rsi_value):
+            color = float("nan")
+        elif rsi_value > float(self.p.high_level):
             color = 0.0
         elif rsi_value < float(self.p.low_level):
             color = 2.0
+        else:
+            color = 1.0
         self.lines.value[0] = rsi_value
         self.lines.midline[0] = 50.0
         self.lines.color_state[0] = color
