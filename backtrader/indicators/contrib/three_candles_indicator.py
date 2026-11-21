@@ -5,6 +5,9 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
+from ...linebuffer import _reject_factor_infinity
 from .. import Indicator
 
 __all__ = [
@@ -13,7 +16,7 @@ __all__ = [
 
 
 class ThreeCandlesIndicator(Indicator):
-    """Indicator producing three-candle reversal signal labels."""
+    """Produce reversal labels, or NaN when required inputs are unavailable."""
 
     lines = ("signal",)
     params = (
@@ -27,44 +30,65 @@ class ThreeCandlesIndicator(Indicator):
 
     def next(self):
         """Evaluate bullish/bearish setups and emit normalized signal codes."""
+        current_open = float(self.data.open[0])
+        current_close = float(self.data.close[0])
+        opens = [float(self.data.open[-i]) for i in (3, 2, 1)]
+        closes = [float(self.data.close[-i]) for i in (3, 2, 1)]
+        first_high = float(self.data.high[-3])
+        first_low = float(self.data.low[-3])
+        required = (current_open, current_close, first_high, first_low, *opens, *closes)
+        for value in required:
+            if math.isinf(value):
+                _reject_factor_infinity(self.lines.signal, value)
+        if not all(math.isfinite(value) for value in required):
+            self.lines.signal[0] = float("nan")
+            return
+
         self.lines.signal[0] = 2.0
 
         chk_vol = True
-        range_points = float(self.data.high[-3] - self.data.low[-3])
+        range_points = first_high - first_low
+        if math.isinf(range_points):
+            _reject_factor_infinity(self.lines.signal, range_points)
         point = float(getattr(self.data, "_point_value", 0.01) or 0.01)
-        if point > 0 and range_points / point > float(self.p.max_bar1):
-            chk_vol = False
+        if point > 0:
+            scaled_range = range_points / point
+            if math.isinf(scaled_range):
+                _reject_factor_infinity(self.lines.signal, scaled_range)
+            if scaled_range > float(self.p.max_bar1):
+                chk_vol = False
 
         bullish_setup = (
-            float(self.data.open[-3]) < float(self.data.close[-3])
-            and float(self.data.open[-2]) < float(self.data.close[-2])
-            and float(self.data.close[-2]) < float(self.data.high[-3])
-            and float(self.data.open[-1]) > float(self.data.close[-1])
-            and float(self.data.close[-1]) < float(self.data.open[-2])
+            opens[0] < closes[0]
+            and opens[1] < closes[1]
+            and closes[1] < first_high
+            and opens[2] > closes[2]
+            and closes[2] < opens[1]
         )
         bearish_setup = (
-            float(self.data.open[-3]) > float(self.data.close[-3])
-            and float(self.data.open[-2]) > float(self.data.close[-2])
-            and float(self.data.close[-2]) > float(self.data.low[-3])
-            and float(self.data.open[-1]) < float(self.data.close[-1])
-            and float(self.data.close[-1]) > float(self.data.open[-2])
+            opens[0] > closes[0]
+            and opens[1] > closes[1]
+            and closes[1] > first_low
+            and opens[2] < closes[2]
+            and closes[2] > opens[1]
         )
 
-        vol_series = self.data.volume
+        volume_ok = True
+        if (bullish_setup or bearish_setup) and chk_vol and self.p.volume_type != "none":
+            v3, v2, v1 = (float(self.data.volume[-i]) for i in (3, 2, 1))
+            for value in (v3, v2, v1):
+                if math.isinf(value):
+                    _reject_factor_infinity(self.lines.signal, value)
+            if not all(math.isfinite(value) for value in (v3, v2, v1)):
+                self.lines.signal[0] = float("nan")
+                return
+            volume_ok = v3 < v2 or v1 > v2 or v1 > v3
 
-        def volume_filter_ok():
-            if not chk_vol or self.p.volume_type == "none":
-                return True
-            v3 = float(vol_series[-3])
-            v2 = float(vol_series[-2])
-            v1 = float(vol_series[-1])
-            return v3 < v2 or v1 > v2 or v1 > v3
-
-        if bullish_setup and volume_filter_ok():
+        if bullish_setup and volume_ok:
             self.lines.signal[0] = (
-                0.0 if float(self.data.close[0]) < float(self.data.open[0]) else 1.0
+                0.0 if current_close < current_open else 1.0
             )
-        if bearish_setup and volume_filter_ok():
+        if bearish_setup and volume_ok:
             self.lines.signal[0] = (
-                3.0 if float(self.data.close[0]) < float(self.data.open[0]) else 4.0
+                3.0 if current_close < current_open else 4.0
             )
