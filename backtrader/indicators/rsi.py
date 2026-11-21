@@ -72,12 +72,13 @@ class UpDay(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
-        for i in range(min(period, end, len(larray))):
-            larray[i] = 0.0
+        first_valid = max(period, self._minperiod - 1)
+        for i in range(max(0, start), min(first_valid, end, len(larray))):
+            larray[i] = float("nan")
 
-        for i in range(period, min(end, len(darray))):
+        for i in range(max(start, first_valid), min(end, len(darray))):
             diff = darray[i] - darray[i - period]
             larray[i] = max(diff, 0.0)
 
@@ -126,12 +127,13 @@ class DownDay(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
-        for i in range(min(period, end, len(larray))):
-            larray[i] = 0.0
+        first_valid = max(period, self._minperiod - 1)
+        for i in range(max(0, start), min(first_valid, end, len(larray))):
+            larray[i] = float("nan")
 
-        for i in range(period, min(end, len(darray))):
+        for i in range(max(start, first_valid), min(end, len(darray))):
             diff = darray[i - period] - darray[i]
             larray[i] = max(diff, 0.0)
 
@@ -182,12 +184,13 @@ class UpDayBool(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
-        for i in range(min(period, end, len(larray))):
-            larray[i] = 0.0
+        first_valid = max(period, self._minperiod - 1)
+        for i in range(max(0, start), min(first_valid, end, len(larray))):
+            larray[i] = float("nan")
 
-        for i in range(period, min(end, len(darray))):
+        for i in range(max(start, first_valid), min(end, len(darray))):
             larray[i] = 1.0 if darray[i] > darray[i - period] else 0.0
 
 
@@ -237,12 +240,13 @@ class DownDayBool(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
-        for i in range(min(period, end, len(larray))):
-            larray[i] = 0.0
+        first_valid = max(period, self._minperiod - 1)
+        for i in range(max(0, start), min(first_valid, end, len(larray))):
+            larray[i] = float("nan")
 
-        for i in range(period, min(end, len(darray))):
+        for i in range(max(start, first_valid), min(end, len(darray))):
             larray[i] = 1.0 if darray[i - period] > darray[i] else 0.0
 
 
