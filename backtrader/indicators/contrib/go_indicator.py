@@ -7,6 +7,7 @@ helper functions and constants without cross-test name collisions.
 
 import math
 
+from ...linebuffer import _factor_context_for_line, _factor_phase
 from .. import (
     ExponentialMovingAverage,
     Indicator,
@@ -28,6 +29,21 @@ class GOIndicator(Indicator):
         ("period", 174),
         ("ma_method", "SMA"),
     )
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        namespace = cls.__dict__
+        if "next" in namespace and "once" not in namespace:
+            cls.once = Indicator.once_via_next
+            if "preonce" not in namespace:
+                cls.preonce = Indicator.preonce_via_prenext
+            if "oncestart" not in namespace:
+                cls.oncestart = Indicator.oncestart_via_nextstart
+        else:
+            if "prenext" in namespace and "preonce" not in namespace:
+                cls.preonce = Indicator.preonce_via_prenext
+            if "nextstart" in namespace and "oncestart" not in namespace:
+                cls.oncestart = Indicator.oncestart_via_nextstart
 
     def __init__(self):
         """Build MA buffers for OHLC input series and warmup period.
@@ -55,15 +71,34 @@ class GOIndicator(Indicator):
 
     def _calc_go(self, ma_open, ma_high, ma_low, ma_close, volume):
         values = (ma_open, ma_high, ma_low, ma_close, volume)
+        context = _factor_context_for_line(self.lines.go)
+        if context is not None:
+            from ...research.strict import reject_infinity
+
+            phase = _factor_phase(context)
+            for value in values:
+                reject_infinity(context, value, phase, operation=self.lines.go)
         if not all(math.isfinite(float(v)) for v in values):
             return 0.0
-        return (
-            (ma_close - ma_open)
-            + (ma_high - ma_open)
-            + (ma_low - ma_open)
-            + (ma_close - ma_low)
-            + (ma_close - ma_high)
-        ) * volume
+        terms = (
+            ma_close - ma_open,
+            ma_high - ma_open,
+            ma_low - ma_open,
+            ma_close - ma_low,
+            ma_close - ma_high,
+        )
+        total = terms[0]
+        if context is not None:
+            for value in terms:
+                reject_infinity(context, value, phase, operation=self.lines.go)
+        for value in terms[1:]:
+            total += value
+            if context is not None:
+                reject_infinity(context, total, phase, operation=self.lines.go)
+        result = total * volume
+        if context is not None:
+            reject_infinity(context, result, phase, operation=self.lines.go)
+        return result
 
     def next(self):
         """Compute GO for current bar and publish it to ``lines.go``."""
@@ -83,11 +118,19 @@ class GOIndicator(Indicator):
         ma_close = self.ma_close.array
         volume = self.data.volume.array
         go = self.lines.go.array
+        context = _factor_context_for_line(self.lines.go)
+        if context is not None:
+            from ...research.strict import reject_infinity
+
+            phase = _factor_phase(context)
         for i in range(start, end):
-            go[i] = self._calc_go(
+            value = self._calc_go(
                 float(ma_open[i]),
                 float(ma_high[i]),
                 float(ma_low[i]),
                 float(ma_close[i]),
                 float(volume[i]),
             )
+            if context is not None:
+                reject_infinity(context, value, phase, operation=self.lines.go)
+            go[i] = value
