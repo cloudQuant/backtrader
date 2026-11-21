@@ -1,0 +1,26 @@
+{
+  "head": "26b6a39db076a0e7a97d0074bc65fd41a7e9db6d",
+  "old_method_commit": "d02e3d75452c34ff915aebd1d631332ff7a44679",
+  "paths": {
+    "head_safe": {
+      "backtrader/lineiterator.py": "4a0eca8704cc8c10eb5ab246d6dbf0081c67a8de9258ea2c0fa65e35cc90e207",
+      "backtrader/linebuffer.py": "09ea9d0a467b0ffcdf26d30547e1f826c8327e886af3e1757f2e6a01d3132618",
+      "tests/datas/XAUUSD_M15.csv": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f"
+    },
+    "head_old": {
+      "backtrader/lineiterator.py": "adb26838985951d50b59fd5798231786be32028fb9fab7f7593ab40eee063926",
+      "backtrader/linebuffer.py": "09ea9d0a467b0ffcdf26d30547e1f826c8327e886af3e1757f2e6a01d3132618",
+      "tests/datas/XAUUSD_M15.csv": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f"
+    },
+    "wip_safe": {
+      "backtrader/lineiterator.py": "729fe8ebb64490ffea5df0b645d8ce05bf1bc8713fdbf46e1202e0c152913f3b",
+      "backtrader/linebuffer.py": "01fa5967ec33661742d3b746fd87850a07ce851691c978b3aa2a1846fb7ed1b5",
+      "tests/datas/XAUUSD_M15.csv": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f"
+    },
+    "wip_old": {
+      "backtrader/lineiterator.py": "50dce7202d76e11b2050b544e4fcf9f90e80cd4f31fb1e1504324e495a8358c5",
+      "backtrader/linebuffer.py": "01fa5967ec33661742d3b746fd87850a07ce851691c978b3aa2a1846fb7ed1b5",
+      "tests/datas/XAUUSD_M15.csv": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f"
+    }
+  }
+}
