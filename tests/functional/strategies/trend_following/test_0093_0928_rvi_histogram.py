@@ -5,8 +5,8 @@ The original config.yaml, run.py, strategy_*.py, and expected.json have been
 collapsed into this single self-contained file.
 
 Runs with runonce=True only (no parametrization).
-Asserts directly on the strategy's own extract_metrics() output captured at
-migration time.
+Asserts directly on the strategy's own extract_metrics() output. The expected
+values were updated after the RVI rolling windows were warmed before minperiod.
 
 Data Used:
     Symbol XAUUSD (gold spot) on the M15 (15-minute) base timeframe, loaded from
@@ -30,7 +30,7 @@ Strategy Logic:
     buy/sell open signals from the configured mode. It closes opposing positions
     and opens new ones with the fixed lot. Trade notifications maintain buy/sell
     and win/loss counters. ``extract_metrics`` gathers analyzer output, and the
-    test asserts each metric against migration-time expectations under
+    test asserts each metric against the corrected RVI expectations under
     ``runonce=True``.
 """
 from __future__ import annotations
@@ -566,26 +566,26 @@ def test_93_0093_0928_rvi_histogram() -> None:
     assert metrics is not None, "extract_metrics() was not called"
 
     assert metrics.get('bar_num') == 5832, f"bar_num: expected=5832, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 32, f"buy_count: expected=32, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 32, f"sell_count: expected=32, got={metrics.get('sell_count')!r}"
+    assert metrics.get('buy_count') == 33, f"buy_count: expected=33, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 33, f"sell_count: expected=33, got={metrics.get('sell_count')!r}"
     assert metrics.get('win_count') == 28, f"win_count: expected=28, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 36, f"loss_count: expected=36, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 64, f"total_trades: expected=64, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 64, f"trade_count: expected=64, got={metrics.get('trade_count')!r}"
+    assert metrics.get('loss_count') == 38, f"loss_count: expected=38, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 66, f"total_trades: expected=66, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 66, f"trade_count: expected=66, got={metrics.get('trade_count')!r}"
     assert metrics.get('won') == 28, f"won: expected=28, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 36, f"lost: expected=36, got={metrics.get('lost')!r}"
+    assert metrics.get('lost') == 38, f"lost: expected=38, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('signal_count'), 64.0, tol=6.400000e-05, key='signal_count')
+    _close(metrics.get('signal_count'), 66.0, tol=6.400000e-05, key='signal_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 999442.4000000005, tol=9.994424e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -557.599999999511, tol=5.576000e-04, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.055759999999949184, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 43.75, tol=4.375000e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 0.8220690535452208, tol=1.000000e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.08128052269105651, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), -3.7673241101363666, tol=3.767324e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -3.245250177968193, tol=3.245250e-06, key='annual_return_pct')
-    _close(metrics.get('sqn'), -0.49044232125811227, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 999388.2000000005, tol=9.994424e-01, key='final_value')
+    _close(metrics.get('net_pnl'), -611.7999999994645, tol=5.576000e-04, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -0.06117999999994961, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 42.42424242424242, tol=4.375000e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 0.8058517390200624, tol=1.000000e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.0812849278205063, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), -4.137965771464487, tol=3.767324e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), -3.555118858722691, tol=3.245250e-06, key='annual_return_pct')
+    _close(metrics.get('sqn'), -0.5388464714748188, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

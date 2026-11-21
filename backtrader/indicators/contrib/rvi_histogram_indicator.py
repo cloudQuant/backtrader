@@ -82,26 +82,57 @@ class RVIHistogramIndicator(Indicator):
         self._num_sma = _RollingSimpleAverage(self.p.rvi_period)
         self._den_sma = _RollingSimpleAverage(self.p.rvi_period)
         self._main_avg4 = _RollingWeightedAverage4()
+        self._rolling_averages = (
+            self._co_avg4, self._hl_avg4, self._num_sma, self._den_sma, self._main_avg4
+        )
+        self._sample_length = None
+        self._sample_before = None
         self.addminperiod(int(self.p.rvi_period) + 6)
+
+    def _sample(self, publish):
+        # A replay can revise OHLC without advancing the input bar; another
+        # feed's clock can also cause repeated calls for the same input bar.
+        length = len(self.data)
+        if length == self._sample_length:
+            before = self._sample_before
+            for average, values in zip(self._rolling_averages, before):
+                average.values[:] = values
+        else:
+            before = tuple(tuple(average.values) for average in self._rolling_averages)
+
+        try:
+            co = float(self.data.close[0]) - float(self.data.open[0])
+            hl = float(self.data.high[0]) - float(self.data.low[0])
+            weighted_co = self._co_avg4.update(co)
+            weighted_hl = self._hl_avg4.update(hl)
+            num = self._num_sma.update(weighted_co)
+            den = self._den_sma.update(weighted_hl)
+            main = num / den if abs(den) > 1e-12 else 0.0
+            signal = self._main_avg4.update(main)
+
+            if publish:
+                color = 1.0
+                if main > float(self.p.high_level):
+                    color = 0.0
+                elif main < float(self.p.low_level):
+                    color = 2.0
+
+                self.lines.main[0] = main
+                self.lines.signal[0] = signal
+                self.lines.hist_base[0] = 0.0
+                self.lines.color_state[0] = color
+        except BaseException:
+            for average, values in zip(self._rolling_averages, before):
+                average.values[:] = values
+            raise
+
+        self._sample_length = length
+        self._sample_before = before
+
+    def prenext(self):
+        """Warm the rolling windows without publishing premature values."""
+        self._sample(publish=False)
 
     def next(self):
         """Compute the RVI main/signal lines and the level-based color state."""
-        co = float(self.data.close[0]) - float(self.data.open[0])
-        hl = float(self.data.high[0]) - float(self.data.low[0])
-        weighted_co = self._co_avg4.update(co)
-        weighted_hl = self._hl_avg4.update(hl)
-        num = self._num_sma.update(weighted_co)
-        den = self._den_sma.update(weighted_hl)
-        main = num / den if abs(den) > 1e-12 else 0.0
-        signal = self._main_avg4.update(main)
-
-        color = 1.0
-        if main > float(self.p.high_level):
-            color = 0.0
-        elif main < float(self.p.low_level):
-            color = 2.0
-
-        self.lines.main[0] = main
-        self.lines.signal[0] = signal
-        self.lines.hist_base[0] = 0.0
-        self.lines.color_state[0] = color
+        self._sample(publish=True)
