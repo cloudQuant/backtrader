@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -29,6 +31,7 @@ class XRSIHistogramVolIndicator(Indicator):
         """Prepare rolling RSI and volume histories."""
         self._scaled_history = []
         self._volume_history = []
+        self._last_source_length = None
         self.addminperiod(max(self.p.rsi_period, self.p.ma_length) + 3)
 
     def next(self):
@@ -48,24 +51,32 @@ class XRSIHistogramVolIndicator(Indicator):
             rs = avg_gain / avg_loss
             rsi_value = 100.0 - (100.0 / (1.0 + rs))
         raw = (rsi_value - 50.0) * vol
-        self._scaled_history.append(raw)
-        self._volume_history.append(vol)
-        if len(self._scaled_history) > self.p.ma_length:
-            self._scaled_history.pop(0)
-        if len(self._volume_history) > self.p.ma_length:
-            self._volume_history.pop(0)
-        scaled = sum(self._scaled_history) / float(len(self._scaled_history))
+        source_length = len(self.data)
+        scaled_history = list(self._scaled_history)
+        volume_history = list(self._volume_history)
+        if source_length == self._last_source_length and scaled_history and volume_history:
+            scaled_history[-1] = raw
+            volume_history[-1] = vol
+        else:
+            scaled_history.append(raw)
+            volume_history.append(vol)
+            if len(scaled_history) > self.p.ma_length:
+                scaled_history.pop(0)
+            if len(volume_history) > self.p.ma_length:
+                volume_history.pop(0)
+        scaled = sum(scaled_history) / float(len(scaled_history))
         avg_vol = (
-            sum(self._volume_history) / float(len(self._volume_history))
-            if self._volume_history
+            sum(volume_history) / float(len(volume_history))
+            if volume_history
             else max(vol, 1.0)
         )
         max_level = self.p.high_level2 * avg_vol
         up_level = self.p.high_level1 * avg_vol
         dn_level = self.p.low_level1 * avg_vol
         min_level = self.p.low_level2 * avg_vol
-        clr = 2.0
-        if scaled > max_level:
+        if not all(math.isfinite(v) for v in (scaled, max_level, up_level, dn_level, min_level)):
+            clr = float("nan")
+        elif scaled > max_level:
             clr = 0.0
         elif scaled > up_level:
             clr = 1.0
@@ -73,9 +84,27 @@ class XRSIHistogramVolIndicator(Indicator):
             clr = 4.0
         elif scaled < dn_level:
             clr = 3.0
-        self.lines.value[0] = scaled
-        self.lines.max_level[0] = max_level
-        self.lines.up_level[0] = up_level
-        self.lines.dn_level[0] = dn_level
-        self.lines.min_level[0] = min_level
-        self.lines.color_state[0] = clr
+        else:
+            clr = 2.0
+        outputs = (
+            (self.lines.value, scaled),
+            (self.lines.max_level, max_level),
+            (self.lines.up_level, up_level),
+            (self.lines.dn_level, dn_level),
+            (self.lines.min_level, min_level),
+            (self.lines.color_state, clr),
+        )
+        previous = [(line, line[0]) for line, _ in outputs]
+        try:
+            for line, value in outputs:
+                line[0] = value
+        except Exception:
+            for line, value in previous:
+                try:
+                    line[0] = value
+                except Exception:
+                    pass
+            raise
+        self._scaled_history = scaled_history
+        self._volume_history = volume_history
+        self._last_source_length = source_length
