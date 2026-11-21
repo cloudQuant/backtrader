@@ -88,25 +88,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         return None
 
     if seen is None:
-        try:
-            return object.__getattribute__(lineaction, "_lineaction_source_clock_cache")
-        except AttributeError:
-            # Cache not populated yet; resolve below (hot path: no logging).
-            pass
         seen = set()
-        cache_result = True
-    else:
-        cache_result = False
-
-    def finish(result):
-        if cache_result and result is not None:
-            try:
-                lineaction._lineaction_source_clock_cache = result
-            except Exception:  # nosec B110
-                # Object rejects attribute caching (e.g. __slots__); skip caching.
-                # Unsupported caching is a normal per-bar protocol fallback.
-                pass
-        return result
 
     action_id = id(lineaction)
     if action_id in seen:
@@ -122,9 +104,9 @@ def _lineaction_source_clock(lineaction, seen=None):
         if isinstance(clock, LineActions):
             source_clock = _lineaction_source_clock(clock, seen)
             if source_clock is not None:
-                return finish(source_clock)
+                return source_clock
         else:
-            return finish(clock)
+            return clock
 
     for attr in ("_parent_a", "_parent_b", "a", "b", "cond"):
         try:
@@ -135,7 +117,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         if isinstance(dependency, LineActions):
             source_clock = _lineaction_source_clock(dependency, seen)
             if source_clock is not None:
-                return finish(source_clock)
+                return source_clock
 
         try:
             dep_clock = dependency._clock
@@ -146,7 +128,7 @@ def _lineaction_source_clock(lineaction, seen=None):
             and dep_clock.__class__.__name__ != "MinimalClock"
             and not isinstance(dep_clock, LineActions)
         ):
-            return finish(dep_clock)
+            return dep_clock
 
     try:
         args = lineaction.args
@@ -157,7 +139,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         if isinstance(dependency, LineActions):
             source_clock = _lineaction_source_clock(dependency, seen)
             if source_clock is not None:
-                return finish(source_clock)
+                return source_clock
 
         try:
             dep_clock = dependency._clock
@@ -168,7 +150,7 @@ def _lineaction_source_clock(lineaction, seen=None):
             and dep_clock.__class__.__name__ != "MinimalClock"
             and not isinstance(dep_clock, LineActions)
         ):
-            return finish(dep_clock)
+            return dep_clock
 
     try:
         datas = lineaction.datas
@@ -179,7 +161,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         if isinstance(data, LineActions):
             source_clock = _lineaction_source_clock(data, seen)
             if source_clock is not None:
-                return finish(source_clock)
+                return source_clock
 
         try:
             data_clock = data._clock
@@ -190,7 +172,7 @@ def _lineaction_source_clock(lineaction, seen=None):
             and data_clock.__class__.__name__ != "MinimalClock"
             and not isinstance(data_clock, LineActions)
         ):
-            return finish(data_clock)
+            return data_clock
 
     return None
 
