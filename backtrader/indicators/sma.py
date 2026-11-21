@@ -19,12 +19,237 @@ Example:
                 self.sell()
 """
 
+import array
 import math
+import sys
 
 from ..utils.log_message import get_logger
 from .mabase import MovingAverageBase
 
 logger = get_logger(__name__)
+_MIN_PERIOD_FOR_ROLLING_ONCE = 32
+
+
+def _add_fsum_partial(partials, value):
+    """Add a finite float to a non-overlapping Shewchuk exact-sum expansion."""
+    isfinite = math.isfinite
+    if not isfinite(value):
+        return False
+
+    index = 0
+    for partial in partials:
+        if abs(value) < abs(partial):
+            value, partial = partial, value
+
+        high = value + partial
+        if not isfinite(high):
+            return False
+
+        low = partial - (high - value)
+        if low:
+            partials[index] = low
+            index += 1
+        value = high
+
+    del partials[index:]
+    if value:
+        partials.append(value)
+    return True
+
+
+def _sma_window_fsum(src, dst, index, period, fsum, nan_val):
+    """Compute one SMA bar with exact ``math.fsum`` and legacy NaN semantics."""
+    window = src[index - period + 1 : index + 1]
+    # Check the entire window first: fsum can overflow before reaching a NaN.
+    if any(v != v for v in window):
+        dst[index] = nan_val
+    else:
+        dst[index] = fsum(window) / period
+
+
+def _once_exact_sma(src, dst, calc_start, actual_end, period, nan_val):
+    """Calculate rolling SMA over ``array('d')`` using an exact Shewchuk sum.
+
+    Preserves bit-exact parity with ``math.fsum(window) / period`` on all
+    finite windows, falls back to exact per-window ``math.fsum`` while any
+    non-finite value or overflow is inside the window, and cleanly re-seeds
+    once those values exit the window.
+    """
+    fsum = math.fsum
+    isfinite = math.isfinite
+    # Rolling updates can bypass order-dependent fsum intermediate overflow.
+    # Near the float limit, retain the original ordered window calculation.
+    safe_term = sys.float_info.max / period / 2.0
+    partials = None
+    cur = 0.0
+    i = calc_start
+
+    while i < actual_end:
+        if partials is None:
+            win_start = i - period + 1
+            bad_idx = -1
+            for j in range(i, win_start - 1, -1):
+                if not isfinite(src[j]) or abs(src[j]) > safe_term:
+                    bad_idx = j
+                    break
+
+            if bad_idx >= 0:
+                fallback_end = min(actual_end, bad_idx + period)
+                for k in range(i, fallback_end):
+                    _sma_window_fsum(src, dst, k, period, fsum, nan_val)
+                i = fallback_end
+                continue
+
+            partials = []
+            overflowed = False
+            for j in range(win_start, i + 1):
+                if not _add_fsum_partial(partials, src[j]):
+                    overflowed = True
+                    break
+
+            if not overflowed:
+                try:
+                    cur = (
+                        partials[0]
+                        if len(partials) == 1
+                        else (fsum(partials) if partials else 0.0)
+                    )
+                except OverflowError:
+                    overflowed = True
+
+            if overflowed:
+                _sma_window_fsum(src, dst, i, period, fsum, nan_val)
+                partials = None
+                i += 1
+                continue
+
+            dst[i] = cur / period
+            i += 1
+            continue
+
+        while i < actual_end:
+            out_v = src[i - period]
+            in_v = src[i]
+            if not isfinite(in_v) or abs(in_v) > safe_term:
+                partials = None
+                break
+            diff = in_v - out_v
+            v = diff - in_v
+            err = (in_v - (diff - v)) + (-out_v - v)
+            if err == 0.0 and isfinite(diff):
+                if diff:
+                    n = len(partials)
+                    if n == 0:
+                        partials.append(diff)
+                        cur = diff
+                    elif n == 1:
+                        x = diff
+                        p0 = partials[0]
+                        if abs(x) < abs(p0):
+                            x, p0 = p0, x
+                        h0 = x + p0
+                        if not isfinite(h0):
+                            partials = None
+                            break
+                        l0 = p0 - (h0 - x)
+                        if l0:
+                            partials[0] = l0
+                            partials.append(h0)
+                            try:
+                                cur = fsum(partials)
+                            except OverflowError:
+                                partials = None
+                                break
+                        elif h0:
+                            partials[0] = h0
+                            cur = h0
+                        else:
+                            partials.clear()
+                            cur = 0.0
+                    elif n == 2:
+                        p0 = partials[0]
+                        p1 = partials[1]
+                        x = diff
+                        if abs(x) < abs(p0):
+                            x, p0 = p0, x
+                        h0 = x + p0
+                        if not isfinite(h0):
+                            partials = None
+                            break
+                        l0 = p0 - (h0 - x)
+                        x = h0
+                        if abs(x) < abs(p1):
+                            x, p1 = p1, x
+                        h1 = x + p1
+                        if not isfinite(h1):
+                            partials = None
+                            break
+                        l1 = p1 - (h1 - x)
+                        if l0:
+                            if l1:
+                                partials[0] = l0
+                                partials[1] = l1
+                                if h1:
+                                    partials.append(h1)
+                            elif h1:
+                                partials[0] = l0
+                                partials[1] = h1
+                            else:
+                                partials[0] = l0
+                                del partials[1:]
+                        else:
+                            if l1:
+                                if h1:
+                                    partials[0] = l1
+                                    partials[1] = h1
+                                else:
+                                    partials[0] = l1
+                                    del partials[1:]
+                            elif h1:
+                                partials[0] = h1
+                                del partials[1:]
+                            else:
+                                partials.clear()
+                        try:
+                            cur = (
+                                partials[0]
+                                if len(partials) == 1
+                                else (fsum(partials) if partials else 0.0)
+                            )
+                        except OverflowError:
+                            partials = None
+                            break
+                    else:
+                        if not _add_fsum_partial(partials, diff):
+                            partials = None
+                            break
+                        try:
+                            cur = (
+                                partials[0]
+                                if len(partials) == 1
+                                else (fsum(partials) if partials else 0.0)
+                            )
+                        except OverflowError:
+                            partials = None
+                            break
+            else:
+                if not _add_fsum_partial(partials, -out_v) or not _add_fsum_partial(
+                    partials, in_v
+                ):
+                    partials = None
+                    break
+                try:
+                    cur = (
+                        partials[0]
+                        if len(partials) == 1
+                        else (fsum(partials) if partials else 0.0)
+                    )
+                except OverflowError:
+                    partials = None
+                    break
+
+            dst[i] = cur / period
+            i += 1
 
 
 # Moving average indicator
@@ -116,21 +341,27 @@ class MovingAverageSimple(MovingAverageBase):
             fsum = math.fsum  # Cache function reference
             nan_val = float("nan")
 
+            if (
+                type(period) is int
+                and period >= _MIN_PERIOD_FOR_ROLLING_ONCE
+                and type(start) is int
+                and type(end) is int
+                and start >= 0
+                and end >= 0
+                and actual_end - calc_start >= 4
+                and type(src) is array.array
+                and src.typecode == "d"
+                and type(dst) is array.array
+                and dst.typecode == "d"
+                and src is not dst
+            ):
+                _once_exact_sma(src, dst, calc_start, actual_end, period, nan_val)
+                return
+
             for i in range(calc_start, actual_end):
-                start_idx = i - period + 1
                 end_idx = i + 1
                 if end_idx <= len(src):
-                    window = src[start_idx:end_idx]
-                    # NaN check: only NaN != NaN (faster than isinstance + isnan)
-                    has_nan = False
-                    for v in window:
-                        if v != v:
-                            has_nan = True
-                            break
-                    if has_nan:
-                        dst[i] = nan_val
-                    else:
-                        dst[i] = fsum(window) / period
+                    _sma_window_fsum(src, dst, i, period, fsum, nan_val)
                 else:
                     dst[i] = nan_val
         except Exception:

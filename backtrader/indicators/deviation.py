@@ -22,9 +22,86 @@ Example:
                 self.buy()
 """
 
+import array
 import math
 
+from ..parameters import ParameterAccessor, ParameterManager
 from . import Indicator, MovAv
+
+_MIN_PERIOD_FOR_ROLLING_STDDEV_ONCE = 16
+_PARAMETER_ACCESSOR_GETATTRIBUTE = ParameterAccessor.__getattribute__
+_PARAMETER_MANAGER_GET = ParameterManager.get
+_PARAMETER_ACCESSOR_DICT_DESCRIPTOR = vars(ParameterAccessor).get("__dict__")
+_PARAMETER_MANAGER_DICT_DESCRIPTOR = vars(ParameterManager).get("__dict__")
+
+
+def _has_plain_safepow_parameter(indicator):
+    """Only cache rolling state when reading safepow cannot call user code."""
+    if (
+        type(indicator) is not _STANDARD_DEVIATION_CLASS
+        or vars(ParameterAccessor).get("__getattribute__") is not _PARAMETER_ACCESSOR_GETATTRIBUTE
+        or vars(ParameterManager).get("get") is not _PARAMETER_MANAGER_GET
+    ):
+        return False
+    for cls in (type(indicator), ParameterManager):
+        for base in type.__getattribute__(cls, "__mro__"):
+            namespace = type.__getattribute__(base, "__dict__")
+            if "__getattribute__" in namespace:
+                if namespace["__getattribute__"] is not object.__getattribute__:
+                    return False
+                break
+        else:
+            return False
+    for cls, expected_dict in (
+        (type(indicator), _STANDARD_DEVIATION_DICT_DESCRIPTOR),
+        (ParameterAccessor, _PARAMETER_ACCESSOR_DICT_DESCRIPTOR),
+        (ParameterManager, _PARAMETER_MANAGER_DICT_DESCRIPTOR),
+    ):
+        for base in type.__getattribute__(cls, "__mro__"):
+            namespace = type.__getattribute__(base, "__dict__")
+            if "__dict__" in namespace:
+                if namespace["__dict__"] is not expected_dict:
+                    return False
+                break
+        else:
+            return False
+    for base in type.__getattribute__(ParameterAccessor, "__mro__"):
+        if "_param_manager" in type.__getattribute__(base, "__dict__"):
+            return False
+    for base in type.__getattribute__(ParameterManager, "__mro__"):
+        namespace = type.__getattribute__(base, "__dict__")
+        if any(name in namespace for name in ("_values", "_descriptors", "_lazy_defaults")):
+            return False
+    for base in type.__getattribute__(type(indicator), "__mro__"):
+        namespace = type.__getattribute__(base, "__dict__")
+        if "p" in namespace:
+            if namespace["p"] is not _STANDARD_DEVIATION_P_DESCRIPTOR:
+                return False
+            break
+    else:
+        return False
+    instance = object.__getattribute__(indicator, "__dict__")
+    if type(instance) is not dict or any(type(key) is not str for key in instance):
+        return False
+    params = instance.get("_params_instance")
+    if type(params) is not ParameterAccessor:
+        return False
+    params_state = object.__getattribute__(params, "__dict__")
+    if type(params_state) is not dict or any(type(key) is not str for key in params_state):
+        return False
+    manager = params_state.get("_param_manager")
+    if type(manager) is not ParameterManager:
+        return False
+    state = object.__getattribute__(manager, "__dict__")
+    if type(state) is not dict or any(type(key) is not str for key in state):
+        return False
+    if "get" in state:
+        return False
+    for name in ("_values", "_descriptors", "_lazy_defaults"):
+        mapping = state.get(name)
+        if type(mapping) is not dict or any(type(key) is not str for key in mapping):
+            return False
+    return type(state["_values"].get("safepow")) is bool
 
 
 def _add_fsum_partial(partials, value):
@@ -35,7 +112,8 @@ def _add_fsum_partial(partials, value):
     rounded-sum contract of recalculating each window with ``math.fsum``.
     Return false if an intermediate overflow makes the expansion unusable.
     """
-    if not math.isfinite(value):
+    isfinite = math.isfinite
+    if not isfinite(value):
         return False
 
     index = 0
@@ -44,7 +122,7 @@ def _add_fsum_partial(partials, value):
             value, partial = partial, value
 
         high = value + partial
-        if not math.isfinite(high):
+        if not isfinite(high):
             return False
 
         low = partial - (high - value)
@@ -57,6 +135,91 @@ def _add_fsum_partial(partials, value):
     if value:
         partials.append(value)
     return True
+
+
+def _update_fsum_step(partials, outgoing, incoming):
+    """Apply ``-outgoing + incoming`` to an exact Shewchuk expansion.
+
+    Uses Knuth TwoSum on ``incoming - outgoing`` so common financial prices
+    (Sterbenz range) require only a single expansion update with inline 1/2-term
+    fast paths, while falling back to separate exact updates whenever
+    ``incoming - outgoing`` has non-zero rounding error.  Returns False if any
+    input or intermediate value is non-finite.
+    """
+    isfinite = math.isfinite
+    diff = incoming - outgoing
+    v = diff - incoming
+    err = (incoming - (diff - v)) + (-outgoing - v)
+    if err == 0.0 and isfinite(diff):
+        if not diff:
+            return True
+        n = len(partials)
+        if n == 0:
+            partials.append(diff)
+            return True
+        if n == 1:
+            x = diff
+            p0 = partials[0]
+            if abs(x) < abs(p0):
+                x, p0 = p0, x
+            h0 = x + p0
+            if not isfinite(h0):
+                return False
+            l0 = p0 - (h0 - x)
+            if l0:
+                partials[0] = l0
+                partials.append(h0)
+            elif h0:
+                partials[0] = h0
+            else:
+                partials.clear()
+            return True
+        if n == 2:
+            p0 = partials[0]
+            p1 = partials[1]
+            x = diff
+            if abs(x) < abs(p0):
+                x, p0 = p0, x
+            h0 = x + p0
+            if not isfinite(h0):
+                return False
+            l0 = p0 - (h0 - x)
+            x = h0
+            if abs(x) < abs(p1):
+                x, p1 = p1, x
+            h1 = x + p1
+            if not isfinite(h1):
+                return False
+            l1 = p1 - (h1 - x)
+            if l0:
+                if l1:
+                    partials[0] = l0
+                    partials[1] = l1
+                    if h1:
+                        partials.append(h1)
+                elif h1:
+                    partials[0] = l0
+                    partials[1] = h1
+                else:
+                    partials[0] = l0
+                    del partials[1:]
+            else:
+                if l1:
+                    if h1:
+                        partials[0] = l1
+                        partials[1] = h1
+                    else:
+                        partials[0] = l1
+                        del partials[1:]
+                elif h1:
+                    partials[0] = h1
+                    del partials[1:]
+                else:
+                    partials.clear()
+            return True
+        return _add_fsum_partial(partials, diff)
+
+    return _add_fsum_partial(partials, -outgoing) and _add_fsum_partial(partials, incoming)
 
 
 class StandardDeviation(Indicator):
@@ -160,6 +323,56 @@ class StandardDeviation(Indicator):
                 mean = math.fsum(window) / period
             larray[i] = self._finish(meansq, mean)
 
+    def _once_legacy_rolling(self, actual_end, darray, larray, period, nan_val):
+        """Keep HEAD's rolling and fallback order outside the new fast path."""
+        sum_partials = []
+        square_partials = []
+        for index in range(period):
+            value = float(darray[index])
+            square = value * value
+            if (
+                not math.isfinite(value)
+                or not math.isfinite(square)
+                or not _add_fsum_partial(sum_partials, value)
+                or not _add_fsum_partial(square_partials, square)
+            ):
+                self._once_simple_fsum(actual_end, darray, larray, period, None, nan_val, period - 1)
+                return
+
+        try:
+            total_sq = math.fsum(square_partials)
+            total = math.fsum(sum_partials)
+        except OverflowError:
+            self._once_simple_fsum(actual_end, darray, larray, period, None, nan_val, period - 1)
+            return
+
+        for index in range(period - 1, actual_end):
+            if index >= period:
+                outgoing = float(darray[index - period])
+                incoming = float(darray[index])
+                outgoing_sq = outgoing * outgoing
+                incoming_sq = incoming * incoming
+                if (
+                    not math.isfinite(outgoing)
+                    or not math.isfinite(incoming)
+                    or not math.isfinite(outgoing_sq)
+                    or not math.isfinite(incoming_sq)
+                    or not _add_fsum_partial(sum_partials, -outgoing)
+                    or not _add_fsum_partial(sum_partials, incoming)
+                    or not _add_fsum_partial(square_partials, -outgoing_sq)
+                    or not _add_fsum_partial(square_partials, incoming_sq)
+                ):
+                    self._once_simple_fsum(actual_end, darray, larray, period, None, nan_val, index)
+                    return
+                try:
+                    total_sq = math.fsum(square_partials)
+                    total = math.fsum(sum_partials)
+                except OverflowError:
+                    self._once_simple_fsum(actual_end, darray, larray, period, None, nan_val, index)
+                    return
+
+            larray[index] = self._finish(total_sq / period, total / period)
+
     def next(self):
         """Calculate standard deviation for the current bar."""
         period = self.p.period
@@ -238,109 +451,186 @@ class StandardDeviation(Indicator):
             alpha = None
 
         if alpha is None:
-            # For larger simple windows, keep exact floating-point expansions
-            # for the rolling sum and sum of squares.  This preserves each
-            # window's math.fsum result while avoiding a slice and two full
-            # scans per bar.  Small windows and unusual values keep the
-            # original path, where its lower overhead and edge behavior are
-            # preferable.
+            # HEAD performs this comparison even when no fast path is used.
+            legacy_long_period = period >= 64
+            is_double_array = type(darray) is array.array and darray.typecode == "d"
+            plain_safepow = _has_plain_safepow_parameter(self)
             if (
-                period >= 64
+                (
+                    not is_double_array
+                    or type(period) is not int
+                    or type(actual_end) is not int
+                    or darray is larray
+                    or not plain_safepow
+                )
+                and legacy_long_period
                 and mean_array is None
                 and actual_end >= period
                 and type(self) is _STANDARD_DEVIATION_CLASS
                 and getattr(getattr(self, "_finish"), "__func__", None)
                 is _STANDARD_DEVIATION_FINISH
             ):
-                sum_partials = []
-                square_partials = []
+                _STANDARD_DEVIATION_LEGACY_ROLLING(
+                    self, actual_end, darray, larray, period, nan_val
+                )
+                return
+            # For simple windows at or above the measured crossover, keep exact
+            # Shewchuk floating-point expansions for the rolling sum and sum of
+            # squares.  This preserves each window's math.fsum result bit-for-bit
+            # while avoiding per-bar slicing and dual window scans.  Any window
+            # containing non-finite values or overflow falls back to the original
+            # per-window path and cleanly re-seeds once those values exit.
+            # The original simple-window branch recomputes the complete valid
+            # prefix even for a partial once() request. Preserve that contract.
+            calc_start = period - 1
+            if (
+                type(period) is int
+                and period >= _MIN_PERIOD_FOR_ROLLING_STDDEV_ONCE
+                and is_double_array
+                and darray is not larray
+                and type(actual_end) is int
+                and plain_safepow
+                and mean_array is None
+                and actual_end >= period
+                and actual_end - calc_start >= 4
+                and type(self) is _STANDARD_DEVIATION_CLASS
+                and getattr(getattr(self, "_finish"), "__func__", None)
+                is _STANDARD_DEVIATION_FINISH
+            ):
+                fsum = math.fsum
+                isfinite = math.isfinite
+                sqrt = math.sqrt
+                sum_partials = None
+                square_partials = None
+                total = 0.0
+                total_sq = 0.0
+                index = calc_start
 
-                for index in range(period):
-                    value = float(darray[index])
-                    square = value * value
-                    if (
-                        not math.isfinite(value)
-                        or not math.isfinite(square)
-                        or not _add_fsum_partial(sum_partials, value)
-                        or not _add_fsum_partial(square_partials, square)
-                    ):
-                        self._once_simple_fsum(
-                            actual_end,
-                            darray,
-                            larray,
-                            period,
-                            mean_array,
-                            nan_val,
-                            period - 1,
+                while index < actual_end:
+                    if sum_partials is None:
+                        win_start = index - period + 1
+                        bad_idx = -1
+                        for j in range(index, win_start - 1, -1):
+                            val = darray[j] if is_double_array else float(darray[j])
+                            if not isfinite(val) or not isfinite(val * val):
+                                bad_idx = j
+                                break
+
+                        if bad_idx >= 0:
+                            fallback_end = min(actual_end, bad_idx + period)
+                            self._once_simple_fsum(
+                                fallback_end,
+                                darray,
+                                larray,
+                                period,
+                                mean_array,
+                                nan_val,
+                                index,
+                            )
+                            index = fallback_end
+                            continue
+
+                        sum_partials = []
+                        square_partials = []
+                        overflowed = False
+                        for j in range(win_start, index + 1):
+                            val = darray[j] if is_double_array else float(darray[j])
+                            sq = val * val
+                            if not _add_fsum_partial(
+                                sum_partials, val
+                            ) or not _add_fsum_partial(square_partials, sq):
+                                overflowed = True
+                                break
+
+                        if not overflowed:
+                            try:
+                                total = (
+                                    sum_partials[0]
+                                    if len(sum_partials) == 1
+                                    else (fsum(sum_partials) if sum_partials else 0.0)
+                                )
+                                total_sq = (
+                                    square_partials[0]
+                                    if len(square_partials) == 1
+                                    else (fsum(square_partials) if square_partials else 0.0)
+                                )
+                            except OverflowError:
+                                overflowed = True
+
+                        if overflowed:
+                            self._once_simple_fsum(
+                                index + 1,
+                                darray,
+                                larray,
+                                period,
+                                mean_array,
+                                nan_val,
+                                index,
+                            )
+                            sum_partials = None
+                            square_partials = None
+                            index += 1
+                            continue
+
+                        mean = total / period
+                        diff_v = total_sq / period - mean * mean
+                        if self.p.safepow:
+                            diff_v = abs(diff_v)
+                        larray[index] = sqrt(diff_v if diff_v > 0.0 else 0.0)
+                        index += 1
+                        continue
+
+                    while index < actual_end:
+                        outgoing = (
+                            darray[index - period]
+                            if is_double_array
+                            else float(darray[index - period])
                         )
-                        return
-
-                try:
-                    total_sq = math.fsum(square_partials)
-                    total = math.fsum(sum_partials)
-                except OverflowError:
-                    self._once_simple_fsum(
-                        actual_end,
-                        darray,
-                        larray,
-                        period,
-                        mean_array,
-                        nan_val,
-                        period - 1,
-                    )
-                    return
-
-                for index in range(period - 1, actual_end):
-                    if index >= period:
-                        outgoing = float(darray[index - period])
-                        incoming = float(darray[index])
+                        incoming = (
+                            darray[index] if is_double_array else float(darray[index])
+                        )
                         outgoing_sq = outgoing * outgoing
                         incoming_sq = incoming * incoming
                         if (
-                            not math.isfinite(outgoing)
-                            or not math.isfinite(incoming)
-                            or not math.isfinite(outgoing_sq)
-                            or not math.isfinite(incoming_sq)
-                            or not _add_fsum_partial(sum_partials, -outgoing)
-                            or not _add_fsum_partial(sum_partials, incoming)
-                            or not _add_fsum_partial(square_partials, -outgoing_sq)
-                            or not _add_fsum_partial(square_partials, incoming_sq)
-                        ):
-                            self._once_simple_fsum(
-                                actual_end,
-                                darray,
-                                larray,
-                                period,
-                                mean_array,
-                                nan_val,
-                                index,
+                            not isfinite(outgoing_sq)
+                            or not isfinite(incoming_sq)
+                            or not _update_fsum_step(sum_partials, outgoing, incoming)
+                            or not _update_fsum_step(
+                                square_partials, outgoing_sq, incoming_sq
                             )
-                            return
+                        ):
+                            sum_partials = None
+                            square_partials = None
+                            break
 
                         try:
-                            total_sq = math.fsum(square_partials)
-                            total = math.fsum(sum_partials)
-                        except OverflowError:
-                            self._once_simple_fsum(
-                                actual_end,
-                                darray,
-                                larray,
-                                period,
-                                mean_array,
-                                nan_val,
-                                index,
+                            total = (
+                                sum_partials[0]
+                                if len(sum_partials) == 1
+                                else (fsum(sum_partials) if sum_partials else 0.0)
                             )
-                            return
+                            total_sq = (
+                                square_partials[0]
+                                if len(square_partials) == 1
+                                else (fsum(square_partials) if square_partials else 0.0)
+                            )
+                        except OverflowError:
+                            sum_partials = None
+                            square_partials = None
+                            break
 
-                    larray[index] = self._finish(
-                        total_sq / period, total / period
-                    )
+                        mean = total / period
+                        diff_v = total_sq / period - mean * mean
+                        if self.p.safepow:
+                            diff_v = abs(diff_v)
+                        larray[index] = sqrt(diff_v if diff_v > 0.0 else 0.0)
+                        index += 1
                 return
 
+            # HEAD calculated this general path inline.  In particular, do not
+            # call the overridable rolling-fallback hook for custom indicators.
             for i in range(period - 1, actual_end):
-                start_idx = i - period + 1
-                end_idx = i + 1
-                window = darray[start_idx:end_idx]
+                window = darray[i - period + 1 : i + 1]
                 if len(window) != period or any(value != value for value in window):
                     larray[i] = nan_val
                     continue
@@ -353,7 +643,6 @@ class StandardDeviation(Indicator):
                     mean = mean_array[i]
                 else:
                     mean = math.fsum(window) / period
-
                 larray[i] = self._finish(meansq, mean)
             return
 
@@ -407,6 +696,13 @@ class StandardDeviation(Indicator):
 # an overridden _finish appear to be the original fast-path contract.
 _STANDARD_DEVIATION_CLASS = StandardDeviation
 _STANDARD_DEVIATION_FINISH = StandardDeviation._finish
+_STANDARD_DEVIATION_LEGACY_ROLLING = StandardDeviation._once_legacy_rolling
+_STANDARD_DEVIATION_P_DESCRIPTOR = next(
+    vars(base)["p"] for base in StandardDeviation.__mro__ if "p" in vars(base)
+)
+_STANDARD_DEVIATION_DICT_DESCRIPTOR = next(
+    vars(base)["__dict__"] for base in StandardDeviation.__mro__ if "__dict__" in vars(base)
+)
 
 
 # Average deviation

@@ -50,6 +50,7 @@ Example:
 import array
 import functools
 import math
+import sys
 import operator
 import types
 from collections import deque
@@ -61,6 +62,300 @@ from . import Indicator
 logger = get_logger(__name__)
 _MIN_PERIOD_FOR_MONOTONIC_ONCE = 32
 _MIN_PERIOD_FOR_MONOTONIC_INDEX_ONCE = 32
+_MIN_PERIOD_FOR_SUM_ONCE = 32
+_MIN_PERIOD_FOR_BOOL_ONCE = 32
+
+
+def _add_fsum_partial(partials, value):
+    """Add a finite float to a non-overlapping Shewchuk exact-sum expansion.
+
+    Matches the error-free high/low decomposition used by ``math.fsum`` so
+    rolling window additions and removals retain bit-exact parity with
+    per-window ``math.fsum`` calls.  Returns False on non-finite input or
+    intermediate overflow.
+    """
+    isfinite = math.isfinite
+    if not isfinite(value):
+        return False
+
+    index = 0
+    for partial in partials:
+        if abs(value) < abs(partial):
+            value, partial = partial, value
+
+        high = value + partial
+        if not isfinite(high):
+            return False
+
+        low = partial - (high - value)
+        if low:
+            partials[index] = low
+            index += 1
+        value = high
+
+    del partials[index:]
+    if value:
+        partials.append(value)
+    return True
+
+
+def _once_exact_sum(src, dst, start, end, period):
+    """Calculate rolling ``math.fsum`` windows using an exact expansion.
+
+    Preserves bit-exact parity with per-window ``math.fsum`` over finite data
+    and falls back to exact per-window ``math.fsum`` for any window containing
+    non-finite values or overflow, then cleanly re-seeds once those values
+    leave the window.
+    """
+    nan = float("nan")
+    while len(dst) < end:
+        dst.append(nan)
+
+    if start >= end:
+        return
+
+    calc_start = max(start, period - 1)
+    actual_end = min(end, len(src))
+    for i in range(start, min(calc_start, end)):
+        dst[i] = nan
+    for i in range(max(start, actual_end), end):
+        dst[i] = nan
+
+    if calc_start >= actual_end:
+        return
+
+    fsum = math.fsum
+    isfinite = math.isfinite
+    # A rolling expansion loses fsum's input-order overflow behavior.  If a
+    # window could approach the floating-point limit, use fsum on that window
+    # in its original order instead.  The factor two leaves rounding headroom.
+    safe_term = sys.float_info.max / period / 2.0
+    partials = None
+    cur = 0.0
+    i = calc_start
+
+    while i < actual_end:
+        if partials is None:
+            win_start = i - period + 1
+            bad_idx = -1
+            for j in range(i, win_start - 1, -1):
+                if not isfinite(src[j]) or abs(src[j]) > safe_term:
+                    bad_idx = j
+                    break
+
+            if bad_idx >= 0:
+                fallback_end = min(actual_end, bad_idx + period)
+                for k in range(i, fallback_end):
+                    try:
+                        result = fsum(src[k - period + 1 : k + 1])
+                        dst[k] = float(result) if result is not None else nan
+                    except (ValueError, TypeError):
+                        dst[k] = nan
+                i = fallback_end
+                continue
+
+            partials = []
+            overflowed = False
+            for j in range(win_start, i + 1):
+                if not _add_fsum_partial(partials, src[j]):
+                    overflowed = True
+                    break
+
+            if not overflowed:
+                try:
+                    cur = (
+                        partials[0]
+                        if len(partials) == 1
+                        else (fsum(partials) if partials else 0.0)
+                    )
+                except OverflowError:
+                    overflowed = True
+
+            if overflowed:
+                # Re-run exact per-window fsum so OverflowError propagates
+                # identically to the generic path if this window truly overflows.
+                try:
+                    result = fsum(src[win_start : i + 1])
+                    dst[i] = float(result) if result is not None else nan
+                except (ValueError, TypeError):
+                    dst[i] = nan
+                partials = None
+                i += 1
+                continue
+
+            dst[i] = cur
+            i += 1
+            continue
+
+        while i < actual_end:
+            out_v = src[i - period]
+            in_v = src[i]
+            if not isfinite(in_v) or abs(in_v) > safe_term:
+                partials = None
+                break
+            diff = in_v - out_v
+            v = diff - in_v
+            err = (in_v - (diff - v)) + (-out_v - v)
+            if err == 0.0 and isfinite(diff):
+                if diff:
+                    n = len(partials)
+                    if n == 0:
+                        partials.append(diff)
+                        cur = diff
+                    elif n == 1:
+                        x = diff
+                        p0 = partials[0]
+                        if abs(x) < abs(p0):
+                            x, p0 = p0, x
+                        h0 = x + p0
+                        if not isfinite(h0):
+                            partials = None
+                            break
+                        l0 = p0 - (h0 - x)
+                        if l0:
+                            partials[0] = l0
+                            partials.append(h0)
+                            try:
+                                cur = fsum(partials)
+                            except OverflowError:
+                                partials = None
+                                break
+                        elif h0:
+                            partials[0] = h0
+                            cur = h0
+                        else:
+                            partials.clear()
+                            cur = 0.0
+                    elif n == 2:
+                        p0 = partials[0]
+                        p1 = partials[1]
+                        x = diff
+                        if abs(x) < abs(p0):
+                            x, p0 = p0, x
+                        h0 = x + p0
+                        if not isfinite(h0):
+                            partials = None
+                            break
+                        l0 = p0 - (h0 - x)
+                        x = h0
+                        if abs(x) < abs(p1):
+                            x, p1 = p1, x
+                        h1 = x + p1
+                        if not isfinite(h1):
+                            partials = None
+                            break
+                        l1 = p1 - (h1 - x)
+                        if l0:
+                            if l1:
+                                partials[0] = l0
+                                partials[1] = l1
+                                if h1:
+                                    partials.append(h1)
+                            elif h1:
+                                partials[0] = l0
+                                partials[1] = h1
+                            else:
+                                partials[0] = l0
+                                del partials[1:]
+                        else:
+                            if l1:
+                                if h1:
+                                    partials[0] = l1
+                                    partials[1] = h1
+                                else:
+                                    partials[0] = l1
+                                    del partials[1:]
+                            elif h1:
+                                partials[0] = h1
+                                del partials[1:]
+                            else:
+                                partials.clear()
+                        try:
+                            cur = (
+                                partials[0]
+                                if len(partials) == 1
+                                else (fsum(partials) if partials else 0.0)
+                            )
+                        except OverflowError:
+                            partials = None
+                            break
+                    else:
+                        if not _add_fsum_partial(partials, diff):
+                            partials = None
+                            break
+                        try:
+                            cur = (
+                                partials[0]
+                                if len(partials) == 1
+                                else (fsum(partials) if partials else 0.0)
+                            )
+                        except OverflowError:
+                            partials = None
+                            break
+            else:
+                if not _add_fsum_partial(partials, -out_v) or not _add_fsum_partial(
+                    partials, in_v
+                ):
+                    partials = None
+                    break
+                try:
+                    cur = (
+                        partials[0]
+                        if len(partials) == 1
+                        else (fsum(partials) if partials else 0.0)
+                    )
+                except OverflowError:
+                    partials = None
+                    break
+
+            dst[i] = cur
+            i += 1
+
+
+def _once_rolling_bool(src, dst, start, end, period, require_all):
+    """Calculate rolling ``any``/``all`` over IEEE-754 double arrays in O(n).
+
+    For every IEEE-754 double ``v`` (including NaN, +/-Inf, and -0.0),
+    ``bool(v)`` is True if and only if ``v != 0.0``.
+    """
+    nan = float("nan")
+    while len(dst) < end:
+        dst.append(nan)
+
+    if start >= end:
+        return
+
+    calc_start = max(start, period - 1)
+    actual_end = min(end, len(src))
+    for i in range(start, min(calc_start, end)):
+        dst[i] = nan
+    for i in range(max(start, actual_end), end):
+        dst[i] = nan
+
+    if calc_start >= actual_end:
+        return
+
+    nonzero_count = 0
+    for j in range(calc_start - period + 1, calc_start + 1):
+        if src[j] != 0.0:
+            nonzero_count += 1
+
+    if require_all:
+        dst[calc_start] = 1.0 if nonzero_count == period else 0.0
+        for i in range(calc_start + 1, actual_end):
+            if src[i - period] != 0.0:
+                nonzero_count -= 1
+            if src[i] != 0.0:
+                nonzero_count += 1
+            dst[i] = 1.0 if nonzero_count == period else 0.0
+    else:
+        dst[calc_start] = 1.0 if nonzero_count > 0 else 0.0
+        for i in range(calc_start + 1, actual_end):
+            if src[i - period] != 0.0:
+                nonzero_count -= 1
+            if src[i] != 0.0:
+                nonzero_count += 1
+            dst[i] = 1.0 if nonzero_count > 0 else 0.0
 
 
 def _once_monotonic_extreme(src, dst, start, end, period, choose_max):
@@ -335,6 +630,41 @@ class OperationN(PeriodN):
                 _once_monotonic_extreme(src, dst, start, end, period, choose_max)
                 return
 
+            if (
+                type(self) is _SUMN_CLASS
+                and func is math.fsum
+                and type(period) is int
+                and period >= _MIN_PERIOD_FOR_SUM_ONCE
+                and type(start) is int
+                and type(end) is int
+                and start >= 0
+                and end >= 0
+                and type(src) is array.array
+                and src.typecode == "d"
+                and type(dst) is array.array
+                and dst.typecode == "d"
+                and src is not dst
+            ):
+                _once_exact_sum(src, dst, start, end, period)
+                return
+
+            if (
+                ((type(self) is _ANYN_CLASS and func is any) or (type(self) is _ALLN_CLASS and func is all))
+                and type(period) is int
+                and period >= _MIN_PERIOD_FOR_BOOL_ONCE
+                and type(start) is int
+                and type(end) is int
+                and start >= 0
+                and end >= 0
+                and type(src) is array.array
+                and src.typecode == "d"
+                and type(dst) is array.array
+                and dst.typecode == "d"
+                and src is not dst
+            ):
+                _once_rolling_bool(src, dst, start, end, period, type(self) is _ALLN_CLASS)
+                return
+
             # CRITICAL FIX: Handle case where start >= end (not enough data for this indicator)
             # This can happen when nested indicators have larger minperiod than available data
             if start >= end:
@@ -533,6 +863,13 @@ class AllN(OperationN):
 
     lines = ("alln",)
     func = all
+
+
+# Pin concrete built-in classes at module load so monkeypatching module globals
+# cannot cause subclasses with custom contracts to qualify for fast paths.
+_SUMN_CLASS = SumN
+_ANYN_CLASS = AnyN
+_ALLN_CLASS = AllN
 
 
 # Return the first data point that satisfies the condition
