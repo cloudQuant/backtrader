@@ -483,6 +483,9 @@ def test_23_0023_0200_xfisher_org_v1() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
+    # Recursive Fisher state now advances through valid prenext bars; counts
+    # remain the same while the historical trade values below reflect the
+    # corrected early oscillator values.
     assert metrics.get('bar_num') == 6116, f"bar_num: expected=6116, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 413, f"buy_count: expected=413, got={metrics.get('buy_count')!r}"
     assert metrics.get('sell_count') == 426, f"sell_count: expected=426, got={metrics.get('sell_count')!r}"
@@ -494,15 +497,15 @@ def test_23_0023_0200_xfisher_org_v1() -> None:
     assert metrics.get('lost') == 523, f"lost: expected=523, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 999610.4999999974, tol=9.996105e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -389.50000000256114, tol=3.895000e-04, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.03895000000025961, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('final_value'), 999635.2999999976, tol=9.996353e-01, key='final_value')
+    _close(metrics.get('net_pnl'), -364.70000000239816, tol=3.647000e-04, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -0.03647000000024381, tol=1.000000e-06, key='total_return_pct')
     _close(metrics.get('win_rate'), 37.54469606674613, tol=3.754470e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 0.9908363775172797, tol=1.000000e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.3272201894348962, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), -0.6969610551439138, tol=1.000000e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -2.2801659382554056, tol=2.280166e-06, key='annual_return_pct')
-    _close(metrics.get('sqn'), -0.10045914950202732, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('profit_factor'), 0.9913867718926044, tol=1.000000e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.327212084725533, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), -0.6516127623308433, tol=1.000000e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), -2.136520902844741, tol=2.136521e-06, key='annual_return_pct')
+    _close(metrics.get('sqn'), -0.09440248284859266, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
