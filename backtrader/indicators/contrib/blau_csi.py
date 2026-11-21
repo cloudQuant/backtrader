@@ -19,6 +19,45 @@ __all__ = [
 ]
 
 
+class _BlauCSIDivision(btfunc.Logic):
+    """Preserve missing operands while retaining the existing zero policy."""
+
+    def __init__(self, *args, **kwargs):
+        self.zero = kwargs.pop("zero", 0.0)
+        super().__init__(*args)
+        self.a, self.b = self.args
+
+    @staticmethod
+    def _missing(value):
+        return isinstance(value, float) and value != value
+
+    def next(self):
+        a = self.a[0]
+        b = self.b[0]
+        if self._missing(a) or self._missing(b):
+            self[0] = float("nan")
+            return
+        a = btfunc._sanitize_div_value(a)
+        b = btfunc._sanitize_div_value(b)
+        self[0] = a / b if b else self.zero
+
+    def once(self, start, end):
+        dst = self.array
+        srca = self.a.array
+        srcb = self.b.array
+        while len(dst) < end:
+            dst.append(0.0)
+        for index in range(start, end):
+            a = btfunc._value_at(srca, index)
+            b = btfunc._value_at(srcb, index)
+            if self._missing(a) or self._missing(b):
+                dst[index] = float("nan")
+                continue
+            a = btfunc._sanitize_div_value(a)
+            b = btfunc._sanitize_div_value(b)
+            dst[index] = a / b if b else self.zero
+
+
 def _price_series(data, mode):
     key = str(mode).lower()
     if key in ("1", "close", "price_close"):
@@ -73,4 +112,4 @@ class BlauCSI(Indicator):
         xxxmom = EMA(xxmom, period=int(self.p.xlength3))
         xxxrange = EMA(xxrange, period=int(self.p.xlength3))
 
-        self.l.main = btfunc.DivByZero(100.0 * xxxmom, xxxrange, zero=0.0)
+        self.l.main = _BlauCSIDivision(100.0 * xxxmom, xxxrange, zero=0.0)
