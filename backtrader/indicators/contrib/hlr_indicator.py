@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     Highest,
     Indicator,
@@ -87,9 +89,10 @@ class ZeroLagHLRIndicator(Indicator):
             + float(self.p.factor4) * float(self.hlr4.value[0])
             + float(self.p.factor5) * float(self.hlr5.value[0])
         )
-        if len(self) <= 1:
+        prev_slow = float(self.l.slow[-1]) if len(self) > 1 else math.nan
+        if len(self) <= 1 or (len(self) == self._minperiod and math.isnan(prev_slow)):
             slow = fast / float(self.p.smoothing)
         else:
-            slow = (fast / float(self.p.smoothing)) + (float(self.l.slow[-1]) * self.smooth_const)
+            slow = (fast / float(self.p.smoothing)) + (prev_slow * self.smooth_const)
         self.l.fast[0] = fast
         self.l.slow[0] = slow

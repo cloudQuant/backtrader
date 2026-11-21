@@ -5,8 +5,8 @@ The original config.yaml, run.py, strategy_*.py, and expected.json have been
 collapsed into this single self-contained file.
 
 Runs with runonce=True only (no parametrization).
-Asserts directly on the strategy's own extract_metrics() output captured at
-migration time.
+Asserts the strategy metrics and selected order/trade events after the
+ZeroLagHLR slow-line initialization correction (iteration 71).
 
 Data Used:
     Symbol XAUUSD (gold spot) from ``tests/datas/XAUUSD_M15.csv`` using M15 bars.
@@ -505,6 +505,23 @@ def test_100_0100_0991_colorzerolaghlr() -> None:
     # main() (or run()). This reuses whatever loader / build_cerebro /
     # extract_metrics signatures the strategy used internally.
     captured = {}
+    events = []
+    original_strategy = ColorZeroLagHLRStrategy
+
+    class ObservedStrategy(original_strategy):
+        def notify_order(self, order):
+            if order.status == order.Completed:
+                events.append(('order', len(self.data), 'buy' if order.isbuy() else 'sell',
+                               float(order.executed.price)))
+            super().notify_order(order)
+
+        def notify_trade(self, trade):
+            if trade.isopen:
+                events.append(('open', len(self.data), float(trade.size), float(trade.price)))
+            elif trade.isclosed:
+                events.append(('close', len(self.data), float(trade.pnlcomm)))
+            super().notify_trade(trade)
+
     _orig_extract = extract_metrics
     def _capture_em(*a, **kw):
         m = _orig_extract(*a, **kw)
@@ -515,6 +532,7 @@ def test_100_0100_0991_colorzerolaghlr() -> None:
     import sys as _sys
     _mod = _sys.modules[__name__]
     _mod.extract_metrics = _capture_em
+    _mod.ColorZeroLagHLRStrategy = ObservedStrategy
 
     # Force runonce=True for the run inside main().
     import backtrader as _bt
@@ -539,33 +557,50 @@ def test_100_0100_0991_colorzerolaghlr() -> None:
     finally:
         _bt.Cerebro.run = _orig_run
         _mod.extract_metrics = _orig_extract
+        _mod.ColorZeroLagHLRStrategy = original_strategy
         _sys.argv = _saved_argv
 
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
     assert metrics.get('bar_num') == 296, f"bar_num: expected=296, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 81, f"buy_count: expected=81, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 63, f"sell_count: expected=63, got={metrics.get('sell_count')!r}"
-    assert metrics.get('total_trades') == 144, f"total_trades: expected=144, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 143, f"trade_count: expected=143, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 67, f"won: expected=67, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 76, f"lost: expected=76, got={metrics.get('lost')!r}"
+    assert metrics.get('buy_count') == 89, f"buy_count: expected=89, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 54, f"sell_count: expected=54, got={metrics.get('sell_count')!r}"
+    assert metrics.get('total_trades') == 143, f"total_trades: expected=143, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 142, f"trade_count: expected=142, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 87, f"won: expected=87, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 55, f"lost: expected=55, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('buy_signal_count'), 86.0, tol=8.600000e-05, key='buy_signal_count')
-    _close(metrics.get('sell_signal_count'), 65.0, tol=6.500000e-05, key='sell_signal_count')
-    _close(metrics.get('completed_order_count'), 287.0, tol=2.870000e-04, key='completed_order_count')
+    _close(metrics.get('buy_signal_count'), 96.0, tol=9.600000e-05, key='buy_signal_count')
+    _close(metrics.get('sell_signal_count'), 56.0, tol=5.600000e-05, key='sell_signal_count')
+    _close(metrics.get('completed_order_count'), 285.0, tol=2.850000e-04, key='completed_order_count')
     _close(metrics.get('rejected_order_count'), 0.0, tol=1.000000e-06, key='rejected_order_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1001369.2999999997, tol=1.001369e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 1369.2999999996973, tol=1.369300e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.13692999999996847, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 46.52777777777778, tol=4.652778e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.072148823409261, tol=1.072149e-06, key='profit_factor')
-    _close(metrics.get('sharpe_ratio'), 8.473217528635704, tol=8.473218e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 246.03828856221674, tol=2.460383e-04, key='annual_return_pct')
-    _close(metrics.get('max_drawdown'), 0.3696120951708654, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sqn'), 0.2756773893281543, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1009191.7000000009, tol=1.009192e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 9191.700000000885, tol=9.191700e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.9191700000000802, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 60.83916083916085, tol=6.083916e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.6193076231729333, tol=1.619308e-06, key='profit_factor')
+    _close(metrics.get('sharpe_ratio'), 56.70508776039561, tol=5.670509e-05, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 402536.80082829803, tol=4.025368e-01, key='annual_return_pct')
+    _close(metrics.get('max_drawdown'), 0.1846702466532213, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sqn'), 1.9035228034175051, tol=1.903523e-06, key='sqn')
+    # The first changed historical entry is a buy at H4 bar 111. Verify the
+    # surrounding fills and trade P&L, plus event totals and realized P&L.
+    assert events[:4] == [
+        ('order', 109, 'buy', 4360.18), ('open', 109, 0.1, 4360.18),
+        ('order', 110, 'sell', 4377.7), ('close', 110, pytest.approx(175.2)),
+    ]
+    assert events[4:8] == [
+        ('order', 111, 'buy', 4372.17), ('open', 111, 0.1, 4372.17),
+        ('order', 112, 'sell', 4388.46), ('close', 112, pytest.approx(162.9)),
+    ]
+    assert sum(event[0] == 'order' for event in events) == 285
+    assert sum(event[0] == 'open' for event in events) == 143
+    assert sum(event[0] == 'close' for event in events) == 142
+    assert sum(event[2] for event in events if event[0] == 'close') == pytest.approx(9164.7)
+    assert events[-2][0:3] == ('order', 400, 'sell')
+    assert events[-1][0:3] == ('open', 400, -0.1)
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
