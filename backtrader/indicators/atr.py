@@ -63,14 +63,10 @@ class TrueHigh(Indicator):
         while len(larray) < end:
             larray.append(float("nan"))
 
-        if len(high_array) > 0 and len(larray) > 0:
-            larray[0] = high_array[0] if len(high_array) > 0 else 0.0
-
-        for i in range(1, min(end, len(high_array), len(close_array))):
-            high_val = high_array[i] if i < len(high_array) else 0.0
-            prev_close = close_array[i - 1] if i > 0 and i - 1 < len(close_array) else 0.0
-            if i < len(larray):
-                larray[i] = max(high_val, prev_close)
+        if start <= 0 < end:
+            larray[0] = float("nan")
+        for i in range(max(1, start), min(end, len(high_array), len(close_array) + 1)):
+            larray[i] = max(high_array[i], close_array[i - 1])
 
 
 class TrueLow(Indicator):
@@ -111,14 +107,10 @@ class TrueLow(Indicator):
         while len(larray) < end:
             larray.append(float("nan"))
 
-        if len(low_array) > 0 and len(larray) > 0:
-            larray[0] = low_array[0] if len(low_array) > 0 else 0.0
-
-        for i in range(1, min(end, len(low_array), len(close_array))):
-            low_val = low_array[i] if i < len(low_array) else 0.0
-            prev_close = close_array[i - 1] if i > 0 and i - 1 < len(close_array) else 0.0
-            if i < len(larray):
-                larray[i] = min(low_val, prev_close)
+        if start <= 0 < end:
+            larray[0] = float("nan")
+        for i in range(max(1, start), min(end, len(low_array), len(close_array) + 1)):
+            larray[i] = min(low_array[i], close_array[i - 1])
 
 
 class TrueRange(Indicator):
@@ -168,21 +160,12 @@ class TrueRange(Indicator):
         while len(larray) < end:
             larray.append(float("nan"))
 
-        if len(high_array) > 0 and len(low_array) > 0 and len(larray) > 0:
-            larray[0] = (
-                high_array[0] - low_array[0] if len(high_array) > 0 and len(low_array) > 0 else 0.0
-            )
-
-        for i in range(1, min(end, len(high_array), len(low_array), len(close_array))):
-            high_val = high_array[i] if i < len(high_array) else 0.0
-            low_val = low_array[i] if i < len(low_array) else 0.0
-            prev_close = close_array[i - 1] if i > 0 and i - 1 < len(close_array) else 0.0
-
-            truehigh = max(high_val, prev_close)
-            truelow = min(low_val, prev_close)
-
-            if i < len(larray):
-                larray[i] = truehigh - truelow
+        if start <= 0 < end:
+            larray[0] = float("nan")
+        for i in range(max(1, start), min(end, len(high_array), len(low_array), len(close_array) + 1)):
+            truehigh = max(high_array[i], close_array[i - 1])
+            truelow = min(low_array[i], close_array[i - 1])
+            larray[i] = truehigh - truelow
 
 
 class AverageTrueRange(Indicator):
