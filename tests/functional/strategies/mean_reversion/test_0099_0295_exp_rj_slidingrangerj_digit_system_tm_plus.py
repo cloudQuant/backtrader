@@ -199,9 +199,12 @@ class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
             return
         color_prev = float(self.channel.color_idx[-1])
         color_now = float(self.channel.color_idx[0])
-        buy_open = self.p.buy_pos_open and color_prev in (2.0, 3.0) and color_now not in (2.0, 3.0)
+        if not math.isfinite(color_prev):
+            return
+        current_valid = math.isfinite(color_now)
+        buy_open = self.p.buy_pos_open and current_valid and color_prev in (2.0, 3.0) and color_now not in (2.0, 3.0)
         sell_close = self.p.sell_pos_close and color_prev in (2.0, 3.0)
-        sell_open = self.p.sell_pos_open and color_prev in (0.0, 1.0) and color_now not in (0.0, 1.0)
+        sell_open = self.p.sell_pos_open and current_valid and color_prev in (0.0, 1.0) and color_now not in (0.0, 1.0)
         buy_close = self.p.buy_pos_close and color_prev in (0.0, 1.0)
         if self.position.size > 0 and buy_close:
             self._submit_close('channel down breakout close long')
