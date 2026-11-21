@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     ExponentialMovingAverage,
     Indicator,
@@ -30,6 +32,9 @@ class AccumulationDistributionLine(Indicator):
         low = float(self.data.low[0])
         close = float(self.data.close[0])
         volume = float(self.data.volume[0])
+        if not all(math.isfinite(value) for value in (high, low, close, volume)):
+            self.lines.adl[0] = math.nan
+            return
         if high == low:
             money_flow_multiplier = 0.0
         else:
