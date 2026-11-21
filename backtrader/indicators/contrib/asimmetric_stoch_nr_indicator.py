@@ -36,6 +36,8 @@ class AsimmetricStochNRIndicator(Indicator):
         """Initialize period state and minimum bar requirements."""
         self._kperiod0 = int(self.p.kperiod_short)
         self._kperiod1 = int(self.p.kperiod_short)
+        self._period_bar_length = None
+        self._period_before_bar = (self._kperiod0, self._kperiod1)
         self.addminperiod(
             max(self.p.kperiod_short, self.p.kperiod_long) + self.p.slowing + self.p.dperiod + 5
         )
@@ -72,6 +74,12 @@ class AsimmetricStochNRIndicator(Indicator):
 
     def next(self):
         """Compute current `stoch` and `signal` values using the active periods."""
+        bar_length = len(self.data)
+        if bar_length != self._period_bar_length:
+            self._period_before_bar = (self._kperiod0, self._kperiod1)
+            self._period_bar_length = bar_length
+        else:
+            self._kperiod0, self._kperiod1 = self._period_before_bar
         prev_signal = float(self.lines.signal[-1]) if len(self) > 1 else float("nan")
         self.lines.stoch[0] = self._stoch_value(0)
         values = [
@@ -120,17 +128,17 @@ class AsimmetricStochNRIndicator(Indicator):
                 return float("nan")
             if closeclose:
                 window_max = max(
-                    float(close_array[idx]) for idx in range(bar - kperiod0 + 1, bar + 1)
+                    float(close_array[idx]) for idx in range(bar, bar - kperiod0, -1)
                 )
                 window_min = min(
-                    float(close_array[idx]) for idx in range(bar - kperiod1 + 1, bar + 1)
+                    float(close_array[idx]) for idx in range(bar, bar - kperiod1, -1)
                 )
             else:
                 window_max = max(
-                    float(high_array[idx]) for idx in range(bar - kperiod0 + 1, bar + 1)
+                    float(high_array[idx]) for idx in range(bar, bar - kperiod0, -1)
                 )
                 window_min = min(
-                    float(low_array[idx]) for idx in range(bar - kperiod1 + 1, bar + 1)
+                    float(low_array[idx]) for idx in range(bar, bar - kperiod1, -1)
                 )
             max_value += window_max
             min_value += window_min
@@ -164,9 +172,9 @@ class AsimmetricStochNRIndicator(Indicator):
             while len(line) < end:
                 line.append(float("nan"))
 
-        kperiod0 = int(self.p.kperiod_short)
-        kperiod1 = int(self.p.kperiod_short)
-        previous_signal = None
+        kperiod0 = self._kperiod0
+        kperiod1 = self._kperiod1
+        previous_signal = float(signal_line[start - 1]) if start > 0 else None
         actual_end = min(end, len(high_array), len(low_array), len(close_array))
         for i in range(start, actual_end):
             prev_signal_for_state = previous_signal
