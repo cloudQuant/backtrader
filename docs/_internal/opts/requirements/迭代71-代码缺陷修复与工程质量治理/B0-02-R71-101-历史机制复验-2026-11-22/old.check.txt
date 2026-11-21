@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "D:\temp\b002_r101_snk0l6nc\check_count.py", line 5, in <module>
+    assert x['missing_attr']=={'_once_called':0,'_resolved_secondary_clock':0},x['missing_attr']
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'_once_called': 3201, '_resolved_secondary_clock': 6400}

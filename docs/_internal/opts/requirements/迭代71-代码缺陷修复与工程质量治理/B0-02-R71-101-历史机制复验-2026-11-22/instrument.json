@@ -1,0 +1,34 @@
+[
+  {
+    "version": "old",
+    "bars": 200,
+    "instrumented": true,
+    "elapsed": 0.06116029999975581,
+    "rows": 176,
+    "signals_sha256": "dafd99099a58cffe7de3eccca2202fc3d417ec2211ed911f615ec1755ac6eac5",
+    "arrays_sha256": "7d7e7374c4e4f33ed2fe52316d027778165153b8f503d9fc946e08767faea1d9",
+    "missing_attr": {
+      "_once_called": 3201,
+      "_resolved_secondary_clock": 6400
+    },
+    "blocked_events": [],
+    "excluded_import_attempts": [],
+    "source": "D:\\temp\\b002_r101_snk0l6nc\\old\\backtrader\\__init__.py"
+  },
+  {
+    "version": "fixed",
+    "bars": 200,
+    "instrumented": true,
+    "elapsed": 0.019304100002045743,
+    "rows": 176,
+    "signals_sha256": "dafd99099a58cffe7de3eccca2202fc3d417ec2211ed911f615ec1755ac6eac5",
+    "arrays_sha256": "7d7e7374c4e4f33ed2fe52316d027778165153b8f503d9fc946e08767faea1d9",
+    "missing_attr": {
+      "_once_called": 0,
+      "_resolved_secondary_clock": 0
+    },
+    "blocked_events": [],
+    "excluded_import_attempts": [],
+    "source": "D:\\temp\\b002_r101_snk0l6nc\\fixed\\backtrader\\__init__.py"
+  }
+]

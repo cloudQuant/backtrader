@@ -1,0 +1,98 @@
+[
+  {
+    "version": "old",
+    "bars": 30000,
+    "instrumented": false,
+    "elapsed": 9.861827100001392,
+    "rows": 29976,
+    "signals_sha256": "c847339367693d425db463f66d5073bef9aa62e4076164b3242671bc2d2c3460",
+    "arrays_sha256": "c72c89f633cb85f81955356b188f4605eb95940bc8a53e13ca5a055034928937",
+    "missing_attr": {
+      "_once_called": 0,
+      "_resolved_secondary_clock": 0
+    },
+    "blocked_events": [],
+    "excluded_import_attempts": [],
+    "source": "D:\\temp\\b002_r101_snk0l6nc\\old\\backtrader\\__init__.py"
+  },
+  {
+    "version": "fixed",
+    "bars": 30000,
+    "instrumented": false,
+    "elapsed": 2.306146399998397,
+    "rows": 29976,
+    "signals_sha256": "c847339367693d425db463f66d5073bef9aa62e4076164b3242671bc2d2c3460",
+    "arrays_sha256": "c72c89f633cb85f81955356b188f4605eb95940bc8a53e13ca5a055034928937",
+    "missing_attr": {
+      "_once_called": 0,
+      "_resolved_secondary_clock": 0
+    },
+    "blocked_events": [],
+    "excluded_import_attempts": [],
+    "source": "D:\\temp\\b002_r101_snk0l6nc\\fixed\\backtrader\\__init__.py"
+  },
+  {
+    "version": "fixed",
+    "bars": 30000,
+    "instrumented": false,
+    "elapsed": 2.5397607999984757,
+    "rows": 29976,
+    "signals_sha256": "c847339367693d425db463f66d5073bef9aa62e4076164b3242671bc2d2c3460",
+    "arrays_sha256": "c72c89f633cb85f81955356b188f4605eb95940bc8a53e13ca5a055034928937",
+    "missing_attr": {
+      "_once_called": 0,
+      "_resolved_secondary_clock": 0
+    },
+    "blocked_events": [],
+    "excluded_import_attempts": [],
+    "source": "D:\\temp\\b002_r101_snk0l6nc\\fixed\\backtrader\\__init__.py"
+  },
+  {
+    "version": "old",
+    "bars": 30000,
+    "instrumented": false,
+    "elapsed": 8.264345800002047,
+    "rows": 29976,
+    "signals_sha256": "c847339367693d425db463f66d5073bef9aa62e4076164b3242671bc2d2c3460",
+    "arrays_sha256": "c72c89f633cb85f81955356b188f4605eb95940bc8a53e13ca5a055034928937",
+    "missing_attr": {
+      "_once_called": 0,
+      "_resolved_secondary_clock": 0
+    },
+    "blocked_events": [],
+    "excluded_import_attempts": [],
+    "source": "D:\\temp\\b002_r101_snk0l6nc\\old\\backtrader\\__init__.py"
+  },
+  {
+    "version": "old",
+    "bars": 30000,
+    "instrumented": false,
+    "elapsed": 7.594029200001387,
+    "rows": 29976,
+    "signals_sha256": "c847339367693d425db463f66d5073bef9aa62e4076164b3242671bc2d2c3460",
+    "arrays_sha256": "c72c89f633cb85f81955356b188f4605eb95940bc8a53e13ca5a055034928937",
+    "missing_attr": {
+      "_once_called": 0,
+      "_resolved_secondary_clock": 0
+    },
+    "blocked_events": [],
+    "excluded_import_attempts": [],
+    "source": "D:\\temp\\b002_r101_snk0l6nc\\old\\backtrader\\__init__.py"
+  },
+  {
+    "version": "fixed",
+    "bars": 30000,
+    "instrumented": false,
+    "elapsed": 2.0023884999973234,
+    "rows": 29976,
+    "signals_sha256": "c847339367693d425db463f66d5073bef9aa62e4076164b3242671bc2d2c3460",
+    "arrays_sha256": "c72c89f633cb85f81955356b188f4605eb95940bc8a53e13ca5a055034928937",
+    "missing_attr": {
+      "_once_called": 0,
+      "_resolved_secondary_clock": 0
+    },
+    "blocked_events": [],
+    "excluded_import_attempts": [],
+    "source": "D:\\temp\\b002_r101_snk0l6nc\\fixed\\backtrader\\__init__.py"
+  }
+]
