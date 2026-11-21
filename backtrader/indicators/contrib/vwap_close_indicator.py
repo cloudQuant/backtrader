@@ -17,8 +17,10 @@ __all__ = [
 class VWAPCloseIndicator(Indicator):
     """Reconstructs VWAP_Close indicator.
 
-    VWAP = sum(close[i] * volume[i], i=0..n-1) / sum(volume[i], i=0..n-1)
-    Uses tick volume by default.
+    VWAP = sum(close[i] * max(volume[i], 1), i=0..n-1)
+           / sum(max(volume[i], 1), i=0..n-1)
+    Uses tick volume by default. A missing volume falls back to the previous
+    VWAP value (or the current close when no previous value is available).
     Buffer 0 = VWAP line.
     """
 
@@ -32,14 +34,14 @@ class VWAPCloseIndicator(Indicator):
         producing values only after enough history is available.
         """
         self._n = int(self.p.n)
-        self.addminperiod(self._n + 1)
+        self.addminperiod(self._n)
 
     def next(self):
         """Compute and emit the next VWAP-close value.
 
-        The calculation uses close*volume weighted average over up to ``n`` prior
-        bars and falls back to the previous VWAP value when volume is not
-        available.
+        The calculation uses close weighted by ``max(volume, 1)`` over the last
+        ``n`` bars. A NaN volume falls back to the previous VWAP value when one
+        is available.
         """
         n = self._n
         sum1 = 0.0

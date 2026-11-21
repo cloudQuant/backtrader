@@ -441,7 +441,8 @@ def test_180_0179_0889_vwap_close() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
-    assert metrics.get('bar_num') == 6068, f"bar_num: expected=6068, got={metrics.get('bar_num')!r}"
+    # The n-bar minperiod starts one H6 signal bar earlier (24 M15 callbacks).
+    assert metrics.get('bar_num') == 6092, f"bar_num: expected=6092, got={metrics.get('bar_num')!r}"
     assert metrics.get('win_count') == 46, f"win_count: expected=46, got={metrics.get('win_count')!r}"
     assert metrics.get('loss_count') == 41, f"loss_count: expected=41, got={metrics.get('loss_count')!r}"
     assert metrics.get('total_trades') == 87, f"total_trades: expected=87, got={metrics.get('total_trades')!r}"
