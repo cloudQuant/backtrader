@@ -1,0 +1,36 @@
+{
+  "record_kind": "manually_transcribed_tool_observation_not_raw_pytest_stdout",
+  "backtrader_head": "f749673104e852784fb20e133933d0c3e20d9273",
+  "sdk_head": "53d3ebe621ef048c7f4c47f9125740c7fa29b3ee",
+  "base_head": "1bd1a13e36dbbf587acc63acdb5d8e0fdecaf6ca",
+  "r5": {
+    "pytest_passed": 36,
+    "pytest_failed": 0,
+    "pytest_skipped": 0,
+    "warnings": 1,
+    "pytest_exit": 0,
+    "guard_final_python_exit": 2,
+    "guard_selfchecks": 6,
+    "blocked_external_operations": 1,
+    "event_name_captured": false,
+    "source_shell": true,
+    "backtrader_initializer_executed": false,
+    "synthetic_hostname": true
+  },
+  "r6_r7": {
+    "collect_only": true,
+    "collected": 36,
+    "tests_executed": 0,
+    "blocked_events": {
+      "socket.__new__": 1
+    },
+    "observed_caller": "urllib3.util.connection._has_ipv6",
+    "same_call_as_r5": false
+  },
+  "limits": [
+    "no original conftest",
+    "Python audit guard is not an operating system sandbox",
+    "third-party runtime libraries not pinned as wheels",
+    "full default package import unproven"
+  ]
+}
