@@ -37,9 +37,32 @@ class ZigZagRecentPivotSignal(Indicator):
         self._latest_signal = 0
         self._latest_age = 999999
         self._latest_pivot_price = 0.0
+        self._zigzag_source_length = None
+        self._zigzag_source_base = None
 
     def next(self):
         """Calculate local ZigZag pivot high and low levels on each new bar."""
+        # A replay revision or a different feed's tick can invoke us more
+        # than once for the same source bar. Recompute from that bar's
+        # original state so a pivot and its age are committed only once.
+        source_length = len(self.data)
+        if source_length == self._zigzag_source_length:
+            (
+                self._last_pivot_type,
+                self._last_pivot_price,
+                self._latest_signal,
+                self._latest_age,
+                self._latest_pivot_price,
+            ) = self._zigzag_source_base
+        else:
+            self._zigzag_source_base = (
+                self._last_pivot_type,
+                self._last_pivot_price,
+                self._latest_signal,
+                self._latest_age,
+                self._latest_pivot_price,
+            )
+            self._zigzag_source_length = source_length
         self.lines.signal[0] = 0
         self.lines.pivot_age[0] = self._latest_age if self._latest_age < 999999 else 999999
         self.lines.pivot_price[0] = self._latest_pivot_price
