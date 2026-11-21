@@ -6,6 +6,7 @@ helper functions and constants without cross-test name collisions.
 """
 
 import math
+import numbers
 
 from ...linebuffer import _reject_factor_infinity
 from .. import Indicator
@@ -80,6 +81,18 @@ class SafeADX(Indicator):
         self.lines.adx[0] = _checked(self.lines.adx, scaled / denom)
 
 
+def _checked_ama(line, value):
+    """Inspect ordinary/NumPy real scalars without calling float subclass hooks."""
+    value_type = type(value)
+    if issubclass(value_type, float):
+        _checked(line, float.__float__(value))
+    elif type.__getattribute__(value_type, "__module__") == "numpy" and issubclass(
+        value_type, numbers.Real
+    ):
+        _checked(line, float(value))
+    return value
+
+
 class SafeAMA(Indicator):
     """Adaptive moving average indicator with safe initialization."""
 
@@ -93,22 +106,74 @@ class SafeAMA(Indicator):
     def __init__(self):
         """Initialize adaptive moving average state and warm-up window."""
         self._prev = None
+        self._ama_recovering = False
+        self._ama_source_length = None
+        self._ama_prior_state = (None, False)
         self.addminperiod(self.p.period + 3)
 
     def next(self):
-        """Update AMA based on efficiency ratio and smoothing."""
-        if len(self) == 0 or self._prev is None:
-            self._prev = float(self.data.close[0])
-            self.lines.ama[0] = self._prev
+        """Update the AMA from the preceding source bar's committed state.
+
+        Missing close values invalidate the efficiency window and clear its
+        recursive seed. A complete non-NaN window is needed before reseeding.
+        """
+        source_length = len(self.data)
+        prior_state = (
+            (self._prev, self._ama_recovering)
+            if source_length != self._ama_source_length
+            else self._ama_prior_state
+        )
+        prev, recovering = prior_state
+        line = self.lines.ama
+
+        def publish(value, next_prev, next_recovering):
+            line[0] = value
+            self._ama_source_length = source_length
+            self._ama_prior_state = prior_state
+            self._prev, self._ama_recovering = next_prev, next_recovering
+        price = float(self.data.close[0])
+        if math.isnan(price):
+            publish(float("nan"), None, True)
             return
-        direction = abs(float(self.data.close[0]) - float(self.data.close[-self.p.period]))
+        _checked_ama(line, price)
+        if prev is None:
+            if recovering:
+                for idx in range(1, self.p.period + 1):
+                    value = float(self.data.close[-idx])
+                    if math.isnan(value):
+                        publish(float("nan"), None, True)
+                        return
+                    _checked_ama(line, value)
+            publish(price, price, False)
+            return
+
+        past = float(self.data.close[-self.p.period])
+        if math.isnan(past):
+            publish(float("nan"), None, True)
+            return
+        _checked_ama(line, past)
+        direction = abs(_checked_ama(line, price - past))
         volatility = 0.0
         for idx in range(self.p.period):
-            volatility += abs(float(self.data.close[-idx]) - float(self.data.close[-idx - 1]))
-        efficiency = 0.0 if volatility <= 1e-12 else direction / volatility
-        fast_sc = 2.0 / (self.p.fast_period + 1.0)
-        slow_sc = 2.0 / (self.p.slow_period + 1.0)
-        smoothing = (efficiency * (fast_sc - slow_sc) + slow_sc) ** 2
-        current = self._prev + smoothing * (float(self.data.close[0]) - self._prev)
-        self.lines.ama[0] = current
-        self._prev = current
+            a = float(self.data.close[-idx])
+            b = float(self.data.close[-idx - 1])
+            if math.isnan(a) or math.isnan(b):
+                publish(float("nan"), None, True)
+                return
+            _checked_ama(line, a)
+            _checked_ama(line, b)
+            change = _checked_ama(line, a - b)
+            volatility = _checked_ama(line, volatility + abs(change))
+        efficiency = 0.0 if volatility <= 1e-12 else _checked_ama(line, direction / volatility)
+        fast_den = _checked_ama(line, self.p.fast_period + 1.0)
+        fast_sc = _checked_ama(line, 2.0 / fast_den)
+        slow_den = _checked_ama(line, self.p.slow_period + 1.0)
+        slow_sc = _checked_ama(line, 2.0 / slow_den)
+        delta_sc = _checked_ama(line, fast_sc - slow_sc)
+        ratio_part = _checked_ama(line, efficiency * delta_sc)
+        smoothing_base = _checked_ama(line, ratio_part + slow_sc)
+        smoothing = _checked_ama(line, smoothing_base ** 2)
+        price_delta = _checked_ama(line, float(self.data.close[0]) - prev)
+        scaled = _checked_ama(line, smoothing * price_delta)
+        current = _checked_ama(line, prev + scaled)
+        publish(current, current, False)
