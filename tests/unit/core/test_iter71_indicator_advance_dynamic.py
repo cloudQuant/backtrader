@@ -7,21 +7,21 @@ import backtrader as bt
 
 
 class AlternatingClockSMA(bt.ind.SMA):
-    pass
+    alias = ()
 
 
 class RaisingClockSMA(bt.ind.SMA):
-    pass
+    alias = ()
 
 
 class SecondaryDescriptorSMA(bt.ind.SMA):
-    pass
+    alias = ()
 
 
 def _run(strategy):
     values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
     frame = pd.DataFrame(
-        dict.fromkeys(("open", "high", "low", "close", "volume"), values),
+        {name: values for name in ("open", "high", "low", "close", "volume")},
         index=pd.date_range("2024-01-01", periods=len(values)),
     )
     engine = bt.Cerebro(stdstats=False, runonce=True, preload=True)

@@ -17,6 +17,7 @@ Example:
     1
 """
 
+import operator
 from collections import OrderedDict, defaultdict
 
 from ..utils.log_message import get_logger
@@ -201,31 +202,101 @@ class AutoOrderedDict(OrderedDict):
 
         self[key] = value
 
-    # Defined math operations, not sure what they mean for now, but it seems only __iadd__ and __isub__ are normal
-    # Define math operations
-    def __iadd__(self, other):
-        if not isinstance(other, type(self)):
-            return type(other)() + other
+    def _binary_op(self, other, op):
+        """Apply a key-wise binary arithmetic operation with another AutoOrderedDict.
 
-        return self + other
+        Keys are combined in insertion order (``self`` keys first, then any
+        additional keys from ``other``).  Nested ``AutoOrderedDict`` values are
+        combined recursively.  When a key exists in only one operand, the
+        missing side uses a zero/default instance of the present value's type
+        (an empty ``AutoOrderedDict`` for nested dicts, or ``type(val)()`` for
+        scalar values), matching the auto-initialization contract of in-place
+        operations.
+
+        Returns ``NotImplemented`` if ``other`` is not an ``AutoOrderedDict``.
+        """
+        if not isinstance(other, AutoOrderedDict):
+            return NotImplemented
+
+        result = AutoOrderedDict()
+        for key in self:
+            if key in other:
+                result[key] = op(self[key], other[key])
+            else:
+                val = self[key]
+                zero = AutoOrderedDict() if isinstance(val, AutoOrderedDict) else type(val)()
+                result[key] = op(val, zero)
+
+        for key in other:
+            if key not in self:
+                val = other[key]
+                zero = AutoOrderedDict() if isinstance(val, AutoOrderedDict) else type(val)()
+                result[key] = op(zero, val)
+
+        return result
+
+    def _inplace_op(self, other, op):
+        """Apply an in-place arithmetic operation on this AutoOrderedDict.
+
+        - If ``other`` is an ``AutoOrderedDict``: compute the key-wise result
+          first (so errors leave ``self`` unmodified), then update ``self`` in
+          place and return ``self``.
+        - If ``self`` is empty (the auto-created placeholder produced by
+          ``__missing__``) and ``other`` supports ``type(other)()`` arithmetic:
+          return ``op(type(other)(), other)`` so patterns such as
+          ``d.total.open += 1`` initialize leaf counters.
+        - Otherwise return ``NotImplemented`` so Python raises ``TypeError``.
+        """
+        if isinstance(other, AutoOrderedDict):
+            combined = self._binary_op(other, op)
+            self.clear()
+            self.update(combined)
+            return self
+
+        if self:
+            return NotImplemented
+
+        try:
+            zero = type(other)()
+        except TypeError:
+            return NotImplemented
+
+        try:
+            return op(zero, other)
+        except TypeError:
+            return NotImplemented
+
+    def __add__(self, other):
+        """Return a new AutoOrderedDict with key-wise sums."""
+        return self._binary_op(other, operator.add)
+
+    def __sub__(self, other):
+        """Return a new AutoOrderedDict with key-wise differences."""
+        return self._binary_op(other, operator.sub)
+
+    def __mul__(self, other):
+        """Return a new AutoOrderedDict with key-wise products."""
+        return self._binary_op(other, operator.mul)
+
+    def __truediv__(self, other):
+        """Return a new AutoOrderedDict with key-wise quotients."""
+        return self._binary_op(other, operator.truediv)
+
+    def __iadd__(self, other):
+        """In-place key-wise addition or empty-placeholder scalar initialization."""
+        return self._inplace_op(other, operator.add)
 
     def __isub__(self, other):
-        if not isinstance(other, type(self)):
-            return type(other)() - other
-
-        return self - other
+        """In-place key-wise subtraction or empty-placeholder scalar initialization."""
+        return self._inplace_op(other, operator.sub)
 
     def __imul__(self, other):
-        if not isinstance(other, type(self)):
-            return type(other)() * other
-
-        return self * other
+        """In-place key-wise multiplication or empty-placeholder scalar initialization."""
+        return self._inplace_op(other, operator.mul)
 
     def __itruediv__(self, other):
-        if not isinstance(other, type(self)):
-            return type(other)() / other
-
-        return self / other
+        """In-place key-wise true division or empty-placeholder scalar initialization."""
+        return self._inplace_op(other, operator.truediv)
 
     def lvalues(self):
         """Return dictionary values as a list.

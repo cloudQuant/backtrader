@@ -1378,10 +1378,8 @@ class Strategy(StrategyBase):
         if hasattr(self, "_clock") and self._clock is not None:
             clock_type_name = type(self._clock).__name__
             if clock_type_name == "MinimalClock" and self.datas:
-                # Replace MinimalClock with actual first data
                 self._clock = self.datas[0]
         elif not hasattr(self, "_clock") or self._clock is None:
-            # Set clock to first data if not set
             if self.datas:
                 self._clock = self.datas[0]
 
@@ -1390,7 +1388,7 @@ class Strategy(StrategyBase):
             # Avoid treating a known line alias as a clock only when the
             # underlying standard attribute storage is safe to inspect.
             secondary = getattr(indicator, "_resolved_secondary_clock", None)
-            if _safe_indicator_clock_alias(indicator, secondary):
+            if secondary is not None and _safe_indicator_clock_alias(indicator, secondary):
                 secondary = None
             adv_clock = secondary or indicator._clock
             if len(adv_clock) > len(indicator):
@@ -3534,8 +3532,7 @@ class Strategy(StrategyBase):
             tzdata,
             False,
             cheat,
-            args,
-            kwargs,
+            _bt_packed_timer_callback=(args, kwargs),
         )
 
     def notify_timer(self, timer, when, *args, **kwargs):

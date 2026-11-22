@@ -99,7 +99,9 @@ def _ensure_external_bokeh():
         sys.path[:] = original_path
 
 
-_ensure_external_bokeh()
+_external_bokeh = _ensure_external_bokeh()
+if __name__ == "bokeh" and _external_bokeh is None and globals().get("__spec__") is not None:
+    raise ModuleNotFoundError("No module named 'bokeh'", name="bokeh")
 
 if __name__ != "bokeh":
     from . import tabs

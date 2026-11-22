@@ -674,7 +674,7 @@ class LinesManager:
         # later duplicate alias descriptor from shadowing the original index.
         obaseslines = ()
         obasesextralines = 0
-        line_class_ancestry = set()
+        line_class_ancestry: set = set()
         plain_base_ancestry = set()
         if not linesoverride:
             line_class_ancestry.update(getattr(base_class, "__mro__", ()))
@@ -828,7 +828,7 @@ class LinesManager:
         # indexes are remapped by the primary line name in the merged output;
         # the first base still wins when an alias name conflicts.
         if not linesoverride:
-            line_indexes = {}
+            line_indexes: dict = {}
             for index, linealias in enumerate(clslines):
                 line_name = LinesManager._line_name(linealias)
                 try:

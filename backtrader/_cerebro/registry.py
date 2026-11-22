@@ -131,14 +131,27 @@ class RegistryMixin:
         tzdata=None,
         strats=False,
         cheat=False,
-        callback_args=(),
-        callback_kwargs=None,
+        *args,
+        **kwargs,
     ):
         """Internal method to really create the timer (not started yet) which
         can be called by cerebro instances or other objects which can access
         cerebro. Callback arguments are kept separate from timer settings so
         names such as ``owner`` and ``strats`` remain valid callback keywords.
         """
+        packed = kwargs.pop("_bt_packed_timer_callback", None)
+        if (
+            packed is not None
+            and not args
+            and not kwargs
+            and isinstance(packed, tuple)
+            and len(packed) == 2
+        ):
+            callback_args, raw_kwargs = packed
+            callback_kwargs = {} if raw_kwargs is None else dict(raw_kwargs)
+        else:
+            callback_args = args
+            callback_kwargs = dict(kwargs)
 
         # Normalize mutable-default placeholders (B006): Timer treats None as
         # "all days", identical to the previous empty-list default.
@@ -160,7 +173,7 @@ class RegistryMixin:
             cheat=cheat,
         )
         timer.args = callback_args
-        timer.kwargs = {} if callback_kwargs is None else callback_kwargs
+        timer.kwargs = callback_kwargs
 
         self._pretimers.append(timer)
         return timer
@@ -277,8 +290,7 @@ class RegistryMixin:
             tzdata,
             strats,
             cheat,
-            args,
-            kwargs,
+            _bt_packed_timer_callback=(args, kwargs),
         )
 
     def addtz(self, tz):

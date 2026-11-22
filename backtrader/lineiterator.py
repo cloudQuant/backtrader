@@ -18,7 +18,13 @@ import sys
 
 from . import metabase
 from .dataseries import DataSeries
-from .linebuffer import NAN, LineActions, LineNum, _initialize_replay_default_fields
+from .linebuffer import (
+    NAN,
+    LineActions,
+    LineBuffer,
+    LineNum,
+    _initialize_replay_default_fields,
+)
 from .lineroot import LineSingle
 from .lineseries import LineSeries, LineSeriesMaker
 from .utils import DotDict
@@ -181,6 +187,17 @@ def _line_like_source_clock(line_like):
     """Resolve LineActions wrapped in LineSeriesStub-like containers."""
     if line_like is None:
         return None
+
+    if type(line_like) is LineBuffer:
+        try:
+            source_clock = object.__getattribute__(line_like, "_clock")
+        except AttributeError:
+            return None
+        if source_clock is not None and isinstance(source_clock, LineActions):
+            resolved_clock = _lineaction_source_clock(source_clock)
+            if resolved_clock is not None:
+                return resolved_clock
+        return source_clock
 
     if isinstance(line_like, LineActions):
         source_clock = _lineaction_source_clock(line_like)
@@ -352,6 +369,8 @@ class LineIteratorMixin:
     arguments to extract and properly configure data feeds before instance
     creation.
     """
+
+    _factor_strict_context = None
 
     def __init_subclass__(cls, **kwargs):
         """Handle subclass initialization.
@@ -1291,6 +1310,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if hasattr(cls, "lines") and isinstance(cls.lines, type):
             # cls.lines is a Lines class - create an instance
             instance.lines = cls.lines()
+        # N72-17 / B004: Preserve hasattr(..., "__call__") intentionally so
+        # instance-level __call__ descriptors on custom factories are evaluated
+        # and propagate descriptor errors before the empty-Lines fallback.
         elif hasattr(cls, "lines") and hasattr(cls.lines, "__call__"):
             # cls.lines is callable - call it to create instance
             try:
@@ -1840,7 +1862,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 pass
 
         if clock_len != len(self):
-            if getattr(self, "_ltype", None) == LineIterator.IndType:
+            try:
+                ltype = self._ltype
+            except AttributeError:
+                ltype = None
+            if ltype == LineIterator.IndType:
                 self.lines.forward(value=NAN)
             else:
                 self.forward()
@@ -2743,6 +2769,9 @@ class StrategyBase(DataAccessor):
                 strategy_init = cls.__dict__["__init__"]
                 break
 
+        # N72-17 / B004: Preserve hasattr(..., "__call__") intentionally so
+        # instance-level __call__ descriptors on strategy_init are evaluated
+        # in the historical failure order.
         if strategy_init and hasattr(strategy_init, "__call__"):
             # A strategy constructor defines its own initialization contract.
             # Continuing after it fails fabricates a successful backtest with

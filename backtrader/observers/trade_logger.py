@@ -34,14 +34,18 @@ import json
 import logging
 import math
 import os
+import sys
 import time
+import types
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from ..lineseries import LineAlias, LineSeries, Lines
 from ..observer import Observer
+from ..parameters import ParameterAccessor
 from ..utils.log_message import get_logger
 
 logger = get_logger(__name__)
@@ -91,6 +95,115 @@ _TRADE_LOGGER_CONFIG_FIELDS = (
     "duplicate_order_warn_threshold",
     "duplicate_order_window_seconds",
 )
+
+# Public class attributes of these exact built-in/method types cannot provide
+# indicator lines unless they are explicitly shadowed in owner.__dict__ or carry
+# custom lines/__len__ attributes.
+_KNOWN_SKIP_CLASS_ATTR_TYPES = (
+    types.FunctionType,
+    classmethod,
+    staticmethod,
+    types.BuiltinFunctionType,
+    types.MethodDescriptorType,
+    types.WrapperDescriptorType,
+    int,
+    float,
+    str,
+    bool,
+    type(None),
+    tuple,
+    list,
+    dict,
+    set,
+    frozenset,
+    type,
+)
+
+# Common instance attribute types on Strategy objects that are never indicators.
+_KNOWN_NON_INDICATOR_INSTANCE_TYPES = (
+    int,
+    float,
+    str,
+    bool,
+    type(None),
+    bytes,
+    bytearray,
+    list,
+    tuple,
+    dict,
+    set,
+    frozenset,
+    collections.deque,
+    collections.Counter,
+    collections.OrderedDict,
+    collections.defaultdict,
+    datetime,
+    timedelta,
+    types.FunctionType,
+    types.MethodType,
+    types.BuiltinFunctionType,
+)
+
+_STANDARD_LINES_DICT_KEYS = frozenset(("lines", "_owner_ref"))
+_STANDARD_LINES_GETLINEALIASES = Lines.getlinealiases.__func__
+_IGNORED_FRAMEWORK_DESCRIPTOR_REFS = ()
+_IGNORED_FRAMEWORK_DESCRIPTOR_IDS = frozenset()
+_IGNORED_FRAMEWORK_STRATEGY_LOADED = False
+
+
+def _get_ignored_framework_descriptor_ids():
+    """Return pinned object IDs of unmodified framework descriptors that never yield indicators.
+
+    Matching by exact descriptor identity guarantees that any user subclass
+    overriding one of these names (for example with a custom ``@property``) is
+    still discovered and evaluated normally.
+    """
+    global _IGNORED_FRAMEWORK_DESCRIPTOR_REFS
+    global _IGNORED_FRAMEWORK_DESCRIPTOR_IDS
+    global _IGNORED_FRAMEWORK_STRATEGY_LOADED
+
+    if _IGNORED_FRAMEWORK_DESCRIPTOR_IDS and _IGNORED_FRAMEWORK_STRATEGY_LOADED:
+        return _IGNORED_FRAMEWORK_DESCRIPTOR_IDS
+
+    refs = []
+    for attr_name in ("array", "line", "l", "chkmin"):
+        desc = LineSeries.__dict__.get(attr_name)
+        if desc is not None:
+            refs.append(desc)
+
+    for base in LineSeries.__mro__:
+        p_desc = base.__dict__.get("p")
+        if p_desc is not None:
+            refs.append(p_desc)
+            break
+
+    lineiterator_mod = sys.modules.get("backtrader.lineiterator")
+    lineiterator_cls = getattr(lineiterator_mod, "LineIterator", None)
+    if lineiterator_cls is not None:
+        for attr_name in ("plotinfo", "plotlines"):
+            desc = lineiterator_cls.__dict__.get(attr_name)
+            if desc is not None:
+                refs.append(desc)
+
+    strategy_mod = sys.modules.get("backtrader.strategy")
+    strategy_cls = getattr(strategy_mod, "Strategy", None)
+    if strategy_cls is not None:
+        for attr_name in (
+            "position",
+            "positionbyname",
+            "positions",
+            "positionsbyname",
+            "strategy_financial_unavailable",
+            "sizer",
+        ):
+            desc = strategy_cls.__dict__.get(attr_name)
+            if desc is not None:
+                refs.append(desc)
+        _IGNORED_FRAMEWORK_STRATEGY_LOADED = True
+
+    _IGNORED_FRAMEWORK_DESCRIPTOR_REFS = tuple(refs)
+    _IGNORED_FRAMEWORK_DESCRIPTOR_IDS = frozenset(id(obj) for obj in _IGNORED_FRAMEWORK_DESCRIPTOR_REFS)
+    return _IGNORED_FRAMEWORK_DESCRIPTOR_IDS
 
 
 @dataclass(frozen=True)
@@ -268,6 +381,8 @@ class TradeLogger(Observer):
         self._config_snapshot_pending = None
         self._config_snapshot_active = False
         self._config_snapshot_engine_start = False
+        self._indicator_scan_cache = None
+        self._indicator_line_cache = {}
         self._init_report_state()
 
     # ------------------------------------------------------------------
@@ -1080,6 +1195,8 @@ class TradeLogger(Observer):
         self._validate_snapshot_interval(getattr(self.p, "snapshot_interval", 1))
         self._position_snapshot_callback_count = 0
         self._position_snapshot_last_callback = None
+        self._indicator_scan_cache = None
+        self._indicator_line_cache = {}
         # CRITICAL: Ensure registration to _lineiterators for next() to be called
         self._ltype = 2  # LineIterator.ObsType
         if hasattr(self, "_owner") and self._owner is not None:
@@ -2965,16 +3082,21 @@ class TradeLogger(Observer):
 
         # File logging
         if self._indicator_logger:
-            indicator_str = " | ".join(
-                [f"{k}={v:.4f}" for k, v in indicators_data.items() if isinstance(v, (int, float))]
-            )
+            def text_line_factory(log_data=log_data, indicators_data=indicators_data):
+                indicator_str = " | ".join(
+                    f"{k}={v:.4f}"
+                    for k, v in indicators_data.items()
+                    if isinstance(v, (int, float))
+                )
+                return (
+                    f"{log_data['log_time']} | INDICATOR | datetime={log_data['datetime']} | "
+                    f"{indicator_str}"
+                )
+
             self._emit_payload(
                 self._indicator_logger,
                 log_data,
-                text_line_factory=lambda: (
-                    f"{log_data['log_time']} | INDICATOR | datetime={log_data['datetime']} | "
-                    f"{indicator_str}"
-                ),
+                text_line_factory=text_line_factory,
             )
 
         # MySQL logging - insert each indicator separately
@@ -2983,6 +3105,63 @@ class TradeLogger(Observer):
                 if isinstance(value, (int, float)):
                     self._insert_indicator_mysql(name, value)
 
+    def _build_owner_indicator_plan(self, owner):
+        """Build a cached public-attribute scan plan for ``owner``.
+
+        Returns ``None`` when ``owner`` defines a custom ``__dir__`` or has no
+        standard ``__dict__``, causing ``_collect_indicators`` to fall back to
+        a full ``dir(owner)`` traversal.
+        """
+        owner_cls = type(owner)
+        if getattr(owner_cls, "__dir__", None) is not object.__dir__:
+            return None
+        owner_dict = getattr(owner, "__dict__", None)
+        if type(owner_dict) is not dict:
+            return None
+
+        ignored_descriptor_ids = _get_ignored_framework_descriptor_ids()
+        class_candidates = {}
+        seen_class_attrs = set()
+        for base in owner_cls.__mro__:
+            for name, raw in base.__dict__.items():
+                if name.startswith("_") or name in seen_class_attrs:
+                    continue
+                seen_class_attrs.add(name)
+                if id(raw) in ignored_descriptor_ids:
+                    continue
+                raw_type = type(raw)
+                is_data_desc = hasattr(raw_type, "__get__") and (
+                    hasattr(raw_type, "__set__") or hasattr(raw_type, "__delete__")
+                )
+                if is_data_desc:
+                    class_candidates[name] = True
+                    continue
+                if raw_type in _KNOWN_SKIP_CLASS_ATTR_TYPES:
+                    if hasattr(raw, "lines") and hasattr(raw, "__len__"):
+                        class_candidates[name] = False
+                    continue
+                class_candidates[name] = False
+
+        dict_public_names = {
+            name for name in owner_dict if isinstance(name, str) and not name.startswith("_")
+        }
+        all_names = sorted(dict_public_names | class_candidates.keys())
+        candidates = tuple(
+            (
+                name,
+                class_candidates.get(name, False) or (name not in dict_public_names),
+            )
+            for name in all_names
+        )
+        return (
+            owner,
+            owner_cls,
+            frozenset(owner_cls.__dict__.keys()),
+            owner_dict,
+            frozenset(owner_dict.keys()),
+            candidates,
+        )
+
     def _collect_indicators(self):
         """Collect all indicator values from the strategy.
 
@@ -2990,34 +3169,81 @@ class TradeLogger(Observer):
             dict: Dictionary of indicator names and their current values.
         """
         indicators: dict = {}
+        owner = self._owner
 
         try:
             # Get all indicators from the strategy
-            if hasattr(self._owner, "_lineiterators"):
-                for item in self._owner._lineiterators.get(self._owner.IndType, []):
+            if hasattr(owner, "_lineiterators"):
+                for item in owner._lineiterators.get(owner.IndType, ()):
                     self._extract_indicator_values(item, indicators)
 
-            # Also check for indicators stored as attributes
-            for attr_name in dir(self._owner):
-                if attr_name.startswith("_"):
-                    continue
-                try:
-                    attr = getattr(self._owner, attr_name)
+            # Also check for indicators stored as attributes.
+            # Cache the filtered candidate attribute list against owner.__dict__
+            # keys and class attributes so normal strategies avoid per-bar dir()
+            # and getattr() over 100+ methods/framework properties, while
+            # immediately refreshing when attributes are added/removed or
+            # falling back to dir() for custom __dir__/__slots__ owners.
+            plan = self.__dict__.get("_indicator_scan_cache")
+            if plan is not None:
+                (
+                    cached_owner,
+                    cached_cls,
+                    cached_cls_keys,
+                    cached_dict,
+                    cached_dict_keys,
+                    candidates,
+                ) = plan
+                if (
+                    owner is not cached_owner
+                    or type(owner) is not cached_cls
+                    or owner.__dict__ is not cached_dict
+                    or cached_dict.keys() != cached_dict_keys
+                    or cached_cls.__dict__.keys() != cached_cls_keys
+                ):
+                    plan = None
+
+            if plan is None and owner is not None:
+                plan = self._build_owner_indicator_plan(owner)
+                self._indicator_scan_cache = plan
+
+            if plan is not None:
+                owner_dict = plan[3]
+                candidates = plan[5]
+                for attr_name, use_getattr in candidates:
+                    try:
+                        attr = getattr(owner, attr_name) if use_getattr else owner_dict[attr_name]
+                    except Exception as e:
+                        logger.debug("Failed to read indicator attr %s: %s", attr_name, e)
+                        continue
+                    attr_type = type(attr)
+                    if attr_type in _KNOWN_NON_INDICATOR_INSTANCE_TYPES:
+                        continue
+                    if (
+                        attr_type is ParameterAccessor
+                        and "lines" not in attr._param_manager._values
+                    ):
+                        continue
                     if hasattr(attr, "lines") and hasattr(attr, "__len__"):
                         self._extract_indicator_values(attr, indicators, attr_name)
-                except Exception as e:
-                    logger.debug("Failed to read indicator attr %s: %s", attr_name, e)
-                    continue
+            else:
+                for attr_name in dir(owner):
+                    if attr_name.startswith("_"):
+                        continue
+                    try:
+                        attr = getattr(owner, attr_name)
+                        if hasattr(attr, "lines") and hasattr(attr, "__len__"):
+                            self._extract_indicator_values(attr, indicators, attr_name)
+                    except Exception as e:
+                        logger.debug("Failed to read indicator attr %s: %s", attr_name, e)
+                        continue
 
         except Exception as e:
             logger.debug("Failed to collect indicator values: %s", e)
 
         # Check for custom indicators method on the strategy
-        if hasattr(self._owner, "get_custom_indicators") and callable(
-            self._owner.get_custom_indicators
-        ):
+        if hasattr(owner, "get_custom_indicators") and callable(owner.get_custom_indicators):
             try:
-                custom = self._owner.get_custom_indicators()
+                custom = owner.get_custom_indicators()
                 if isinstance(custom, dict):
                     indicators.update(custom)
             except Exception as e:
@@ -3034,30 +3260,98 @@ class TradeLogger(Observer):
             prefix: Optional prefix for indicator names
         """
         try:
-            # Get indicator class name
+            lines_obj = getattr(indicator, "lines", None)
+            if lines_obj is None:
+                return
+
+            lines_list = getattr(lines_obj, "lines", None)
+            lines_dict = getattr(lines_obj, "__dict__", None)
+            lines_cls = type(lines_obj)
+            if (
+                type(lines_list) is list
+                and type(lines_dict) is dict
+                and lines_dict.keys() <= _STANDARD_LINES_DICT_KEYS
+                and getattr(getattr(lines_cls, "getlinealiases", None), "__func__", None)
+                is _STANDARD_LINES_GETLINEALIASES
+            ):
+                cache = self.__dict__.get("_indicator_line_cache")
+                if cache is None:
+                    cache = self._indicator_line_cache = {}
+                cache_key = (type(indicator), lines_cls, prefix)
+                line_specs = cache.get(cache_key)
+                if line_specs is None:
+                    ind_name = indicator.__class__.__name__
+                    if prefix:
+                        ind_name = f"{prefix}_{ind_name}"
+                    ind_name_lower = ind_name.lower()
+                    specs = []
+                    valid = True
+                    for line_name in lines_obj.getlinealiases():
+                        desc = None
+                        for cls in lines_cls.__mro__:
+                            if line_name in cls.__dict__:
+                                desc = cls.__dict__[line_name]
+                                break
+                        if type(desc) is not LineAlias or desc.line < 0:
+                            valid = False
+                            break
+                        full_name = (
+                            f"{ind_name}_{line_name}"
+                            if line_name != ind_name_lower
+                            else ind_name
+                        )
+                        specs.append((desc.line, line_name, full_name))
+                    line_specs = tuple(specs) if valid else False
+                    cache[cache_key] = line_specs
+
+                if line_specs is not False:
+                    lines_len = len(lines_list)
+                    for line_idx, line_name, full_name in line_specs:
+                        try:
+                            if line_idx >= lines_len:
+                                continue
+                            line = lines_list[line_idx]
+                            if len(line) > 0:
+                                value = line[0]
+                                if type(value) is float:
+                                    if value == value:
+                                        indicators_dict[full_name] = value
+                                elif value is not None and not (
+                                    hasattr(value, "__float__") and float(value) != float(value)
+                                ):
+                                    indicators_dict[full_name] = float(value)
+                        except Exception as e_line:
+                            logger.debug("Failed to read indicator line %s: %s", line_name, e_line)
+                            continue
+                    return
+
+            # Generic fallback for custom/mock indicator or lines implementations
+            getlinealiases = getattr(lines_obj, "getlinealiases", None)
+            if getlinealiases is None:
+                return
+
             ind_name = indicator.__class__.__name__
             if prefix:
                 ind_name = f"{prefix}_{ind_name}"
+            ind_name_lower = ind_name.lower()
 
-            # Get line values
-            if hasattr(indicator, "lines"):
-                for line_name in indicator.lines.getlinealiases():
-                    try:
-                        line = getattr(indicator.lines, line_name)
-                        if len(line) > 0:
-                            value = line[0]
-                            if value is not None and not (
-                                hasattr(value, "__float__") and float(value) != float(value)
-                            ):
-                                full_name = (
-                                    f"{ind_name}_{line_name}"
-                                    if line_name != ind_name.lower()
-                                    else ind_name
-                                )
-                                indicators_dict[full_name] = float(value)
-                    except Exception as e_line:
-                        logger.debug("Failed to read indicator line %s: %s", line_name, e_line)
-                        continue
+            for line_name in getlinealiases():
+                try:
+                    line = getattr(lines_obj, line_name)
+                    if len(line) > 0:
+                        value = line[0]
+                        if value is not None and not (
+                            hasattr(value, "__float__") and float(value) != float(value)
+                        ):
+                            full_name = (
+                                f"{ind_name}_{line_name}"
+                                if line_name != ind_name_lower
+                                else ind_name
+                            )
+                            indicators_dict[full_name] = float(value)
+                except Exception as e_line:
+                    logger.debug("Failed to read indicator line %s: %s", line_name, e_line)
+                    continue
         except Exception as e:
             logger.debug("Failed to extract indicator values: %s", e)
 

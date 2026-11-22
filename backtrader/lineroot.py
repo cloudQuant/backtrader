@@ -71,6 +71,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
     _OwnerCls = None  # Default parent instance is None
     _minperiod = 1  # Minimum period is 1
     _opstage = 1  # Operation state defaults to 1
+    _factor_strict_context = None  # Default strict factor context is None
 
     # Indicator type, strategy type, and observer type values are 0, 1, 2 respectively
     IndType, StratType, ObsType = range(3)
