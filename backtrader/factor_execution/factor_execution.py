@@ -9,11 +9,11 @@ translates provider outcomes into Backtrader terminal states.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Iterator, Optional, Tuple
+from typing import Any, Iterator, Literal, Optional, Tuple, cast
 
 
 class FactorExecutionError(RuntimeError):
@@ -221,7 +221,7 @@ class FactorExecutionCoordinator:
         )
 
     def validate_snapshot_lease(self, lease: Any, receipt: Any, *, now: datetime) -> bool:
-        return self._sdk_client().validate_snapshot_lease(lease, receipt, now=now)
+        return cast(bool, self._sdk_client().validate_snapshot_lease(lease, receipt, now=now))
 
     def claim(self, operation: str, request: Any, *, authorization: Any):
         return self._sdk_client().claim(operation, request, authorization=authorization)
@@ -290,7 +290,7 @@ class FactorExecutionDecisionScope:
         self.execution_facts = execution_facts
         self.now = now
         self.active = False
-        self._token = None
+        self._token: Optional[Token[Optional[FactorExecutionDecisionScope]]] = None
 
     def __enter__(self) -> "FactorExecutionDecisionScope":
         if self.owner is None or getattr(self.owner, "broker", None) is not self.coordinator.broker:
@@ -311,7 +311,7 @@ class FactorExecutionDecisionScope:
         self.active = True
         return self
 
-    def __exit__(self, exc_type, exc, traceback) -> bool:
+    def __exit__(self, exc_type, exc, traceback) -> Literal[False]:
         if self._token is not None:
             self.coordinator._active_scope.reset(self._token)
             self._token = None

@@ -380,8 +380,8 @@ class FactorSpec:
                     )
 
         for alias, binding in frozen_fields.items():
-            policy = frozen_policies.get(alias)
-            if policy is None or not isinstance(binding, Mapping):
+            field_policy = frozen_policies.get(alias)
+            if field_policy is None or not isinstance(binding, Mapping):
                 continue
             derive = binding.get("derive")
             if derive == "vwap_volume":
@@ -392,13 +392,13 @@ class FactorSpec:
                         "PIT dollar_volume requires PIT policies for vwap and volume"
                     )
                 product_unit = _PIT_PRODUCT_UNITS.get((vwap_policy.unit, volume_policy.unit))
-                if product_unit is None or policy.unit != product_unit:
+                if product_unit is None or field_policy.unit != product_unit:
                     raise ResearchConfigError(
                         "PIT vwap_volume units must match a supported price-times-quantity pair"
                     )
             elif derive == "adv":
                 source_policy = frozen_policies.get(binding["source"])
-                if source_policy is None or policy.unit != source_policy.unit:
+                if source_policy is None or field_policy.unit != source_policy.unit:
                     raise ResearchConfigError(
                         "PIT ADV policy requires the source policy's output unit"
                     )

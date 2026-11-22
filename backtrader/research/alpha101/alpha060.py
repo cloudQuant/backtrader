@@ -55,6 +55,8 @@ class Alpha060Native(FactorIndicator):
         difference = per_asset(
             self, "scaled_component_difference", Subtract, scaled_money_flow, argmax_scale
         )
+        # Retain explicit ``1.0 *`` to preserve strict 1-to-1 catalog AST and
+        # trace parity with Appendix A ``(0 - (1 * ...))``.
         weighted_difference = per_asset(
             self, "one_times_component_difference", Multiply, (1.0,) * len(self.datas), difference
         )
@@ -86,6 +88,7 @@ class Alpha060Native(FactorIndicator):
         argmax_rank = ctx.rank(argmax)
         argmax_scale = ctx.scale(argmax_rank, a=1.0)
         difference = scaled_money_flow - argmax_scale
+        # Retain explicit ``1.0 *`` to match catalog AST ``(0 - (1 * ...))``.
         weighted_difference = 1.0 * difference
         factor = 0.0 - weighted_difference
         return factor

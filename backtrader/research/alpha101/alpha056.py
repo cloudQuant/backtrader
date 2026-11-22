@@ -38,6 +38,8 @@ class Alpha056Native(FactorIndicator):
         return_cap = per_asset(self, "return_times_cap", Multiply, returns, self.field_lines("cap"))
         ranked_return_cap = panel(self, "rank_return_cap", CrossSectionalRank, return_cap)
         product = per_asset(self, "rank_product", Multiply, ranked_ratio, ranked_return_cap)
+        # Retain explicit ``* 1.0`` to preserve strict 1-to-1 catalog AST and
+        # trace parity with Appendix A ``(0 - (1 * ...))``.
         times_one = per_asset(self, "times_one", Multiply, product, (1.0,) * len(self.datas))
         self._result_lines = per_asset(
             self, "zero_minus", Subtract, (0.0,) * len(self.datas), times_one
@@ -59,6 +61,7 @@ class Alpha056Native(FactorIndicator):
         return_cap = returns * ctx.field("cap")
         ranked_return_cap = ctx.rank(return_cap)
         product = ranked_ratio * ranked_return_cap
+        # Retain explicit ``* 1.0`` to match catalog AST ``(0 - (1 * ...))``.
         times_one = product * 1.0
         factor = 0.0 - times_one
         return factor

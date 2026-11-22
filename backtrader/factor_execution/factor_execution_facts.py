@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 
 class FactorExecutionFactsError(RuntimeError):
@@ -142,17 +142,20 @@ class FactorExecutionFacts:
             )
         except Exception:
             return False
-        return validate_account_execution_snapshot_binding(
-            query_facade=query_facade,
-            snapshot=self.account_execution_snapshot,
-            receipt=self.receipt,
-            lease=self.lease,
-            account_session_snapshot=self.account_session_snapshot,
-            account=self.provider_account,
-            positions=self.provider_positions,
-            open_orders=self.provider_open_orders,
-            instruments=self.provider_instruments,
-            now=now,
+        return cast(
+            bool,
+            validate_account_execution_snapshot_binding(
+                query_facade=query_facade,
+                snapshot=self.account_execution_snapshot,
+                receipt=self.receipt,
+                lease=self.lease,
+                account_session_snapshot=self.account_session_snapshot,
+                account=self.provider_account,
+                positions=self.provider_positions,
+                open_orders=self.provider_open_orders,
+                instruments=self.provider_instruments,
+                now=now,
+            ),
         )
 
 
@@ -227,7 +230,9 @@ def collect_local_bt_facts(
     except Exception as error:
         code = getattr(error, "code", None)
         raise FactorExecutionFactsError(
-            code if _finite_error_code(code) else "ACCOUNT_EXECUTION_SNAPSHOT_UNAVAILABLE"
+            cast(str, code)
+            if _finite_error_code(code)
+            else "ACCOUNT_EXECUTION_SNAPSHOT_UNAVAILABLE"
         ) from error
     try:
         require_account_execution_snapshot_scope(
@@ -281,16 +286,16 @@ def collect_local_bt_facts(
         raise FactorExecutionFactsError("BROKER_ORDER_SNAPSHOT_INVALID")
 
     local_orders = []
-    local_by_client_id = {}
+    local_by_client_id: Dict[str, List[FactorLocalOrder]] = {}
     for order in tuple(open_orders):
         if getattr(order, "owner", None) is not strategy:
             continue
         alive = getattr(order, "alive", None)
         if not callable(alive) or alive() is not True:
             continue
-        target = target_by_data_id.get(id(getattr(order, "data", None)))
+        matched_target = target_by_data_id.get(id(getattr(order, "data", None)))
         order_ref = getattr(order, "ref", None)
-        if target is None or type(order_ref) is not int or order_ref <= 0:
+        if matched_target is None or type(order_ref) is not int or order_ref <= 0:
             raise FactorExecutionFactsError("BROKER_ORDER_IDENTITY_UNBOUND")
         info = getattr(order, "info", None)
         getter = getattr(info, "get", None)
@@ -326,10 +331,10 @@ def collect_local_bt_facts(
             raise FactorExecutionFactsError("BROKER_ORDER_STATE_INVALID")
         remaining = quantity - filled
         local = FactorLocalOrder(
-            target_id=target.target_id,
+            target_id=matched_target.target_id,
             order_ref=order_ref,
             client_order_id=client_order_id,
-            instrument=target.instrument,
+            instrument=matched_target.instrument,
             side=side,
             status=status,
             quantity=quantity,
@@ -362,7 +367,9 @@ def collect_local_bt_facts(
     except Exception as error:
         code = getattr(error, "code", None)
         raise FactorExecutionFactsError(
-            code if _finite_error_code(code) else "ACCOUNT_EXECUTION_SNAPSHOT_UNAVAILABLE"
+            cast(str, code)
+            if _finite_error_code(code)
+            else "ACCOUNT_EXECUTION_SNAPSHOT_UNAVAILABLE"
         ) from error
     if type(current) is not bool or current is not True:
         raise FactorExecutionFactsError("ACCOUNT_EXECUTION_SNAPSHOT_STALE")

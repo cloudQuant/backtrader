@@ -30,7 +30,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 import datetime as _dt
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, cast
 
 _CLOCK_DOMAIN_ID = f"process-{os.getpid()}-{uuid.uuid4().hex}"
 
@@ -444,7 +444,7 @@ class MarketOrderBookEnvelope:
     execution-quality contract is available.
     """
 
-    sdk_event: object
+    sdk_event: Any
     data_name: str
     exchange_name: str
     execution_eligible: bool = False
@@ -546,7 +546,7 @@ class MarketOrderBookEnvelope:
 
     @property
     def sequence(self) -> int:
-        return self.sdk_event.provider_sequence
+        return cast(int, self.sdk_event.provider_sequence)
 
     @property
     def previous_sequence(self):
@@ -554,23 +554,23 @@ class MarketOrderBookEnvelope:
 
     @property
     def snapshot_or_delta(self) -> str:
-        return self.sdk_event.snapshot_or_delta
+        return cast(str, self.sdk_event.snapshot_or_delta)
 
     @property
     def continuity_status(self) -> str:
-        return self.sdk_event.continuity_status
+        return cast(str, self.sdk_event.continuity_status)
 
     @property
     def stale(self) -> bool:
-        return self.sdk_event.stale
+        return cast(bool, self.sdk_event.stale)
 
     @property
     def stale_reason(self) -> str:
-        return self.sdk_event.stale_reason
+        return cast(str, self.sdk_event.stale_reason)
 
     @property
     def recovery_snapshot(self) -> bool:
-        return self.sdk_event.recovery_snapshot
+        return cast(bool, self.sdk_event.recovery_snapshot)
 
     @property
     def freshness_status(self):

@@ -27,7 +27,6 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 
 from ..utils.coercion import coerce_float as _coerce_float
-from ..utils.coercion import coerce_text as _coerce_text
 from ..utils.log_message import get_logger
 from ..utils.redaction import masked_copy as _masked_copy_impl
 from ..utils.redaction import redact_diagnostic as _redact_diagnostic

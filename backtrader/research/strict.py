@@ -10,10 +10,12 @@ from contextvars import ContextVar
 from collections.abc import Mapping
 from contextlib import contextmanager
 from numbers import Integral
-from typing import NoReturn
+from typing import Any, Dict, NoReturn, Optional, Tuple
 
 
-_ACTIVE_LIVE_SOURCE_BINDINGS = ContextVar("bt_live_factor_source_bindings", default=None)
+_ACTIVE_LIVE_SOURCE_BINDINGS: ContextVar[Optional["_LiveSourceBindingScope"]] = ContextVar(
+    "bt_live_factor_source_bindings", default=None
+)
 
 
 class _LiveSourceBindingScope:
@@ -29,7 +31,7 @@ class _LiveSourceBindingScope:
         if not isinstance(bindings, (tuple, list)):
             raise TypeError("live factor source bindings must be a sequence")
 
-        indexed = {}
+        indexed: Dict[Tuple[int, str], Tuple[Any, Any]] = {}
         for item in bindings:
             if not isinstance(item, (tuple, list)) or len(item) != 3:
                 raise TypeError("live factor source binding entries must be triples")

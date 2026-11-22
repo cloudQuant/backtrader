@@ -104,11 +104,8 @@ class Alpha036Native(FactorIndicator):
         mean_minus_open = per_asset(
             self, "mean_close_minus_open", Subtract, close_mean_200, open_price
         )
-        close_minus_open_again = per_asset(
-            self, "close_minus_open_for_term_5", Subtract, close, open_price
-        )
         fifth_product = per_asset(
-            self, "long_mean_times_intraday_move", Multiply, mean_minus_open, close_minus_open_again
+            self, "long_mean_times_intraday_move", Multiply, mean_minus_open, close_minus_open
         )
         fifth_rank = panel(
             self, "rank_long_mean_intraday_product", CrossSectionalRank, fifth_product
@@ -152,8 +149,7 @@ class Alpha036Native(FactorIndicator):
         close_sum_200 = ctx.sum(close, 200)
         close_mean_200 = close_sum_200 / 200.0
         mean_minus_open = close_mean_200 - open_price
-        close_minus_open_again = close - open_price
-        fifth_product = mean_minus_open * close_minus_open_again
+        fifth_product = mean_minus_open * close_minus_open
         fifth_rank = ctx.rank(fifth_product)
         fifth_term = 0.6 * fifth_rank
         first_two_terms = first_term + second_term

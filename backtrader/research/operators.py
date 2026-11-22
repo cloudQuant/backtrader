@@ -63,6 +63,14 @@ class OperatorInputError(ValueError):
 _NAN = float("nan")
 _LEVELS = ("sector", "industry", "subindustry")
 _FAST_WINDOW_MISS = object()
+_FSUM = math.fsum
+_ISFINITE = math.isfinite
+_FREXP = math.frexp
+_LDEXP = math.ldexp
+_SQRT = math.sqrt
+_COPYSIGN = math.copysign
+_MUL = operator.mul
+_TWO_53 = float(1 << 53)
 
 # The window reader may bypass scalar ``LineBuffer.__getitem__`` calls only
 # while the standard implementation is still installed. Keep these identities
@@ -465,20 +473,27 @@ def _is_line_operand(value: Any) -> bool:
 
 def _stable_product(values: Sequence[float]) -> float:
     """Multiply finite values without a false intermediate overflow."""
-    negative = sum(math.copysign(1.0, value) < 0.0 for value in values) % 2 == 1
-    if any(value == 0.0 for value in values):
-        return -0.0 if negative else 0.0
-
+    negative = False
     mantissa = 1.0
     exponent = 0
+    frexp = _FREXP
     for value in values:
-        part, part_exponent = math.frexp(abs(value))
+        if value == 0.0:
+            zero_negative = False
+            copysign = _COPYSIGN
+            for item in values:
+                if copysign(1.0, item) < 0.0:
+                    zero_negative = not zero_negative
+            return -0.0 if zero_negative else 0.0
+        if value < 0.0:
+            negative = not negative
+            value = -value
+        part, part_exponent = frexp(value)
         mantissa *= part
         exponent += part_exponent
-        mantissa, adjustment = math.frexp(mantissa)
+        mantissa, adjustment = frexp(mantissa)
         exponent += adjustment
-    result = math.ldexp(-mantissa if negative else mantissa, exponent)
-    return result
+    return _LDEXP(-mantissa if negative else mantissa, exponent)
 
 
 def _average_rank(values: Sequence[float]) -> List[float]:
@@ -963,6 +978,7 @@ class _PanelInputRelationPlan:
                 indicator = owner_state.get("_owner")
             if (
                 indicator is None
+                or type(indicator) is _PresenceLine
                 or _panel_relation_class_methods(indicator, "indicator") is None
             ):
                 return False
@@ -2148,11 +2164,13 @@ def _panel_once_window(source, index: int, period: int):
 
 
 _FLOAT64_EPSILON = 2.220446049250313e-16
+_NEAR_ZERO_CANDIDATE_TOLERANCE = 8.0 * _FLOAT64_EPSILON
+_CORRELATION_BOUND_TOLERANCE = 4.0 * _FLOAT64_EPSILON
 
 
 def _centered_unit_deviations(
     values: Sequence[float],
-) -> Optional[Tuple[List[float], List[float]]]:
+) -> Optional[Tuple[List[float], Tuple[float, ...]]]:
     """Return centered deviations scaled to unit magnitude and their scale factors.
 
     Subtracting an anchor before taking a mean preserves ULP-sized movement on
@@ -2163,55 +2181,117 @@ def _centered_unit_deviations(
     """
     anchor = values[0]
     differences = [value - anchor for value in values]
-    scale_factors = []
-    if not all(math.isfinite(value) for value in differences):
-        input_scale = max(abs(value) for value in values)
+    difference_scale = max(map(abs, differences))
+    if difference_scale == 0.0:
+        if all(value == anchor for value in values):
+            return None
+        raise ValueError("input window contains non-finite values")
+    if not _ISFINITE(difference_scale):
+        input_scale = max(map(abs, values))
         if input_scale == 0.0:
             return None
         scaled_anchor = anchor / input_scale
         differences = [value / input_scale - scaled_anchor for value in values]
-        scale_factors.append(input_scale)
+        difference_scale = max(map(abs, differences))
+        if difference_scale == 0.0:
+            return None
+        normalized = [value / difference_scale for value in differences]
+        mean = _FSUM(normalized) / len(normalized)
+        centered = [value - mean for value in normalized]
+        centered_scale = max(map(abs, centered))
+        if centered_scale == 0.0:
+            return None
+        return (
+            [value / centered_scale for value in centered],
+            (input_scale, difference_scale, centered_scale),
+        )
 
-    difference_scale = max(abs(value) for value in differences)
-    if difference_scale == 0.0:
-        return None
     normalized = [value / difference_scale for value in differences]
-    mean = math.fsum(normalized) / len(normalized)
+    mean = _FSUM(normalized) / len(normalized)
     centered = [value - mean for value in normalized]
-    centered_scale = max(abs(value) for value in centered)
+    centered_scale = max(map(abs, centered))
     if centered_scale == 0.0:
         return None
-
-    unit = [value / centered_scale for value in centered]
-    scale_factors.extend((difference_scale, centered_scale))
-    return unit, scale_factors
+    return (
+        [value / centered_scale for value in centered],
+        (difference_scale, centered_scale),
+    )
 
 
 def _exact_binary_covariance_is_zero(left: Sequence[float], right: Sequence[float]) -> bool:
     """Check a cancellation candidate against the exact binary64 inputs.
 
-    Float denominators are powers of two, so each window can be represented by
-    integers on a common dyadic scale. The population covariance is zero exactly
-    iff ``n * sum(x*y) - sum(x) * sum(y)`` is zero; common denominators cancel.
+    Exact near-zero policy:
+    - Dimensionless float64 residuals within ``8 * float64_eps`` are treated
+      only as cancellation candidates, never blindly snapped to zero.
+    - Each finite binary64 value decomposes exactly via ``math.frexp`` into
+      ``m * 2**e`` where ``int(m * 2**53)`` is an exact 53-bit integer.
+    - Shifting each side only by its relative exponent ``e - min_e`` keeps
+      integers compact even for extreme scales (e.g. ``2**±400``) while
+      preserving exact dyadic scaling: population covariance is zero iff
+      ``n * sum(x_i * y_i) == sum(x_i) * sum(y_i)``.
+    - Returns ``True`` iff the exact binary64 population covariance is zero;
+      real tiny non-zero values are preserved without distortion.
     """
-    left_ratios = [value.as_integer_ratio() for value in left]
-    right_ratios = [value.as_integer_ratio() for value in right]
-    left_exponent = max(denominator.bit_length() - 1 for _, denominator in left_ratios)
-    right_exponent = max(denominator.bit_length() - 1 for _, denominator in right_ratios)
-    left_integers = [
-        numerator << (left_exponent - (denominator.bit_length() - 1))
-        for numerator, denominator in left_ratios
-    ]
-    right_integers = [
-        numerator << (right_exponent - (denominator.bit_length() - 1))
-        for numerator, denominator in right_ratios
-    ]
-    count = len(left_integers)
-    return (
-        count * sum(x * y for x, y in zip(left_integers, right_integers))
-        - sum(left_integers) * sum(right_integers)
-        == 0
-    )
+    count = len(left)
+    if count <= 1:
+        return True
+    if count == 2:
+        return left[0] == left[1] or right[0] == right[1]
+
+    frexp = _FREXP
+    two_53 = _TWO_53
+    left_parts: List[Tuple[int, int]] = []
+    left_min = 2000
+    left_max = -2000
+    for value in left:
+        if value:
+            mantissa, exponent = frexp(value)
+            left_parts.append((int(mantissa * two_53), exponent))
+            if exponent < left_min:
+                left_min = exponent
+            if exponent > left_max:
+                left_max = exponent
+        else:
+            left_parts.append((0, 0))
+
+    right_parts: List[Tuple[int, int]] = []
+    right_min = 2000
+    right_max = -2000
+    for value in right:
+        if value:
+            mantissa, exponent = frexp(value)
+            right_parts.append((int(mantissa * two_53), exponent))
+            if exponent < right_min:
+                right_min = exponent
+            if exponent > right_max:
+                right_max = exponent
+        else:
+            right_parts.append((0, 0))
+
+    sum_x = 0
+    sum_y = 0
+    sum_xy = 0
+    if left_min == left_max and right_min == right_max:
+        for (xi, _), (yi, _) in zip(left_parts, right_parts):
+            sum_x += xi
+            sum_y += yi
+            sum_xy += xi * yi
+    else:
+        for (xi, left_exp), (yi, right_exp) in zip(left_parts, right_parts):
+            if xi:
+                shift = left_exp - left_min
+                if shift:
+                    xi <<= shift
+                sum_x += xi
+            if yi:
+                shift = right_exp - right_min
+                if shift:
+                    yi <<= shift
+                sum_y += yi
+            if xi and yi:
+                sum_xy += xi * yi
+    return count * sum_xy == sum_x * sum_y
 
 
 class RollingCovariance(_RollingPair):
@@ -2222,84 +2302,104 @@ class RollingCovariance(_RollingPair):
     are combined with exponent-safe multiplication only after the normalized
     covariance is known.  A constant window has covariance exactly 0 (it is
     not a domain error); a one-value population covariance is 0 as well.
+
+    Exact near-zero policy: a dimensionless normalized residual within
+    ``8 * float64_eps`` is checked against exact binary64 input arithmetic via
+    :func:`_exact_binary_covariance_is_zero`.  Exact mathematical zeros snap
+    to ``0.0`` so downstream ranks preserve ties, while true non-zero values
+    (regardless of magnitude) are preserved untouched.
     """
 
     def _evaluate(self):
         left, right, reason = self._pair_windows()
         if left is None:
             return _NAN, reason
-
-        def calculate() -> float:
+        try:
             count = len(left)
             if count == 1:
-                return 0.0
-            if all(value == left[0] for value in left) or all(value == right[0] for value in right):
-                return 0.0
+                return 0.0, OperatorReason.READY
             centered_left = _centered_unit_deviations(left)
+            if centered_left is None:
+                return 0.0, OperatorReason.READY
             centered_right = _centered_unit_deviations(right)
-            if centered_left is None or centered_right is None:
-                return 0.0
+            if centered_right is None:
+                return 0.0, OperatorReason.READY
             normalized_left, left_scales = centered_left
             normalized_right, right_scales = centered_right
-            covariance = math.fsum(a * b for a, b in zip(normalized_left, normalized_right))
+            covariance = _FSUM(map(_MUL, normalized_left, normalized_right))
             # Use the dimensionless residual only to select cancellation cases;
             # exact binary64 input math decides whether a candidate is zero.
             normalized_covariance = covariance / count
             if (
                 normalized_covariance != 0.0
-                and abs(normalized_covariance) <= 8.0 * _FLOAT64_EPSILON
+                and -_NEAR_ZERO_CANDIDATE_TOLERANCE
+                <= normalized_covariance
+                <= _NEAR_ZERO_CANDIDATE_TOLERANCE
                 and _exact_binary_covariance_is_zero(left, right)
             ):
-                return 0.0
-            return _stable_product([covariance, 1.0 / count] + left_scales + right_scales)
-
-        return _guarded_result(calculate)
+                return 0.0, OperatorReason.READY
+            return _result(
+                _stable_product((covariance, 1.0 / count, *left_scales, *right_scales))
+            )
+        except (OverflowError, ValueError, ZeroDivisionError):
+            return _NAN, OperatorReason.DOMAIN_ERROR
 
 
 def _correlation_window_result(
     left: Sequence[float], right: Sequence[float]
 ) -> Tuple[float, OperatorReason]:
-    """Apply the scalar rolling-correlation float64 kernel to two full windows."""
+    """Apply the scalar rolling-correlation float64 kernel to two full windows.
 
-    def calculate() -> float:
-        if all(value == left[0] for value in left) or all(value == right[0] for value in right):
-            raise ValueError("correlation requires non-constant inputs")
+    Exact near-zero policy: correlation residuals within ``8 * float64_eps``
+    are verified against exact binary64 input covariance via
+    :func:`_exact_binary_covariance_is_zero` and snapped to ``0.0`` iff the
+    exact covariance is zero.  True tiny non-zero correlations are preserved,
+    while ULP overshoot outside ``[-1, 1]`` within ``4 * float64_eps`` clamps
+    to ``±1.0``.
+    """
+    try:
         centered_left = _centered_unit_deviations(left)
+        if centered_left is None:
+            return _NAN, OperatorReason.DOMAIN_ERROR
         centered_right = _centered_unit_deviations(right)
-        if centered_left is None or centered_right is None:
-            raise ValueError("correlation requires non-constant inputs")
-        deviations_left, _ = centered_left
-        deviations_right, _ = centered_right
-        left_ss = math.fsum(value * value for value in deviations_left)
-        right_ss = math.fsum(value * value for value in deviations_right)
-        cross = math.fsum(a * b for a, b in zip(deviations_left, deviations_right))
-        correlation = cross / (math.sqrt(left_ss) * math.sqrt(right_ss))
-        if not math.isfinite(correlation):
-            raise ValueError("correlation result is outside its mathematical domain")
+        if centered_right is None:
+            return _NAN, OperatorReason.DOMAIN_ERROR
+        deviations_left = centered_left[0]
+        deviations_right = centered_right[0]
+        left_ss = _FSUM(map(_MUL, deviations_left, deviations_left))
+        right_ss = _FSUM(map(_MUL, deviations_right, deviations_right))
+        cross = _FSUM(map(_MUL, deviations_left, deviations_right))
+        correlation = cross / (_SQRT(left_ss) * _SQRT(right_ss))
+        if not _ISFINITE(correlation):
+            return _NAN, OperatorReason.DOMAIN_ERROR
         if correlation > 1.0:
-            if correlation <= 1.0 + 4.0 * _FLOAT64_EPSILON:
-                return 1.0
-            raise ValueError("correlation result is outside its mathematical domain")
+            if correlation <= 1.0 + _CORRELATION_BOUND_TOLERANCE:
+                return 1.0, OperatorReason.READY
+            return _NAN, OperatorReason.DOMAIN_ERROR
         if correlation < -1.0:
-            if correlation >= -1.0 - 4.0 * _FLOAT64_EPSILON:
-                return -1.0
-            raise ValueError("correlation result is outside its mathematical domain")
+            if correlation >= -1.0 - _CORRELATION_BOUND_TOLERANCE:
+                return -1.0, OperatorReason.READY
+            return _NAN, OperatorReason.DOMAIN_ERROR
         if (
             correlation != 0.0
-            and abs(correlation) <= 8.0 * _FLOAT64_EPSILON
+            and -_NEAR_ZERO_CANDIDATE_TOLERANCE
+            <= correlation
+            <= _NEAR_ZERO_CANDIDATE_TOLERANCE
             and _exact_binary_covariance_is_zero(left, right)
         ):
-            return 0.0
-        return correlation
-
-    try:
-        return calculate(), OperatorReason.READY
+            return 0.0, OperatorReason.READY
+        return correlation, OperatorReason.READY
     except (ArithmeticError, ValueError):
         return _NAN, OperatorReason.DOMAIN_ERROR
 
 
 class RollingCorrelation(_RollingPair):
-    """Pearson correlation on two complete windows; constant input is invalid."""
+    """Pearson correlation on two complete windows; constant input is invalid.
+
+    Uses :func:`_correlation_window_result` with exact binary64 zero
+    verification for near-zero cancellation candidates so exact ties are
+    preserved without altering true non-zero values.
+    """
 
     def _evaluate(self):
         if self._period < 2:

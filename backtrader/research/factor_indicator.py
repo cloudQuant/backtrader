@@ -8,7 +8,7 @@ from contextvars import ContextVar
 from datetime import datetime, timezone
 from functools import wraps
 from types import MappingProxyType
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, cast
+from typing import Any, Deque, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 from ..feed import AbstractDataBase
 from ..feeds.pandafeed import PandasData
@@ -338,16 +338,20 @@ class FactorIndicator(Indicator):
         asset_names = tuple(self._factor_runtime.get("asset_names", ()))
         if asset_names and len(asset_names) != len(output_datas):
             raise RuntimeError("factor asset names do not match its output lines")
-        self._factor_live_bounded_diagnostics = bool(runtime.get("live_source_binding", False))
+        self._factor_live_bounded_diagnostics = bool(
+            self._factor_runtime.get("live_source_binding", False)
+        )
         self._factor_full_diagnostic_history = bool(
             not self._factor_live_bounded_diagnostics and _FACTOR_FULL_DIAGNOSTIC_HISTORY.get()
         )
         self._factor_call_count = 0
         self._factor_once_range_count = 0
         self._factor_once_covered_count = 0
+        self._factor_call_times: Union[List[datetime], Deque[datetime]]
+        self._factor_once_ranges: Union[List[Tuple[int, int]], Deque[Tuple[int, int]]]
         if self._factor_full_diagnostic_history:
-            self._factor_call_times: List[datetime] = []
-            self._factor_once_ranges: List[Tuple[int, int]] = []
+            self._factor_call_times = []
+            self._factor_once_ranges = []
         else:
             self._factor_call_times = deque(maxlen=_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
             self._factor_once_ranges = deque(maxlen=_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
@@ -483,7 +487,8 @@ class FactorIndicator(Indicator):
         context = _ExpressionContext(self)
         resolved_params = dict(self._factor_runtime.get("factor_params", {}))
         try:
-            result = self.__class__.build(context, **resolved_params)
+            build_fn: Any = getattr(self.__class__, "build")
+            result = build_fn(context, **resolved_params)
             result_lines = context.result_lines(result)
         finally:
             context._close()
@@ -1061,12 +1066,16 @@ class FactorIndicator(Indicator):
         """
         calls = self._factor_call_times
         ranges = self._factor_once_ranges
-        calls_bounded = type(calls) is deque and type(calls.maxlen) is int and calls.maxlen > 0
-        ranges_bounded = type(ranges) is deque and type(ranges.maxlen) is int and ranges.maxlen > 0
+        calls_maxlen = calls.maxlen if type(calls) is deque else None
+        ranges_maxlen = ranges.maxlen if type(ranges) is deque else None
+        calls_bounded = calls_maxlen is not None and type(calls_maxlen) is int and calls_maxlen > 0
+        ranges_bounded = (
+            ranges_maxlen is not None and type(ranges_maxlen) is int and ranges_maxlen > 0
+        )
         call_samples = len(calls)
         range_samples = len(ranges)
-        sample_limit = calls.maxlen if calls_bounded and ranges_bounded else None
-        if calls_bounded and ranges_bounded and calls.maxlen != ranges.maxlen:
+        sample_limit = calls_maxlen if calls_bounded and ranges_bounded else None
+        if calls_bounded and ranges_bounded and calls_maxlen != ranges_maxlen:
             calls_bounded = False
             ranges_bounded = False
             sample_limit = None

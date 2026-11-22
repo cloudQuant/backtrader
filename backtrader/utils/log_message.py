@@ -38,7 +38,7 @@ import threading
 import time
 from datetime import date, timedelta
 from logging.handlers import TimedRotatingFileHandler
-from typing import List
+from typing import Any, Dict, List, Optional
 
 # Root namespace for every backtrader logger. ``get_logger(__name__)`` from
 # inside the package already yields names like "backtrader.xxx"; a single
@@ -54,7 +54,7 @@ _BT_HANDLER_FLAG = "_backtrader_managed"
 _CONFIG_LOCK = threading.RLock()
 _THROTTLE_LOCK = threading.RLock()
 _PROCESS_PID = os.getpid()
-_logging_config = None
+_logging_config: Optional[Dict[str, Any]] = None
 _warned_failures = set()
 
 # Standard library pattern for libraries: install a NullHandler at import so

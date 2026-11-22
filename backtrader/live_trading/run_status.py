@@ -67,7 +67,7 @@ import sys
 import threading
 import uuid
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
 from ..utils.log_message import get_logger, throttled_warning
 from ..live_state import atomic_write_json, read_json
@@ -551,7 +551,7 @@ def compute_stop_budget(
     proven = not unproven
     total: Optional[float] = None
     if proven:
-        total = float(sum(components[name] for name in BUDGET_TOTAL_COMPONENTS))
+        total = float(sum(cast(float, components[name]) for name in BUDGET_TOTAL_COMPONENTS))
     parameters = {
         "stop_cancel_timeout": _finite_non_negative(stop_cancel_timeout),
         "direct_stop_write_timeout": _finite_non_negative(direct_stop_write_timeout),
@@ -670,7 +670,7 @@ def _publishable_code(value: Any) -> Optional[str]:
     lowered = value.lower()
     if any(marker in lowered for marker in _SECRET_MARKERS):
         return None
-    return value
+    return cast(str, value)
 
 
 def direct_run_facts(broker: Any) -> RunFacts:
@@ -712,7 +712,7 @@ def direct_run_facts(broker: Any) -> RunFacts:
     except Exception:  # a status read is never allowed to break the heartbeat
         return RunFacts()
     finally:
-        if acquired:
+        if acquired and lock is not None:
             lock.release()
 
 

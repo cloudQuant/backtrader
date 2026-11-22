@@ -14,7 +14,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import Any, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Set
 
 from ..futures import ProductKey
 from ..futures import (
@@ -161,10 +161,10 @@ class MarketFactorSourceCalendar:
             raise MarketFactorSourceError("MARKET_FACTOR_SOURCE_PLAN_INVALID")
 
         hashes = {}
-        for row in grid.calendar_hashes:
-            if type(row) is not tuple or len(row) != 2:
+        for hash_row in grid.calendar_hashes:
+            if type(hash_row) is not tuple or len(hash_row) != 2:
                 raise MarketFactorSourceError("MARKET_FACTOR_SOURCE_PLAN_INVALID")
-            exchange_id, digest = row
+            exchange_id, digest = hash_row
             if (
                 type(exchange_id) is not str
                 or not exchange_id
@@ -196,7 +196,7 @@ class MarketFactorSourceCalendar:
         if set(calendars) != exchanges:
             raise MarketFactorSourceError("MARKET_FACTOR_SOURCE_PLAN_INVALID")
 
-        products_by_exchange = {}
+        products_by_exchange: Dict[str, Set[Any]] = {}
         for product in targets:
             products_by_exchange.setdefault(product.exchange_id, set()).add(product)
         product_days = {}

@@ -90,6 +90,8 @@ class Alpha100Native(FactorIndicator):
         weighted_difference = per_asset(
             self, "volume_weighted_difference", Multiply, scale_difference, volume_adv
         )
+        # Retain explicit ``* 1.0`` to preserve strict 1-to-1 catalog AST and
+        # trace parity with Appendix A ``(0 - (1 * ...))``.
         times_one = per_asset(
             self, "times_one", Multiply, weighted_difference, (1.0,) * len(self.datas)
         )
@@ -142,5 +144,6 @@ class Alpha100Native(FactorIndicator):
         scaled_difference = first_scaled - second_scale
         volume_adv = ctx.volume / adv20
         weighted_difference = scaled_difference * volume_adv
+        # Retain explicit ``* 1.0`` to match catalog AST ``(0 - (1 * ...))``.
         times_one = weighted_difference * 1.0
         return 0.0 - times_one

@@ -35,6 +35,8 @@ class Alpha057Native(FactorIndicator):
         argmax_rank = panel(self, "rank_close_argmax", CrossSectionalRank, argmax)
         decayed_rank = per_asset(self, "decay_argmax_rank2", DecayLinear, argmax_rank, period=2)
         ratio = per_asset(self, "close_vwap_over_decayed_rank", Divide, close_vwap, decayed_rank)
+        # Retain explicit ``1.0 *`` to preserve strict 1-to-1 catalog AST and
+        # trace parity with Appendix A ``(0 - (1 * ...))``.
         weighted_ratio = per_asset(
             self, "one_times_ratio", Multiply, (1.0,) * len(self.datas), ratio
         )
@@ -54,6 +56,7 @@ class Alpha057Native(FactorIndicator):
         argmax_rank = ctx.rank(argmax)
         decayed_rank = ctx.decay_linear(argmax_rank, 2)
         ratio = close_vwap / decayed_rank
+        # Retain explicit ``1.0 *`` to match catalog AST ``(0 - (1 * ...))``.
         weighted_ratio = 1.0 * ratio
         factor = 0.0 - weighted_ratio
         return factor

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, List, Mapping, Optional, Sequence, Tuple, Union, cast
 from urllib.parse import urlparse
 import hashlib
 import json
@@ -71,11 +71,11 @@ def _aware(value: Any, name: str) -> datetime:
 
 
 def _url(value: Any, name: str) -> str:
-    value = _session_text(value, name)
-    parsed = urlparse(value)
+    text = _session_text(value, name)
+    parsed = urlparse(text)
     if parsed.scheme != "https" or not parsed.netloc:
         raise ValueError("{} must be an HTTPS URL".format(name))
-    return value
+    return text
 
 
 def _sha256(value: Any, name: str) -> str:
@@ -517,25 +517,25 @@ def load_exchange_session_calendar(document: Mapping[str, Any]) -> ExchangeSessi
         if evidence_kind == "public_source_bytes":
             sources.append(
                 PublicSourceEvidence(
-                    source_id=value.get("source_id"),
-                    source_url=value.get("source_url"),
-                    version=value.get("version"),
+                    source_id=cast(str, value.get("source_id")),
+                    source_url=cast(str, value.get("source_url")),
+                    version=cast(str, value.get("version")),
                     available_at=_iso_datetime(value.get("available_at"), "available_at"),
                     retrieved_at=_iso_datetime(value.get("retrieved_at"), "retrieved_at"),
-                    sha256=value.get("sha256"),
+                    sha256=cast(str, value.get("sha256")),
                 )
             )
         elif evidence_kind == "expected_rule_derived":
             sources.append(
                 ExpectedRuleEvidence(
-                    source_id=value.get("source_id"),
+                    source_id=cast(str, value.get("source_id")),
                     source_urls=tuple(
                         _bounded_sequence(value.get("source_urls", ()), "source_urls", 32)
                     ),
-                    version=value.get("version"),
+                    version=cast(str, value.get("version")),
                     available_at=_iso_datetime(value.get("available_at"), "available_at"),
                     retrieved_at=_iso_datetime(value.get("retrieved_at"), "retrieved_at"),
-                    rules_manifest_sha256=value.get("rules_manifest_sha256"),
+                    rules_manifest_sha256=cast(str, value.get("rules_manifest_sha256")),
                     limitations=tuple(
                         _bounded_sequence(value.get("limitations", ()), "limitations", 32)
                     ),
@@ -566,11 +566,11 @@ def load_exchange_session_calendar(document: Mapping[str, Any]) -> ExchangeSessi
                 raise SessionCalendarError("SESSION_WINDOW_MUST_BE_OBJECT")
             windows.append(
                 SessionWindow(
-                    session_id=window.get("session_id"),
+                    session_id=cast(str, window.get("session_id")),
                     session_date=_iso_date(window.get("session_date"), "session_date"),
                     start=_iso_datetime(window.get("start"), "session start"),
                     end=_iso_datetime(window.get("end"), "session end"),
-                    source_id=window.get("source_id"),
+                    source_id=cast(str, window.get("source_id")),
                 )
             )
         rows.append(
@@ -580,7 +580,7 @@ def load_exchange_session_calendar(document: Mapping[str, Any]) -> ExchangeSessi
                     product_id=product_row.get("product_id"),
                 ),
                 trading_day=_iso_date(value.get("trading_day"), "trading_day"),
-                source_id=value.get("source_id"),
+                source_id=cast(str, value.get("source_id")),
                 windows=tuple(windows),
                 closed_reason=value.get("closed_reason"),
             )
@@ -589,8 +589,8 @@ def load_exchange_session_calendar(document: Mapping[str, Any]) -> ExchangeSessi
     if type(complete) is not bool:
         raise SessionCalendarError("SESSION_CALENDAR_COMPLETE_INVALID")
     return ExchangeSessionCalendar(
-        exchange_id=document.get("exchange_id"),
-        calendar_source_id=document.get("calendar_source_id"),
+        exchange_id=cast(str, document.get("exchange_id")),
+        calendar_source_id=cast(str, document.get("calendar_source_id")),
         coverage_start=_iso_date(document.get("coverage_start"), "coverage_start"),
         coverage_through=_iso_date(document.get("coverage_through"), "coverage_through"),
         trading_days=tuple(_iso_date(value, "trading_day") for value in day_values),

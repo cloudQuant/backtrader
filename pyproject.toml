@@ -66,6 +66,7 @@ module = [
     "backtrader.analyzer",
     "backtrader.utils.fractal",
     "backtrader.profiles",
+    "backtrader.comminfo",
     "backtrader._cerebro",
     "backtrader._cerebro.*",
     "backtrader.commissions.*",
@@ -133,6 +134,31 @@ disable_error_code = [
     "arg-type",
     "type-var",
     "var-annotated",
+    "override",
+]
+
+# Community-contributed indicators (207 modules): extend the built-in indicator
+# override with str-format and comparison-overlap for legacy string formatting
+# and dynamic descriptor/getattr identity checks without loosening core indicators.
+[[tool.mypy.overrides]]
+module = [
+    "backtrader.indicators.contrib.*",
+]
+disable_error_code = [
+    "attr-defined",
+    "assignment",
+    "index",
+    "call-arg",
+    "misc",
+    "operator",
+    "union-attr",
+    "has-type",
+    "arg-type",
+    "type-var",
+    "var-annotated",
+    "override",
+    "str-format",
+    "comparison-overlap",
 ]
 
 [[tool.mypy.overrides]]
@@ -152,6 +178,8 @@ disable_error_code = [
     "call-overload",
 ]
 
+# Dynamic strategy/broker/feed/store layers: runtime params, line bindings,
+# dynamic containers, descriptor identity checks, and optional-SDK bridges.
 [[tool.mypy.overrides]]
 module = [
     "backtrader.cerebro",
@@ -177,6 +205,11 @@ disable_error_code = [
     "has-type",
     "call-arg",
     "list-item",
+    "var-annotated",
+    "type-var",
+    "dict-item",
+    "comparison-overlap",
+    "call-overload",
 ]
 
 [[tool.mypy.overrides]]
@@ -184,6 +217,78 @@ module = [
     "backtrader.btrun.*",
 ]
 disable_error_code = ["attr-defined", "misc", "assignment", "arg-type", "union-attr"]
+
+# Service and execution bridge mixins: access host Store/Broker attributes via
+# MRO, wrap optional bt_api_py SDK calls (Any under ignore_missing_imports),
+# and host Gateway/Service/Execution adapters pending future refactoring.
+[[tool.mypy.overrides]]
+module = [
+    "backtrader.service.*",
+    "backtrader.execution.*",
+]
+disable_error_code = [
+    "attr-defined",
+    "no-any-return",
+    "union-attr",
+    "arg-type",
+    "assignment",
+    "has-type",
+    "var-annotated",
+    "dict-item",
+    "misc",
+    "comparison-overlap",
+    "index",
+    "call-arg",
+    "return-value",
+    "exit-return",
+]
+
+# Cross-platform live state persistence: dynamic JSON payloads (Any returns and
+# kwargs forwarding), platform-specific OS security stubs (os.O_DIRECTORY /
+# os.geteuid on Windows, msvcrt on Linux), and stateful CLI/pending guards.
+[[tool.mypy.overrides]]
+module = [
+    "backtrader.live_state.*",
+]
+disable_error_code = [
+    "no-any-return",
+    "attr-defined",
+    "arg-type",
+    "union-attr",
+    "var-annotated",
+    "assignment",
+    "dict-item",
+]
+
+# Dynamic research expression / live cohort / strategy modules: instantiate
+# dynamic ParamsMixin/LineSeries indicators and feeds, traverse heterogeneous
+# runtime Line/Feed/Strategy object graphs, and bind dynamic panel operators.
+# Other research modules (factor_indicator, specs, strict, factor_report,
+# panel, sink, alpha101.*) remain under full top-level strict checks.
+[[tool.mypy.overrides]]
+module = [
+    "backtrader.research._expression",
+    "backtrader.research.align",
+    "backtrader.research.operators",
+    "backtrader.research.live",
+    "backtrader.research.live_cohort",
+    "backtrader.research.live_capacity",
+    "backtrader.strategies.*",
+]
+disable_error_code = [
+    "call-arg",
+    "attr-defined",
+    "assignment",
+    "no-any-return",
+    "comparison-overlap",
+    "var-annotated",
+    "arg-type",
+    "union-attr",
+    "operator",
+    "index",
+    "misc",
+    "call-overload",
+]
 
 [tool.coverage.run]
 source = ["backtrader"]

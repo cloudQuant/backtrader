@@ -7,7 +7,7 @@ trading.
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type, cast
 
 
 class LiveOrderType(str, Enum):
@@ -438,7 +438,7 @@ class LiveBrokerFactory:
         broker_class = cls._brokers.get(broker_type.strip().lower())
         if broker_class is None:
             raise ValueError(f"Unsupported broker type: {broker_type}")
-        return broker_class(config)
+        return cast(LiveBroker, cast(Any, broker_class)(config))
 
     @classmethod
     def register_broker(cls, broker_type: str, broker_class: Type[LiveBroker]) -> None:

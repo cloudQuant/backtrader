@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, cast
 
 from ..errors import DependencyError, ResearchConfigError
 
@@ -55,16 +55,19 @@ def write_factor_report(
     else:
         prices = panel.prices_close
         next_open = False
-    return _write_factor_report(
-        factor,
-        prices,
-        output_path,
-        periods=tuple(periods),
-        quantiles=quantiles,
-        max_loss=max_loss,
-        title=title or factor_name,
-        language=language,
-        next_open=next_open,
+    return cast(
+        Path,
+        _write_factor_report(
+            factor,
+            prices,
+            output_path,
+            periods=tuple(periods),
+            quantiles=quantiles,
+            max_loss=max_loss,
+            title=title or factor_name,
+            language=language,
+            next_open=next_open,
+        ),
     )
 
 
