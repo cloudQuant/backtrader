@@ -12,12 +12,7 @@ in backtrader, managing line data, minimum periods, and calculation logic.
 from types import GetSetDescriptorType
 
 from .linebuffer import LineBuffer
-from .lineiterator import (
-    IndicatorBase,
-    LineIterator,
-    _contains_identity,
-    _line_like_source_clock,
-)
+from .lineiterator import IndicatorBase, LineIterator, _contains_identity
 from .lineseries import Lines
 from .metabase import AutoInfoClass, OwnerContext
 from .utils.log_message import get_logger
@@ -80,80 +75,6 @@ def _is_plain_indicator_clock_alias(indicator, value):
         return False
     lines = plain_state(lines_obj, "lines")
     return type(lines) in (list, tuple) and any(value is line for line in lines)
-
-
-def _resolve_indicator_advance_clock(indicator):
-    """Resolve the clock driving an indicator's runonce advance step.
-
-    Prefers an explicit ``_resolved_secondary_clock`` pinned by
-    ``Strategy._periodset`` (while ignoring user-declared line aliases of the
-    same name), falls back to ``indicator._clock``, and caches ``MinimalClock``
-    fallback resolution against ``(clock, datas[0])`` in
-    ``_bt_resolved_secondary_clock``.
-    """
-    try:
-        ind_dict = object.__getattribute__(indicator, "__dict__")
-    except (AttributeError, TypeError):
-        ind_dict = None
-
-    if ind_dict is not None:
-        lines_obj = ind_dict.get("lines")
-        if "_resolved_secondary_clock" in ind_dict:
-            sec = ind_dict["_resolved_secondary_clock"]
-            if sec is not None:
-                if lines_obj is None or sec not in getattr(lines_obj, "lines", ()):
-                    return sec
-        else:
-            aliases_fn = (
-                getattr(lines_obj, "getlinealiases", None)
-                if lines_obj is not None
-                else None
-            )
-            aliases = aliases_fn() if aliases_fn is not None else ()
-            if "_resolved_secondary_clock" not in aliases:
-                sec = getattr(indicator, "_resolved_secondary_clock", None)
-                if sec is not None:
-                    return sec
-
-        clk = (
-            ind_dict.get("_clock")
-            if "_clock" in ind_dict
-            else getattr(indicator, "_clock", None)
-        )
-        if clk is not None and clk.__class__.__name__ != "MinimalClock":
-            return clk
-
-        datas = (
-            ind_dict.get("datas")
-            if "datas" in ind_dict
-            else getattr(indicator, "datas", None)
-        )
-        data0 = datas[0] if datas else None
-        cache = ind_dict.get("_bt_resolved_secondary_clock")
-        if (
-            type(cache) is tuple
-            and len(cache) == 3
-            and cache[0] is clk
-            and cache[1] is data0
-        ):
-            return cache[2]
-
-        resolved = clk
-        if data0 is not None:
-            source_clk = _line_like_source_clock(data0)
-            resolved = source_clk if source_clk is not None else data0
-        aliases_fn = (
-            getattr(lines_obj, "getlinealiases", None) if lines_obj is not None else None
-        )
-        aliases = aliases_fn() if aliases_fn is not None else ()
-        if "_bt_resolved_secondary_clock" not in aliases:
-            ind_dict["_bt_resolved_secondary_clock"] = (clk, data0, resolved)
-        return resolved
-
-    sec = getattr(indicator, "_resolved_secondary_clock", None)
-    if sec is not None:
-        return sec
-    return indicator._clock
 
 
 class IndicatorRegistry:

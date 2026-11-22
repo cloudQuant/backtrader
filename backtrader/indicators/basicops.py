@@ -559,46 +559,136 @@ def _once_monotonic_index(src, dst, start, end, period, choose_max, choose_lates
     if start >= end:
         return
 
-    candidates = deque()
+    src_len = len(src)
+    calc_start = max(start, period - 1)
+    actual_end = min(end, src_len)
 
-    def add(index):
-        value = src[index]
-        if value != value:  # NaNs after the window's first value are ignored
-            return
+    for index in range(start, min(calc_start, end)):
+        dst[index] = nan
+    for index in range(max(start, actual_end), end):
+        dst[index] = nan
 
-        while candidates:
-            previous = src[candidates[-1]]
-            is_better = value > previous if choose_max else value < previous
-            if is_better or (choose_latest and value == previous):
-                candidates.pop()
+    if calc_start >= actual_end:
+        return
+
+    cand_idx = deque()
+    cand_val = deque()
+    idx_append = cand_idx.append
+    idx_pop = cand_idx.pop
+    idx_popleft = cand_idx.popleft
+    val_append = cand_val.append
+    val_pop = cand_val.pop
+    val_popleft = cand_val.popleft
+
+    # ``oncestart`` and ``once`` are separate calls in the normal runonce
+    # scheduler. Rebuild only the preceding portion of the first requested
+    # window so this routine is also correct when called on arbitrary chunks.
+    seed_start = max(0, calc_start - period + 1)
+
+    if choose_max and choose_latest:
+        for index in range(seed_start, calc_start):
+            value = src[index]
+            if value == value:  # NaNs after the window's first value are ignored
+                while cand_val and value >= cand_val[-1]:
+                    idx_pop()
+                    val_pop()
+                idx_append(index)
+                val_append(value)
+        for index in range(calc_start, actual_end):
+            value = src[index]
+            if value == value:
+                while cand_val and value >= cand_val[-1]:
+                    idx_pop()
+                    val_pop()
+                idx_append(index)
+                val_append(value)
+            left = index - period + 1
+            while cand_idx and cand_idx[0] < left:
+                idx_popleft()
+                val_popleft()
+            left_val = src[left]
+            if left_val != left_val or not cand_idx:
+                dst[index] = nan
             else:
-                break
-        candidates.append(index)
-
-    seed_start = max(0, start - period + 1)
-    for index in range(seed_start, min(start, len(src))):
-        add(index)
-
-    for index in range(start, end):
-        if index >= len(src):
-            dst[index] = nan
-            continue
-
-        add(index)
-        left = index - period + 1
-        while candidates and candidates[0] < left:
-            candidates.popleft()
-
-        if index < period - 1:
-            dst[index] = nan
-        elif src[left] != src[left]:
-            # Match the built-in max/min followed by equality search: when
-            # the left edge is NaN, no element compares equal to the result.
-            raise StopIteration
-        elif candidates:
-            dst[index] = float(index - candidates[0])
-        else:
-            raise StopIteration
+                dst[index] = float(index - cand_idx[0])
+    elif choose_max:
+        for index in range(seed_start, calc_start):
+            value = src[index]
+            if value == value:
+                while cand_val and value > cand_val[-1]:
+                    idx_pop()
+                    val_pop()
+                idx_append(index)
+                val_append(value)
+        for index in range(calc_start, actual_end):
+            value = src[index]
+            if value == value:
+                while cand_val and value > cand_val[-1]:
+                    idx_pop()
+                    val_pop()
+                idx_append(index)
+                val_append(value)
+            left = index - period + 1
+            while cand_idx and cand_idx[0] < left:
+                idx_popleft()
+                val_popleft()
+            left_val = src[left]
+            if left_val != left_val or not cand_idx:
+                dst[index] = nan
+            else:
+                dst[index] = float(index - cand_idx[0])
+    elif choose_latest:
+        for index in range(seed_start, calc_start):
+            value = src[index]
+            if value == value:
+                while cand_val and value <= cand_val[-1]:
+                    idx_pop()
+                    val_pop()
+                idx_append(index)
+                val_append(value)
+        for index in range(calc_start, actual_end):
+            value = src[index]
+            if value == value:
+                while cand_val and value <= cand_val[-1]:
+                    idx_pop()
+                    val_pop()
+                idx_append(index)
+                val_append(value)
+            left = index - period + 1
+            while cand_idx and cand_idx[0] < left:
+                idx_popleft()
+                val_popleft()
+            left_val = src[left]
+            if left_val != left_val or not cand_idx:
+                dst[index] = nan
+            else:
+                dst[index] = float(index - cand_idx[0])
+    else:
+        for index in range(seed_start, calc_start):
+            value = src[index]
+            if value == value:
+                while cand_val and value < cand_val[-1]:
+                    idx_pop()
+                    val_pop()
+                idx_append(index)
+                val_append(value)
+        for index in range(calc_start, actual_end):
+            value = src[index]
+            if value == value:
+                while cand_val and value < cand_val[-1]:
+                    idx_pop()
+                    val_pop()
+                idx_append(index)
+                val_append(value)
+            left = index - period + 1
+            while cand_idx and cand_idx[0] < left:
+                idx_popleft()
+                val_popleft()
+            left_val = src[left]
+            if left_val != left_val or not cand_idx:
+                dst[index] = nan
+            else:
+                dst[index] = float(index - cand_idx[0])
 
 
 class PeriodN(Indicator):
@@ -733,26 +823,16 @@ class OperationN(PeriodN):
                 and src is not dst
                 and (choose_latest or _plain_last_index_period(self, period))
             ):
-                # The generic path's NaN-left behavior includes a StopIteration
-                # fallback. Skip the fast path for any affected window so that
-                # existing per-mode exception/fallback behavior stays intact.
-                first_current = max(start, period - 1)
-                last_current = min(end, len(src))
-                has_nan_left = any(
-                    src[current - period + 1] != src[current - period + 1]
-                    for current in range(first_current, last_current)
+                _once_monotonic_index(
+                    src,
+                    dst,
+                    start,
+                    end,
+                    period,
+                    index_choice,
+                    choose_latest,
                 )
-                if not has_nan_left:
-                    _once_monotonic_index(
-                        src,
-                        dst,
-                        start,
-                        end,
-                        period,
-                        index_choice,
-                        choose_latest,
-                    )
-                    return
+                return
 
             # Only the concrete built-ins over the standard double arrays have
             # the ordering contract implemented by the monotonic deque. Keep
@@ -1065,10 +1145,12 @@ class FindFirstIndex(OperationN):
             iterable: Data values to search.
 
         Returns:
-            Index of first matching value (looking backwards).
+            Index of first matching value (looking backwards), or ``NaN`` when
+            no element matches (for example when ``_evalfunc`` returns ``NaN``).
         """
         m = self.p._evalfunc(iterable)
-        return next(i for i, v in enumerate(reversed(iterable)) if v == m)
+        index = next((i for i, v in enumerate(reversed(iterable)) if v == m), None)
+        return float("nan") if index is None else index
 
 
 # Get the earliest occurrence of the highest price in the past
@@ -1127,10 +1209,13 @@ class FindLastIndex(OperationN):
             iterable: Data values to search.
 
         Returns:
-            Index of last matching value (looking backwards).
+            Index of last matching value (looking backwards), or ``NaN`` when
+            no element matches (for example when ``_evalfunc`` returns ``NaN``).
         """
         m = self.p._evalfunc(iterable)
-        index = next(i for i, v in enumerate(iterable) if v == m)
+        index = next((i for i, v in enumerate(iterable) if v == m), None)
+        if index is None:
+            return float("nan")
         # The iterable goes from 0 -> period - 1. If the last element
         # which is the current bar is returned and without the -1 then
         # period - index = 1 ... and must be zero!

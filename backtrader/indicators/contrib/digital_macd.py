@@ -399,7 +399,7 @@ class DigitalMacd(Indicator):
             if had_prev_sig:
                 if revising:
                     history.append(prev_sig)
-                else:
+                elif sig_appended:
                     history.appendleft(prev_sig)
             raise
 
