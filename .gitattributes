@@ -45,7 +45,6 @@ scripts/ctp_000_render_config.py text eol=lf
 backtrader_runtime/certification_simnow_c01_native_td_read_v12.sources.json text eol=lf
 backtrader_runtime/certification_simnow_c01_native_td_read_v12.py -text
 examples/live/000_live_certification/simnow_penetration/cases/C01/run_v12.py text eol=lf
-scripts/run_simnow_c01_native_td_read_v12_root_activation_r1.py text eol=lf
 tests/unit/runtime/test_certification_simnow_c01_v3_supervisor_reconcile.py text eol=lf
 backtrader_runtime/certification_simnow_c01_front_transport_v7.py text eol=lf
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v12-job-reconciliation-front-loader-r2-2026-10-08/README.md -text
@@ -65,10 +64,8 @@ backtrader_runtime/certification_simnow_c01_v3_protocol.py -text
 backtrader_runtime/certification_simnow_c01_v4_supervisor.py -text
 backtrader_runtime/certification_simnow_c01_v7_owner.py -text
 examples/live/000_live_certification/simnow_penetration/cases/C01/run_v19.py -text
-scripts/run_simnow_c01_native_td_read_v19_root_activation_r1.py -text
 tests/unit/runtime/test_certification_simnow_c01_v19_admission_rewind_contract.py -text
 backtrader_runtime/certification_simnow_c01_native_td_read_v17.py -text
-scripts/run_simnow_c01_native_td_read_v17_root_activation_r1.py -text
 examples/live/000_live_certification/simnow_penetration/cases/C01/run_v17.py -text
 scripts/ctp_i13_i15_outer_watchdog.py text eol=crlf
 scripts/ctp_i13_i15_windows_job_backend.py text eol=crlf
@@ -475,7 +472,6 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "examples/000_live_certification/simnow_penetration/cases/C01/run_v20.py" -text
 "examples/000_live_certification/simnow_penetration/common/c01_root_completion_v1.py" -text
 "scripts/iteration41_simnow_c01_v20_root_actual_driver_r1.py" -text
-"scripts/run_simnow_c01_native_td_read_v20_root_activation_r1.py" -text
 "tests/unit/runtime/test_c01_root_completion_v1_source_fake.py" -text
 "tests/unit/runtime/test_certification_simnow_c01_interpreter_binding_v1.py" -text
 "tests/unit/runtime/test_certification_simnow_c01_native_td_read_v20_source_fake.py" -text
@@ -676,7 +672,6 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-public-precheck-r2-bounded-2026-10-09/prepare_root_precheck.py -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r2-bounded-precheck-2026-10-09/run_root_credential_free_gate.py -text
 scripts/iteration41_simnow_c01_v20_root_actual_driver_r3.py -text
-scripts/run_simnow_c01_native_td_read_v20_root_activation_r2.py -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-independent-static-review-2026-10-09/README.md -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/qa/root-r6-result.json -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/manifest.json -text
