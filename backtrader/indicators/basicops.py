@@ -1272,8 +1272,18 @@ class Average(PeriodN):
         src_end = end
         # Match next()'s line projection and strict infinity checks while
         # reading only the source segment needed by this runonce chunk.
-        src = self.data.get(
-            ago=src_end - 1 - self.data._idx,
+        # When self.data is a multi-line series (e.g. DataBase / PandasData /
+        # Indicator), self.data.get(...) delegates to self.data.lines[0].get(...),
+        # whose cursor is lines[0]._idx rather than a feed's row counter _idx.
+        data = self.data
+        data_lines = getattr(data, "lines", None)
+        cursor_idx = (
+            data_lines[0]._idx
+            if data_lines is not None and len(data_lines) > 0
+            else data._idx
+        )
+        src = data.get(
+            ago=src_end - 1 - cursor_idx,
             size=src_end - src_start,
         )
         dst = self.lines[0].array

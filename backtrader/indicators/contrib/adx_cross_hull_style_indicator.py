@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import warnings
+
 from .. import (
     AverageTrueRange,
     ExponentialMovingAverage,
@@ -167,10 +169,13 @@ class UltraXMAIndicator(Indicator):
     are rising (bulls) versus falling (bears) each bar, and smooths those counts
     with an EMA recurrence using ``smooth_length`` (alpha = 2 / (length + 1)).
 
-    ``smooth_method`` and ``smooth_phase`` remain accepted for caller
-    compatibility but do not affect the output. In particular, the default
-    ``jjma``/phase 100 settings still use this EMA and are not a faithful JJMA
-    implementation.
+    ``smooth_method`` and ``smooth_phase`` remain accepted for caller and
+    strategy baseline compatibility, but count smoothing always uses the legacy
+    EMA recurrence (the default ``jjma``/phase 100 settings are not a faithful
+    JJMA implementation). Passing a non-EMA/non-default ``smooth_method`` or a
+    non-default ``smooth_phase`` emits a :class:`UserWarning` rather than
+    silently ignoring the unsupported parameter while preserving legacy EMA
+    outputs.
     """
 
     lines = ("bulls", "bears")
@@ -188,6 +193,24 @@ class UltraXMAIndicator(Indicator):
 
     def __init__(self):
         """Build the fan of moving averages and set the minimum period."""
+        smooth_mode = str(self.p.smooth_method).strip().lower()
+        if smooth_mode not in {"ema", "mode_ema", "jjma", "mode_jjma"}:
+            warnings.warn(
+                "UltraXMAIndicator preserves legacy EMA count smoothing for "
+                "backward compatibility; smooth_method=%r does not change the "
+                "smoothing algorithm (effective method: EMA)."
+                % (self.p.smooth_method,),
+                UserWarning,
+                stacklevel=2,
+            )
+        if self.p.smooth_phase != 100:
+            warnings.warn(
+                "UltraXMAIndicator preserves legacy EMA count smoothing for "
+                "backward compatibility; smooth_phase=%r is ignored."
+                % (self.p.smooth_phase,),
+                UserWarning,
+                stacklevel=2,
+            )
         price_line = resolve_price_line(self.data, self.p.ipc)
         ma_cls = resolve_ma_class(self.p.w_method)
         self._periods = [

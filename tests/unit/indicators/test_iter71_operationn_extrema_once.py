@@ -168,8 +168,8 @@ def test_runonce_extrema_match_builtin_over_raw_infinity_and_signed_zero():
         params = (("samples", ()),)
 
         def once(self, start, end):
-            # Write raw doubles to the array so this test reaches max/min's
-            # +/-infinity semantics without LineBuffer's public write policy.
+            # Write raw doubles to the array so this test reaches OperationN's
+            # raw +/-infinity projection and signed-zero handling in once().
             destination = self.lines.value.array
             for index in range(start, end):
                 destination[index] = self.p.samples[index]
@@ -189,8 +189,9 @@ def test_runonce_extrema_match_builtin_over_raw_infinity_and_signed_zero():
     cerebro.addstrategy(Probe)
     result = cerebro.run()[0]
 
-    expected_high = _reference(values, period, max)
-    expected_low = _reference(values, period, min)
+    projected = tuple(0.0 if math.isinf(v) else v for v in values)
+    expected_high = _reference(projected, period, max)
+    expected_low = _reference(projected, period, min)
     for actual, expected in zip(result.raw_high, expected_high):
         _assert_same_float(actual, expected)
     for actual, expected in zip(result.raw_low, expected_low):

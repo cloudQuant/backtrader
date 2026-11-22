@@ -82,6 +82,9 @@ class MFI(Indicator):
         functional-strategy behavior.
         """
         period = self.p.period
+        if len(self.data) < period + 2:
+            self.lines.mfi[0] = float("nan")
+            return
         pos_flow = 0.0
         neg_flow = 0.0
         for i in range(-period, 0):

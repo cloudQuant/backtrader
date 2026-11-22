@@ -29,7 +29,9 @@ class ColorXDerivative(Indicator):
 
     def __init__(self):
         """Set the minimum period to cover the slowing and smoothing windows."""
-        self.addminperiod(max(self.p.i_slowing + 2, self.p.xlength + 2))
+        i_slowing = max(1, int(self.p.i_slowing))
+        xlength = max(1, int(self.p.xlength))
+        self.addminperiod(i_slowing + xlength)
 
     def _price(self, ago=0):
         return (

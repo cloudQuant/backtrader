@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -24,6 +26,7 @@ class XCCIHistogramVolDirectIndicator(Indicator):
     def __init__(self):
         """Initialize rolling scaled-history buffers and minimum periods."""
         self._scaled_history = []
+        self._has_valid_value = False
         self.addminperiod(max(self.p.cci_period, self.p.ma_length) + 3)
 
     def next(self):
@@ -51,6 +54,15 @@ class XCCIHistogramVolDirectIndicator(Indicator):
             self._scaled_history.pop(0)
         current = sum(self._scaled_history) / float(len(self._scaled_history))
         previous = self.lines.value[-1] if len(self) else 0.0
-        color = 0.0 if current >= previous else 1.0
+        if math.isfinite(current) and (
+            math.isfinite(previous) or not self._has_valid_value
+        ):
+            color = 0.0 if current >= previous else 1.0
+            self._has_valid_value = True
+        else:
+            # A finite bearish/bullish color (0.0/1.0) is an actionable flip
+            # state for consumers; mark missing values and uncomparable
+            # post-gap transitions as NaN instead of collapsing them to 1.0.
+            color = float("nan")
         self.lines.value[0] = current
         self.lines.color_state[0] = color

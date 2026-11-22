@@ -124,6 +124,10 @@ class VininITrendIndicator(Indicator):
         period = max(1, int(self.p.length2))
         alpha = 2.0 / (period + 1.0)
         prev = None
+        if start > 0:
+            prev = float(trend_line[start - 1])
+            if prev != prev:
+                prev = None
         actual_end = min([end, len(close_array)] + [len(array) for array in ma_arrays])
         for i in range(start, actual_end):
             close_value = float(close_array[i])

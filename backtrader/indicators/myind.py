@@ -167,6 +167,7 @@ class NewDiff(Indicator):
         f = Max(self.data.high, pre_close)
         b = If(close > pre_close, e, f)
         self.a = If(close == pre_close, 0, close - b)
+        self.addminperiod(self.p.period + 1)
 
     def next(self):
         """Calculate NewDiff factor for the current bar.

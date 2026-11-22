@@ -33,10 +33,15 @@ _MATH_HAS_PLAIN_KEYS = type(math) is type(array) and all(type(key) is str for ke
 _ORIGINAL_FSUM = math.__dict__.get("fsum") if _MATH_HAS_PLAIN_KEYS else None
 _ORIGINAL_SQRT = math.__dict__.get("sqrt") if _MATH_HAS_PLAIN_KEYS else None
 _ORIGINAL_ISFINITE = math.__dict__.get("isfinite") if _MATH_HAS_PLAIN_KEYS else None
-_BUILTINS_HAS_PLAIN_KEYS = type(__builtins__) is dict and all(
-    type(key) is str for key in __builtins__
+_BUILTINS_OBJ: object = __builtins__
+_BUILTINS_HAS_PLAIN_KEYS = isinstance(_BUILTINS_OBJ, dict) and type(_BUILTINS_OBJ) is dict and all(
+    type(key) is str for key in _BUILTINS_OBJ
 )
-_ORIGINAL_ABS = __builtins__.get("abs") if _BUILTINS_HAS_PLAIN_KEYS else None
+_ORIGINAL_ABS = (
+    _BUILTINS_OBJ.get("abs")
+    if isinstance(_BUILTINS_OBJ, dict) and _BUILTINS_HAS_PLAIN_KEYS
+    else None
+)
 _NATIVE_MATH_BINDINGS = (
     type(_ORIGINAL_ABS) is type([].append)
     and type(_ORIGINAL_FSUM) is type(_ORIGINAL_ABS)
@@ -498,6 +503,7 @@ class StandardDeviation(Indicator):
                 and (legacy_long_period or actual_end - (period - 1) >= 4)
                 and type(self) is _STANDARD_DEVIATION_CLASS
             )
+            builtins_obj: object = __builtins__
             native_fsum = not check_fsum or (
                 type(math) is type(array)
                 and _NATIVE_MATH_BINDINGS
@@ -505,9 +511,10 @@ class StandardDeviation(Indicator):
                 and math.__dict__.get("fsum") is _ORIGINAL_FSUM
                 and math.__dict__.get("sqrt") is _ORIGINAL_SQRT
                 and math.__dict__.get("isfinite") is _ORIGINAL_ISFINITE
-                and type(__builtins__) is dict
-                and all(type(key) is str for key in __builtins__)
-                and __builtins__.get("abs") is _ORIGINAL_ABS
+                and isinstance(builtins_obj, dict)
+                and type(builtins_obj) is dict
+                and all(type(key) is str for key in builtins_obj)
+                and builtins_obj.get("abs") is _ORIGINAL_ABS
             )
             if (
                 (

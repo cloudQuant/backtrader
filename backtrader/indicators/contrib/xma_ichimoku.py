@@ -16,6 +16,12 @@ __all__ = [
     "TwoXmaIchimokuOscillator",
 ]
 
+# A rolling sum is exact only when every intermediate addition is exact.
+# Integer windows with total absolute magnitude at most 2**53 satisfy that
+# condition for binary64. All other windows retain the original sum order.
+_ROLLING_SUM_MIN_PERIOD = 128
+_EXACT_INTEGER_LIMIT = 1 << 53
+
 
 class XmaIchimoku(Indicator):
     """Calculate a smoothed midpoint of selected high/low ranges."""
@@ -41,6 +47,76 @@ class XmaIchimoku(Indicator):
         self._raw_buf = deque(maxlen=max(1, int(self.p.x_length)))
         self._raw_seen_count = 0
         self._smooth_prev = None
+        self._reset_rolling_state()
+        self._last_evicted = None
+        self._last_had_evicted = False
+
+    def _reset_rolling_state(self):
+        """Invalidate cached O(1) rolling SMA sum state."""
+        self._rolling_integer_sum = 0
+        self._rolling_absolute_sum = 0
+        self._rolling_inexact_count = 0
+        self._rolling_period = None
+        self._rolling_seen_count = -1
+        self._rolling_tail_value = None
+        self._rolling_tail_count = 0
+        self._rolling_uniform_total = None
+
+    def _adjust_rolling_integer(self, value, direction):
+        """Track only integers whose value can participate in the exact fast path."""
+        if (
+            type(value) is float
+            and value.is_integer()
+            and -_EXACT_INTEGER_LIMIT <= value <= _EXACT_INTEGER_LIMIT
+        ):
+            integer = int(value)
+            self._rolling_integer_sum += direction * integer
+            self._rolling_absolute_sum += direction * (
+                integer if integer >= 0 else -integer
+            )
+        else:
+            self._rolling_inexact_count += direction
+
+    def _sma_rolling_total(self, raw_value, period):
+        """Reuse a proven exact sum or a sum of unchanged ordered inputs."""
+        if (self._rolling_period == period
+                and self._rolling_seen_count == self._raw_seen_count - 1
+                and self._last_had_evicted):
+            if (self._rolling_tail_count == period
+                    and raw_value == self._rolling_tail_value
+                    and self._rolling_uniform_total is not None):
+                # The complete ordered input is unchanged, even for floats
+                # whose additions are not exact (for example 0.1).
+                self._rolling_seen_count = self._raw_seen_count
+                return self._rolling_uniform_total
+            evicted = self._last_evicted
+            if raw_value != evicted or raw_value != raw_value or evicted != evicted:
+                self._adjust_rolling_integer(evicted, -1)
+                self._adjust_rolling_integer(raw_value, 1)
+            if raw_value == self._rolling_tail_value:
+                self._rolling_tail_count = min(period, self._rolling_tail_count + 1)
+            else:
+                self._rolling_tail_value = raw_value
+                self._rolling_tail_count = 1 if raw_value == raw_value else 0
+            self._rolling_uniform_total = None
+        else:
+            self._reset_rolling_state()
+            for item in self._raw_buf:
+                self._adjust_rolling_integer(item, 1)
+            self._rolling_tail_value = raw_value
+            for item in reversed(self._raw_buf):
+                if item != raw_value:
+                    break
+                self._rolling_tail_count += 1
+        self._rolling_period = period
+        self._rolling_seen_count = self._raw_seen_count
+        if not self._rolling_inexact_count and self._rolling_absolute_sum <= _EXACT_INTEGER_LIMIT:
+            total = float(self._rolling_integer_sum)
+        else:
+            total = sum(self._raw_buf)
+        if self._rolling_tail_count == period:
+            self._rolling_uniform_total = total
+        return total
 
     def _series_value(self, mode, ago):
         mode = str(mode).upper()
@@ -56,19 +132,24 @@ class XmaIchimoku(Indicator):
         method = str(self.p.xma_method).upper()
         if method in ("MODE_SMA_", "SMA"):
             period = max(1, int(self.p.x_length))
-            if period > self._raw_buf.maxlen:
+            raw_buf = self._raw_buf
+            buf_maxlen = raw_buf.maxlen
+            if period > buf_maxlen:
                 raise ValueError(
                     "x_length=%d exceeds retained SMA window capacity %d"
-                    % (period, self._raw_buf.maxlen)
+                    % (period, buf_maxlen)
                 )
-            if len(self._raw_buf) < period:
+            buf_len = len(raw_buf)
+            if buf_len < period:
                 return raw_value
-            start = len(self._raw_buf) - period
-            window = (
-                self._raw_buf
-                if start == 0
-                else islice(self._raw_buf, start, None)
-            )
+            start = buf_len - period
+            if (
+                start == 0
+                and period >= _ROLLING_SUM_MIN_PERIOD
+                and period == buf_maxlen
+            ):
+                return self._sma_rolling_total(raw_value, period) / float(period)
+            window = raw_buf if start == 0 else islice(raw_buf, start, None)
             return sum(window) / float(period)
 
         length = max(1, int(self.p.x_length))
@@ -111,6 +192,13 @@ class XmaIchimoku(Indicator):
                     % (period, capacity)
                 )
             self._raw_buf = deque(self._raw_buf, maxlen=period)
+            self._reset_rolling_state()
+        if len(self._raw_buf) == self._raw_buf.maxlen:
+            self._last_evicted = self._raw_buf[0]
+            self._last_had_evicted = True
+        else:
+            self._last_evicted = None
+            self._last_had_evicted = False
         self._raw_buf.append(raw_value)
         self._raw_seen_count += 1
         smooth = self._smooth_value(raw_value) + float(self.p.price_shift)

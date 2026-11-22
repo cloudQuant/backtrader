@@ -8,7 +8,6 @@ helper functions and constants without cross-test name collisions.
 import array as array_module
 import builtins
 from collections import deque
-from itertools import islice
 from types import BuiltinFunctionType, ModuleType
 import math
 
@@ -326,77 +325,84 @@ class DigitalMacd(Indicator):
         if revising and not _clock_is_replaying(self.data):
             return
 
-        # Build the proposed histories separately.  A replay revision can
-        # fail on the input read or on either output write; in that case its
-        # previously accepted bar must remain available for a same-bar retry.
+        # Update rolling buffers with transactional rollback so a replay
+        # revision that fails on either output write leaves the previously
+        # accepted bar intact for a same-bar retry, while avoiding per-bar
+        # tuple and deque copies on the normal path.
         close = float(self.data.close[0])
-        closes = tuple(self._closes)
+        closes_dq = self._closes
         history = self._signal_history
-        history_start = 0
-        history_stop = len(history)
         nonfinite_count = self._signal_nonfinite_count
         if revising:
-            closes = closes[:-1]
-            if history:
-                if self._track_signal_finite_count and not math.isfinite(history[-1]):
-                    nonfinite_count -= 1
-                history_stop -= 1
-        elif len(history) == self._signal_period:
-            history_start = 1
-            if self._track_signal_finite_count and not math.isfinite(history[0]):
-                nonfinite_count -= 1
-        closes = (closes + (close,))[-self._max_lookback :]
-        if len(closes) < self._max_lookback:
-            macd = float("nan")
+            had_prev_close = bool(closes_dq)
+            prev_close = closes_dq.pop() if had_prev_close else None
+            had_prev_sig = bool(history)
+            prev_sig = history.pop() if had_prev_sig else None
         else:
-            fast_dma = 0.0
-            for idx, coeff in enumerate(self._fast_coeffs):
-                fast_dma += coeff * closes[-(idx + 1)]
-            slow_dma = 0.0
-            for idx, coeff in enumerate(self._slow_coeffs):
-                slow_dma += coeff * closes[-(idx + 1)]
-            macd = (fast_dma - slow_dma) / self._point
+            had_prev_close = len(closes_dq) == self._max_lookback
+            prev_close = closes_dq[0] if had_prev_close else None
+            had_prev_sig = len(history) == self._signal_period
+            prev_sig = history[0] if had_prev_sig else None
 
-        history_length = history_stop - history_start + 1
-        if self._track_signal_finite_count:
-            if not math.isfinite(macd):
-                nonfinite_count += 1
-            ready = history_length == self._signal_period and not nonfinite_count
-        else:
-            ready = (
-                history_length == self._signal_period
-                and all(math.isfinite(value) for value in islice(history, history_start, history_stop))
-                and math.isfinite(macd)
-            )
-        if ready:
-            # A copy is needed only for a complete finite window.  Keep a
-            # deque so sum uses the same order and semantics as next().
-            candidate_history = history.copy()
-            if revising and candidate_history:
-                candidate_history.pop()
-            candidate_history.append(macd)
-            signal = sum(candidate_history) / self._signal_period
-        else:
-            signal = float("nan")
-
-        # Ordinary LineBuffer bindings propagate writes recursively. Snapshot
-        # those cells too; arbitrary custom binding side effects are not
-        # reversible and are intentionally outside this guarantee.
-        output_cells = _snapshot_plain_line_cells((self.l.macd, self.l.signal))
+        closes_dq.append(close)
+        sig_appended = False
+        output_cells = None
         try:
+            if len(closes_dq) < self._max_lookback:
+                macd = float("nan")
+            else:
+                fast_dma = 0.0
+                for coeff, val in zip(self._fast_coeffs, reversed(closes_dq)):
+                    fast_dma += coeff * val
+                slow_dma = 0.0
+                for coeff, val in zip(self._slow_coeffs, reversed(closes_dq)):
+                    slow_dma += coeff * val
+                macd = (fast_dma - slow_dma) / self._point
+
+            if self._track_signal_finite_count:
+                if had_prev_sig and not math.isfinite(prev_sig):
+                    nonfinite_count -= 1
+                if not math.isfinite(macd):
+                    nonfinite_count += 1
+                history.append(macd)
+                sig_appended = True
+                ready = len(history) == self._signal_period and not nonfinite_count
+            else:
+                history.append(macd)
+                sig_appended = True
+                ready = (
+                    len(history) == self._signal_period
+                    and all(math.isfinite(value) for value in history)
+                )
+            if ready:
+                signal = sum(history) / self._signal_period
+            else:
+                signal = float("nan")
+
+            # Ordinary LineBuffer bindings propagate writes recursively. Snapshot
+            # those cells too; arbitrary custom binding side effects are not
+            # reversible and are intentionally outside this guarantee.
+            output_cells = _snapshot_plain_line_cells((self.l.macd, self.l.signal))
             self.l.macd[0] = macd
             self.l.signal[0] = signal
         except BaseException:
-            _restore_plain_line_cells(output_cells)
+            if output_cells is not None:
+                _restore_plain_line_cells(output_cells)
+            closes_dq.pop()
+            if had_prev_close:
+                if revising:
+                    closes_dq.append(prev_close)
+                else:
+                    closes_dq.appendleft(prev_close)
+            if sig_appended:
+                history.pop()
+            if had_prev_sig:
+                if revising:
+                    history.append(prev_sig)
+                else:
+                    history.appendleft(prev_sig)
             raise
 
-        if revising:
-            if self._closes:
-                self._closes.pop()
-            if self._signal_history:
-                self._signal_history.pop()
-        self._closes.append(close)
-        self._signal_history.append(macd)
         self._signal_nonfinite_count = nonfinite_count
         self._last_source_length = source_length
 

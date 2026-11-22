@@ -75,7 +75,9 @@ class HMA(Indicator):
             from ...research.strict import reject_infinity
 
             phase = _factor_phase(context)
-            check = lambda value: reject_infinity(context, value, phase, operation=self.lines.hma)
+
+            def check(value):
+                reject_infinity(context, value, phase, operation=self.lines.hma)
         differences = []
         for end in range(self._period, self._window + 1):
             full = values[end - self._period:end]

@@ -184,8 +184,9 @@ class HaDelta(Indicator):
                 hd_array[i] = c_array[i] - o_array[i]
 
         # Calculate smoothed (SMA of haDelta)
+        min_idx = max(period - 1, self._minperiod - 1)
         for i in range(min(end, len(hd_array))):
-            if i < period - 1:
+            if i < min_idx:
                 sm_array[i] = float("nan")
             else:
                 hd_sum = 0.0

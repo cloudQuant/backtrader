@@ -6,7 +6,10 @@ import backtrader as bt
 import backtrader.indicators.basicops as basicops
 import pytest
 
-from test_iter71_numeric_acceptance_regressions import _indicator
+try:
+    from tests.unit.indicators.test_iter71_numeric_acceptance_regressions import _indicator
+except ImportError:
+    from test_iter71_numeric_acceptance_regressions import _indicator
 
 
 @pytest.mark.parametrize(
