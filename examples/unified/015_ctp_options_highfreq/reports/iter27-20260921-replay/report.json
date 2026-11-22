@@ -1,0 +1,554 @@
+{
+  "actual_fills": 0,
+  "bundle_sha256": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+  "business_summary": {
+    "actual_fills": 0,
+    "bundle_sha256": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+    "callback_counts": {
+      "bar": 0,
+      "idle": 0,
+      "next": 0,
+      "tick": 6
+    },
+    "candidate_id": "iter25-options-replay-v1",
+    "clock_rejection_latched": false,
+    "clock_rejection_reason": null,
+    "clock_violation_count": 0,
+    "cohort_screen_history": [
+      {
+        "cohort_id": "FG701:1:1:1|FG701C970:1:1:2|FG701P970:1:1:3",
+        "direction": "conversion",
+        "screen": {
+          "conversion": {
+            "direction": "conversion",
+            "eligible": true,
+            "entry_buffer_cny": "20",
+            "gross_cny": "60",
+            "net_screen_cny": "40",
+            "total_reserve_cny": "20"
+          },
+          "reversal": {
+            "direction": "reversal",
+            "eligible": false,
+            "entry_buffer_cny": "20",
+            "gross_cny": "-140",
+            "net_screen_cny": "-160",
+            "total_reserve_cny": "20"
+          }
+        }
+      },
+      {
+        "cohort_id": "FG701:1:1:4|FG701C970:1:1:5|FG701P970:1:1:6",
+        "direction": "conversion",
+        "screen": {
+          "conversion": {
+            "direction": "conversion",
+            "eligible": true,
+            "entry_buffer_cny": "20",
+            "gross_cny": "60",
+            "net_screen_cny": "40",
+            "total_reserve_cny": "20"
+          },
+          "reversal": {
+            "direction": "reversal",
+            "eligible": false,
+            "entry_buffer_cny": "20",
+            "gross_cny": "-140",
+            "net_screen_cny": "-160",
+            "total_reserve_cny": "20"
+          }
+        }
+      }
+    ],
+    "config_sha256": "295aecbf2fd73cd005986422f3c9a91192c4098340eaa4d79f7db6a38e69ee70",
+    "confirmed_cohorts": 2,
+    "execution_basis": "none",
+    "execution_eligible_tick_count": 6,
+    "external_network_requests": 0,
+    "external_write_requests": 0,
+    "fixture_path": "fixtures\\three_leg_tick_cohorts_v1.json",
+    "fixture_sha256": "272c548f3214c3f09b59e412d3a6300c67c3422570ea699301167157495672b2",
+    "hft_no_go_reason": "local_replay_has_no_queue_latency_or_actual_fill_evidence",
+    "hft_status": "NOT_ADMITTED",
+    "idle_without_trusted_now_count": 0,
+    "last_cohort": {
+      "cohort_id": "FG701:1:1:4|FG701C970:1:1:5|FG701P970:1:1:6",
+      "confirmation_index": 2,
+      "quotes": {
+        "FG701": {
+          "action_day": "20260910",
+          "ask": 973.0,
+          "ask_size": 10.0,
+          "asset_type": "future",
+          "bid": 971.0,
+          "bid_size": 10.0,
+          "clock_domain_id": "iter25-fixture-monotonic-v1",
+          "connection_generation": 1,
+          "event_time_source": "fixture_utc",
+          "exchange": "CZCE",
+          "ingest_seq": 4,
+          "last": 972.0,
+          "lower_limit": 1.0,
+          "receive_clock_error_ms": 0.0,
+          "receive_epoch": 1788998400.051,
+          "receive_monotonic_ns": 1000000050999879,
+          "rules_hash": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+          "source": "local_synthetic_fixture",
+          "source_clock_error_ms": 0.0,
+          "source_epoch": 1788998400.05,
+          "subscription_epoch": 1,
+          "symbol": "FG701",
+          "trading_day": "20260910",
+          "upper_limit": 100000.0
+        },
+        "FG701C970": {
+          "action_day": "20260910",
+          "ask": 17.0,
+          "ask_size": 10.0,
+          "asset_type": "option",
+          "bid": 16.0,
+          "bid_size": 10.0,
+          "clock_domain_id": "iter25-fixture-monotonic-v1",
+          "connection_generation": 1,
+          "event_time_source": "fixture_utc",
+          "exchange": "CZCE",
+          "ingest_seq": 5,
+          "last": 16.0,
+          "lower_limit": 1.0,
+          "receive_clock_error_ms": 0.0,
+          "receive_epoch": 1788998400.056,
+          "receive_monotonic_ns": 1000000055999994,
+          "rules_hash": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+          "source": "local_synthetic_fixture",
+          "source_clock_error_ms": 0.0,
+          "source_epoch": 1788998400.055,
+          "subscription_epoch": 1,
+          "symbol": "FG701C970",
+          "trading_day": "20260910",
+          "upper_limit": 100000.0
+        },
+        "FG701P970": {
+          "action_day": "20260910",
+          "ask": 10.0,
+          "ask_size": 10.0,
+          "asset_type": "option",
+          "bid": 9.0,
+          "bid_size": 10.0,
+          "clock_domain_id": "iter25-fixture-monotonic-v1",
+          "connection_generation": 1,
+          "event_time_source": "fixture_utc",
+          "exchange": "CZCE",
+          "ingest_seq": 6,
+          "last": 10.0,
+          "lower_limit": 1.0,
+          "receive_clock_error_ms": 0.0,
+          "receive_epoch": 1788998400.061,
+          "receive_monotonic_ns": 1000000060999870,
+          "rules_hash": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+          "source": "local_synthetic_fixture",
+          "source_clock_error_ms": 0.0,
+          "source_epoch": 1788998400.06,
+          "subscription_epoch": 1,
+          "symbol": "FG701P970",
+          "trading_day": "20260910",
+          "upper_limit": 100000.0
+        }
+      },
+      "sequences": {
+        "FG701": 4,
+        "FG701C970": 5,
+        "FG701P970": 6
+      }
+    },
+    "last_quality_flags": [],
+    "last_rejection": null,
+    "last_screen": {
+      "conversion": {
+        "direction": "conversion",
+        "eligible": true,
+        "entry_buffer_cny": "20",
+        "gross_cny": "60",
+        "net_screen_cny": "40",
+        "total_reserve_cny": "20"
+      },
+      "reversal": {
+        "direction": "reversal",
+        "eligible": false,
+        "entry_buffer_cny": "20",
+        "gross_cny": "-140",
+        "net_screen_cny": "-160",
+        "total_reserve_cny": "20"
+      }
+    },
+    "market_evidence": false,
+    "mode": "replay",
+    "normal_order_submissions": 0,
+    "offline_deadline_projection": {
+      "basis": "no_sdk_read_only_risk_projection",
+      "holding_timeout_ms": 60000,
+      "leg_timeout_ms": 1000,
+      "risk_actions": [],
+      "risk_projection_available": false,
+      "status": "OFFLINE_SIGNAL_ONLY",
+      "unhedged_timeout_ms": 3000
+    },
+    "ordinary_intent_count": 1,
+    "ordinary_intents": [
+      {
+        "cohort_id": "FG701:1:1:4|FG701C970:1:1:5|FG701P970:1:1:6",
+        "deadline_projection": {
+          "anchor_monotonic_ns": 1000000060999870,
+          "basis": "no_sdk_read_only_risk_projection",
+          "holding_deadline_monotonic_ns": 1000060060999870,
+          "holding_timeout_ms": 60000,
+          "leg_deadline_monotonic_ns": 1000001060999870,
+          "leg_timeout_ms": 1000,
+          "risk_actions": [],
+          "risk_projection_available": false,
+          "status": "OFFLINE_SIGNAL_ONLY",
+          "unhedged_deadline_monotonic_ns": 1000003060999870,
+          "unhedged_timeout_ms": 3000
+        },
+        "direction": "conversion",
+        "execution_status": "NOT_SUBMITTED_REPLAY",
+        "intent_id": "iter25-options-replay-v1:FG701:1:1:4|FG701C970:1:1:5|FG701P970:1:1:6:conversion",
+        "reason": "tick_only_two_same_direction_complete_cohorts",
+        "screen": {
+          "direction": "conversion",
+          "eligible": true,
+          "entry_buffer_cny": "20",
+          "gross_cny": "60",
+          "net_screen_cny": "40",
+          "total_reserve_cny": "20"
+        }
+      }
+    ],
+    "ordinary_position_exit_proposals": [],
+    "pnl_fields_emitted": false,
+    "profitability_evidence": false,
+    "reject_counts": {},
+    "risk_reduction_requests": 0,
+    "scenario": "valid_cohort",
+    "schema_version": "iter25.ctp-options-highfreq-replay-report.v1",
+    "simulated_broker_orders": 0,
+    "status": "LOCAL_REPLAY_PASS",
+    "tick_counts": {
+      "FG701": 2,
+      "FG701C970": 2,
+      "FG701P970": 2
+    },
+    "timing_projection": {
+      "admissible_fact_ids": [],
+      "aggregate_expired": false,
+      "audit_fact_ids": [],
+      "calendar_status": "CALENDAR_REQUIRED",
+      "callback": "",
+      "clock_trusted": false,
+      "confirmed": false,
+      "confirmed_quantities": [],
+      "expired_reasons": [],
+      "exposure_origin_lower_ns": null,
+      "hold_expired": false,
+      "idle_overdue": false,
+      "native_write_eligible": false,
+      "normal_exit_allowed": false,
+      "ordinary_entry_allowed": false,
+      "origin_lower_ns": null,
+      "per_leg_expired": [],
+      "proposals": [
+        {
+          "action": "BLOCK",
+          "native_write_eligible": false,
+          "now_upper_ns": null,
+          "origin_lower_ns": null,
+          "reason": "TRUSTED_NOW_REQUIRED"
+        }
+      ],
+      "protection_required": false,
+      "quarantined_fact_ids": [],
+      "reason": "TRUSTED_NOW_REQUIRED",
+      "risk_projection_available": false,
+      "status": "BLOCKED_SOURCE",
+      "uncertain_fact_ids": [],
+      "unresolved_exposure": false
+    },
+    "timing_provider_status": "OFFLINE_SIGNAL_ONLY"
+  },
+  "business_summary_hash": "04053614c06a6db9d061a9956624366290f39efc37c6e1bfacb37a37b922dcce",
+  "callback_counts": {
+    "bar": 0,
+    "idle": 0,
+    "next": 0,
+    "tick": 6
+  },
+  "candidate_id": "iter25-options-replay-v1",
+  "clock_rejection_latched": false,
+  "clock_rejection_reason": null,
+  "clock_violation_count": 0,
+  "cohort_screen_history": [
+    {
+      "cohort_id": "FG701:1:1:1|FG701C970:1:1:2|FG701P970:1:1:3",
+      "direction": "conversion",
+      "screen": {
+        "conversion": {
+          "direction": "conversion",
+          "eligible": true,
+          "entry_buffer_cny": "20",
+          "gross_cny": "60",
+          "net_screen_cny": "40",
+          "total_reserve_cny": "20"
+        },
+        "reversal": {
+          "direction": "reversal",
+          "eligible": false,
+          "entry_buffer_cny": "20",
+          "gross_cny": "-140",
+          "net_screen_cny": "-160",
+          "total_reserve_cny": "20"
+        }
+      }
+    },
+    {
+      "cohort_id": "FG701:1:1:4|FG701C970:1:1:5|FG701P970:1:1:6",
+      "direction": "conversion",
+      "screen": {
+        "conversion": {
+          "direction": "conversion",
+          "eligible": true,
+          "entry_buffer_cny": "20",
+          "gross_cny": "60",
+          "net_screen_cny": "40",
+          "total_reserve_cny": "20"
+        },
+        "reversal": {
+          "direction": "reversal",
+          "eligible": false,
+          "entry_buffer_cny": "20",
+          "gross_cny": "-140",
+          "net_screen_cny": "-160",
+          "total_reserve_cny": "20"
+        }
+      }
+    }
+  ],
+  "config_sha256": "295aecbf2fd73cd005986422f3c9a91192c4098340eaa4d79f7db6a38e69ee70",
+  "confirmed_cohorts": 2,
+  "execution_basis": "none",
+  "execution_eligible_tick_count": 6,
+  "external_network_requests": 0,
+  "external_write_requests": 0,
+  "fixture_path": "fixtures\\three_leg_tick_cohorts_v1.json",
+  "fixture_sha256": "272c548f3214c3f09b59e412d3a6300c67c3422570ea699301167157495672b2",
+  "hft_no_go_reason": "local_replay_has_no_queue_latency_or_actual_fill_evidence",
+  "hft_status": "NOT_ADMITTED",
+  "idle_without_trusted_now_count": 0,
+  "last_cohort": {
+    "cohort_id": "FG701:1:1:4|FG701C970:1:1:5|FG701P970:1:1:6",
+    "confirmation_index": 2,
+    "quotes": {
+      "FG701": {
+        "action_day": "20260910",
+        "ask": 973.0,
+        "ask_size": 10.0,
+        "asset_type": "future",
+        "bid": 971.0,
+        "bid_size": 10.0,
+        "clock_domain_id": "iter25-fixture-monotonic-v1",
+        "connection_generation": 1,
+        "event_time_source": "fixture_utc",
+        "exchange": "CZCE",
+        "ingest_seq": 4,
+        "last": 972.0,
+        "lower_limit": 1.0,
+        "receive_clock_error_ms": 0.0,
+        "receive_epoch": 1788998400.051,
+        "receive_monotonic_ns": 1000000050999879,
+        "rules_hash": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+        "source": "local_synthetic_fixture",
+        "source_clock_error_ms": 0.0,
+        "source_epoch": 1788998400.05,
+        "subscription_epoch": 1,
+        "symbol": "FG701",
+        "trading_day": "20260910",
+        "upper_limit": 100000.0
+      },
+      "FG701C970": {
+        "action_day": "20260910",
+        "ask": 17.0,
+        "ask_size": 10.0,
+        "asset_type": "option",
+        "bid": 16.0,
+        "bid_size": 10.0,
+        "clock_domain_id": "iter25-fixture-monotonic-v1",
+        "connection_generation": 1,
+        "event_time_source": "fixture_utc",
+        "exchange": "CZCE",
+        "ingest_seq": 5,
+        "last": 16.0,
+        "lower_limit": 1.0,
+        "receive_clock_error_ms": 0.0,
+        "receive_epoch": 1788998400.056,
+        "receive_monotonic_ns": 1000000055999994,
+        "rules_hash": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+        "source": "local_synthetic_fixture",
+        "source_clock_error_ms": 0.0,
+        "source_epoch": 1788998400.055,
+        "subscription_epoch": 1,
+        "symbol": "FG701C970",
+        "trading_day": "20260910",
+        "upper_limit": 100000.0
+      },
+      "FG701P970": {
+        "action_day": "20260910",
+        "ask": 10.0,
+        "ask_size": 10.0,
+        "asset_type": "option",
+        "bid": 9.0,
+        "bid_size": 10.0,
+        "clock_domain_id": "iter25-fixture-monotonic-v1",
+        "connection_generation": 1,
+        "event_time_source": "fixture_utc",
+        "exchange": "CZCE",
+        "ingest_seq": 6,
+        "last": 10.0,
+        "lower_limit": 1.0,
+        "receive_clock_error_ms": 0.0,
+        "receive_epoch": 1788998400.061,
+        "receive_monotonic_ns": 1000000060999870,
+        "rules_hash": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+        "source": "local_synthetic_fixture",
+        "source_clock_error_ms": 0.0,
+        "source_epoch": 1788998400.06,
+        "subscription_epoch": 1,
+        "symbol": "FG701P970",
+        "trading_day": "20260910",
+        "upper_limit": 100000.0
+      }
+    },
+    "sequences": {
+      "FG701": 4,
+      "FG701C970": 5,
+      "FG701P970": 6
+    }
+  },
+  "last_quality_flags": [],
+  "last_rejection": null,
+  "last_screen": {
+    "conversion": {
+      "direction": "conversion",
+      "eligible": true,
+      "entry_buffer_cny": "20",
+      "gross_cny": "60",
+      "net_screen_cny": "40",
+      "total_reserve_cny": "20"
+    },
+    "reversal": {
+      "direction": "reversal",
+      "eligible": false,
+      "entry_buffer_cny": "20",
+      "gross_cny": "-140",
+      "net_screen_cny": "-160",
+      "total_reserve_cny": "20"
+    }
+  },
+  "market_evidence": false,
+  "mode": "replay",
+  "normal_order_submissions": 0,
+  "offline_deadline_projection": {
+    "basis": "no_sdk_read_only_risk_projection",
+    "holding_timeout_ms": 60000,
+    "leg_timeout_ms": 1000,
+    "risk_actions": [],
+    "risk_projection_available": false,
+    "status": "OFFLINE_SIGNAL_ONLY",
+    "unhedged_timeout_ms": 3000
+  },
+  "ordinary_intent_count": 1,
+  "ordinary_intents": [
+    {
+      "cohort_id": "FG701:1:1:4|FG701C970:1:1:5|FG701P970:1:1:6",
+      "deadline_projection": {
+        "anchor_monotonic_ns": 1000000060999870,
+        "basis": "no_sdk_read_only_risk_projection",
+        "holding_deadline_monotonic_ns": 1000060060999870,
+        "holding_timeout_ms": 60000,
+        "leg_deadline_monotonic_ns": 1000001060999870,
+        "leg_timeout_ms": 1000,
+        "risk_actions": [],
+        "risk_projection_available": false,
+        "status": "OFFLINE_SIGNAL_ONLY",
+        "unhedged_deadline_monotonic_ns": 1000003060999870,
+        "unhedged_timeout_ms": 3000
+      },
+      "direction": "conversion",
+      "execution_status": "NOT_SUBMITTED_REPLAY",
+      "intent_id": "iter25-options-replay-v1:FG701:1:1:4|FG701C970:1:1:5|FG701P970:1:1:6:conversion",
+      "reason": "tick_only_two_same_direction_complete_cohorts",
+      "screen": {
+        "direction": "conversion",
+        "eligible": true,
+        "entry_buffer_cny": "20",
+        "gross_cny": "60",
+        "net_screen_cny": "40",
+        "total_reserve_cny": "20"
+      }
+    }
+  ],
+  "ordinary_position_exit_proposals": [],
+  "pnl_fields_emitted": false,
+  "profitability_evidence": false,
+  "reject_counts": {},
+  "risk_reduction_requests": 0,
+  "runtime_chain": {
+    "broker": "backtrader.brokers.tickbroker.TickBroker",
+    "cerebro": "backtrader.cerebro.Cerebro",
+    "event": "backtrader.channel.Event",
+    "strategy": "ctp_options_highfreq_strategy.CtpOptionsHighfreqStrategy",
+    "tick_event": "backtrader.events.TickEvent"
+  },
+  "scenario": "valid_cohort",
+  "schema_version": "iter25.ctp-options-highfreq-replay-report.v1",
+  "simulated_broker_orders": 0,
+  "status": "LOCAL_REPLAY_PASS",
+  "tick_counts": {
+    "FG701": 2,
+    "FG701C970": 2,
+    "FG701P970": 2
+  },
+  "timing_projection": {
+    "admissible_fact_ids": [],
+    "aggregate_expired": false,
+    "audit_fact_ids": [],
+    "calendar_status": "CALENDAR_REQUIRED",
+    "callback": "",
+    "clock_trusted": false,
+    "confirmed": false,
+    "confirmed_quantities": [],
+    "expired_reasons": [],
+    "exposure_origin_lower_ns": null,
+    "hold_expired": false,
+    "idle_overdue": false,
+    "native_write_eligible": false,
+    "normal_exit_allowed": false,
+    "ordinary_entry_allowed": false,
+    "origin_lower_ns": null,
+    "per_leg_expired": [],
+    "proposals": [
+      {
+        "action": "BLOCK",
+        "native_write_eligible": false,
+        "now_upper_ns": null,
+        "origin_lower_ns": null,
+        "reason": "TRUSTED_NOW_REQUIRED"
+      }
+    ],
+    "protection_required": false,
+    "quarantined_fact_ids": [],
+    "reason": "TRUSTED_NOW_REQUIRED",
+    "risk_projection_available": false,
+    "status": "BLOCKED_SOURCE",
+    "uncertain_fact_ids": [],
+    "unresolved_exposure": false
+  },
+  "timing_provider_status": "OFFLINE_SIGNAL_ONLY"
+}

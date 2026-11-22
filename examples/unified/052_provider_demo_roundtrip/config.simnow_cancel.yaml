@@ -1,0 +1,63 @@
+# Iteration 52 SimNow registered-sim cancel drill (zero secrets).
+#
+# 与 config.simnow.yaml 使用同一策略与账户引用；唯一差别是把开仓委托放在
+# 市场下方 50bps（不可立即成交），到点后撤单，用来验收 OrderRef/OrderSysID
+# 撤单身份与 provider 终态确认。撤单后策略不再补平；runner 的最终快照必须
+# 显示 provider 侧无活动委托、无持仓，否则该次演练判失败。
+#
+#   python run.py --config config.simnow_cancel.yaml                 # 离线校验
+#   python run.py --config config.simnow_cancel.yaml --live --allow-write
+schema_version: 2
+mode: paper
+environment: paper
+references:
+  strategy: strategy/simnow_paper_cancel
+  provider: provider/simnow_registered_sim
+  endpoint: endpoint/simnow_front_pair
+  account: account/simnow_simulation
+  credential: credential/simnow_private_env
+  scope: scope/simnow_paper
+  product: product/czce_sa
+  data_source: data_source/simnow_ctp
+  clock: clock/simnow_trading_day
+plugins:
+  runtime: false
+  gateway: false
+  risk: false
+  execution: false
+  monitor: false
+strategy_parameters:
+  venue: SIMNOW
+  symbol: SA605
+  exchange: CZCE
+  product: SA
+  contract_value: 20.0
+  tick_size: 1.0
+  step_size: 1.0
+  quantity_unit: contracts
+  min_quantity: 1.0
+  max_quantity: 1.0
+  notional_usdt: 25000.0
+  max_notional_usdt: 30000.0
+  # Positive offset rests the buy below the market; the strategy cancels it.
+  offset_bps: 50.0
+  time_in_force: GFD
+  cancel_after_seconds: 4.0
+  close_delay_seconds: 2.0
+  recovery_grace_seconds: 3.0
+  hard_timeout_seconds: 60.0
+  max_orders: 1
+  login_seconds: 30.0
+  query_seconds: 8.0
+  stop_seconds: 12.0
+  allow_zero_login_response: true
+  credential_env_names:
+    app_id: CTP_APP_ID
+    auth_code: CTP_AUTH_CODE
+    broker_id: CTP_BROKER_ID
+    password: CTP_PASSWORD
+    user_id: CTP_USER_ID
+requested_capabilities:
+  - account.read
+  - market.read
+  - orders.paper.write

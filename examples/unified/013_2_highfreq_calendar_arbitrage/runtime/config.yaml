@@ -1,0 +1,11 @@
+config_schema_version: 4
+
+strategy:
+  id: example.013_2.highfreq_calendar_arbitrage
+
+runtime:
+  mode: simulation
+  preset: replay
+
+parameters: {}
+secrets_ref: none

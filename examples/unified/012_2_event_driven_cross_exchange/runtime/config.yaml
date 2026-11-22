@@ -1,0 +1,11 @@
+config_schema_version: 4
+
+strategy:
+  id: example.012_2.event_driven_cross_exchange
+
+runtime:
+  mode: simulation
+  preset: replay
+
+parameters: {}
+secrets_ref: none

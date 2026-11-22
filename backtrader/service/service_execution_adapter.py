@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
+from threading import Lock
 from typing import Any, Optional
 
 from ._service_execution_recovery import (
@@ -54,7 +55,15 @@ _DEFAULT_METADATA_VERSION = "backtrader.service-execution.v1"
 
 
 class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
-    """Project framework orders onto one authenticated execution service."""
+    """Project framework orders onto one authenticated execution service.
+
+    ``max_tracked_intents`` optionally bounds the lifetime number of unique
+    intents retained by the ordinary projection registries. The default is
+    unbounded for compatibility. At capacity, new identities fail closed;
+    existing identities remain usable and ambiguous submissions keep their
+    reserved slot. Recovery-flow adapters use a different durable projection
+    path and do not accept this option.
+    """
 
     #: The service owns provider dispatch; the store must not treat this
     #: adapter as a local provider fill projection.
@@ -69,6 +78,7 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
         recovery_flow: Any = None,
         require_recovery_baseline: bool = False,
         recovery_event_version: int = 1,
+        max_tracked_intents: Optional[int] = None,
     ) -> None:
         if not callable(getattr(client, "submit", None)):
             raise ServiceExecutionAdapterError("service execution adapter requires submit")
@@ -78,6 +88,14 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
             raise ServiceExecutionAdapterError("invalid metadata_version")
         if order_ref_factory is not None and not callable(order_ref_factory):
             raise ServiceExecutionAdapterError("invalid order_ref_factory")
+        if max_tracked_intents is not None and (
+            type(max_tracked_intents) is not int or max_tracked_intents < 0
+        ):
+            raise ServiceExecutionAdapterError("invalid max_tracked_intents")
+        if max_tracked_intents is not None and recovery_flow is not None:
+            raise ServiceExecutionAdapterError(
+                "max_tracked_intents is unavailable with recovery_flow"
+            )
         recovery_manifest_type = None
         recovery_owner_projection_type = None
         recovery_owner_projection_validator = None
@@ -144,6 +162,20 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
         self._require_recovery_baseline = bool(require_recovery_baseline)
         self._recovery_event_version = recovery_event_version
         self._recovery_intent_context_resolver: Optional[Callable[[Any], Any]] = None
+        #: An opt-in, fail-closed lifetime bound for the non-recovery projection
+        #: registries below. Ambiguous submits retain their slot because the
+        #: service may have journaled them. No slot is ever evicted.
+        self._max_tracked_intents = max_tracked_intents
+        self._intent_capacity_lock = Lock() if max_tracked_intents is not None else None
+        self._intent_capacity_ids: Optional[set[str]] = (
+            set() if max_tracked_intents is not None else None
+        )
+        self._intent_capacity_reservations: Optional[dict[str, int]] = (
+            {} if max_tracked_intents is not None else None
+        )
+        self._intent_capacity_slots: Optional[int] = (
+            0 if max_tracked_intents is not None else None
+        )
         #: Intent identities this adapter instance already returned to the
         #: framework.  A durable record proves a provider dispatch; it is not
         #: permission to mutate the current in-memory Broker twice.
@@ -327,17 +359,32 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
             strategy_position_owner_payload=strategy_position_owner_payload,
             intent_context=intent_context,
         )
+        intent_id = identity["intent_id"]
+        if not self._reserve_intent_capacity(intent_id):
+            return _rejection(
+                "service_execution_intent_capacity_reached",
+                "The configured managed-intent capacity is full; this intent was not submitted.",
+                order=order,
+                intent_id=intent_id,
+            )
+
+        # Once workflow.submit starts, an exception or unrecognized outcome
+        # cannot prove that the service did not journal the intent. The
+        # reservation therefore stays held unless the workflow returns its
+        # definitive REJECTED disposition.
         try:
             outcome = self._workflow.submit(request)
         except Exception as error:  # noqa: BLE001 - dispatch certainty is unavailable
+            self._finish_intent_capacity_reservation(intent_id, retain=True)
             return _unknown_submission_projection(
-                _error_code(error), order=order, intent_id=identity["intent_id"]
+                _error_code(error), order=order, intent_id=intent_id
             )
         if type(outcome) is not self._workflow_outcome_type:
+            self._finish_intent_capacity_reservation(intent_id, retain=True)
             return _unknown_submission_projection(
                 "service_execution_workflow_outcome_invalid",
                 order=order,
-                intent_id=identity["intent_id"],
+                intent_id=intent_id,
             )
         if self._recovery_flow is not None and self._recovery_event_version == 2:
             try:
@@ -345,16 +392,18 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
                     order, local_position_key_ref, outcome.strategy_position_ref
                 )
             except Exception:
+                self._finish_intent_capacity_reservation(intent_id, retain=True)
                 return _unknown_submission_projection(
                     "recovery_strategy_position_ref_invalid",
                     order=order,
-                    intent_id=identity["intent_id"],
+                    intent_id=intent_id,
                 )
         if outcome.disposition == "RESTORE":
+            self._finish_intent_capacity_reservation(intent_id, retain=True)
             prior_state = outcome.recovery_state
             result = {
                 "kind": "service_execution_recovery_restore",
-                "intent_id": identity["intent_id"],
+                "intent_id": intent_id,
                 "submit_fingerprint": prior_state.submit_fingerprint,
                 "order_state": prior_state,
             }
@@ -363,6 +412,7 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
                 result["strategy_position_ref"] = position_ref.value
             return result
         if outcome.disposition == "REJECTED":
+            self._finish_intent_capacity_reservation(intent_id, retain=False)
             if outcome.stage == "PREPARE":
                 message = "The durable intent manifest rejected this request."
             else:
@@ -371,13 +421,14 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
                 outcome.code or "service_execution_request_failed",
                 message,
                 order=order,
-                intent_id=identity["intent_id"],
+                intent_id=intent_id,
             )
         if outcome.disposition == "UNKNOWN":
+            self._finish_intent_capacity_reservation(intent_id, retain=True)
             return _unknown_submission_projection(
                 outcome.code or "service_execution_request_failed",
                 order=order,
-                intent_id=identity["intent_id"],
+                intent_id=intent_id,
                 strategy_position_ref=(
                     outcome.strategy_position_ref.value
                     if outcome.strategy_position_ref is not None
@@ -386,25 +437,24 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
             )
         view = outcome.record
         if self._recovery_flow is not None:
+            self._finish_intent_capacity_reservation(intent_id, retain=True)
             # A submit reply is acceptance evidence only in recovery mode. A
             # replayed FILLED record must never become a second Backtrader
             # fill; only the durable snapshot/event receipt path may project it.
             return _recovery_submission_projection(
                 view,
                 data_name=_data_name(order),
-                intent_id=identity["intent_id"],
+                intent_id=intent_id,
                 strategy_position_ref=(
                     outcome.strategy_position_ref.value
                     if outcome.strategy_position_ref is not None
                     else None
                 ),
             )
-        intent_id = identity["intent_id"]
-        replayed = intent_id in self._returned_intents
-        self._returned_intents.add(intent_id)
-        self._projected_revisions[intent_id] = getattr(view, "updated_at_ns", None)
-        if view is not None:
-            self._known_record_intents.add(intent_id)
+        replayed = self._remember_submitted_intent(
+            intent_id, getattr(view, "updated_at_ns", None), view is not None
+        )
+        self._finish_intent_capacity_reservation(intent_id, retain=True)
         projection = _submission_projection(view, data_name=_data_name(order), replayed=replayed)
         unit = self.command_quantity_unit
         if unit is not None:
@@ -439,6 +489,8 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
             # Per-record query responses do not carry the pinned global event
             # cursor and cannot safely advance the crash-recovery boundary.
             raise ServiceExecutionReadError("recovery_event_stream_required")
+        if not self._reserve_intent_capacity(intent_id):
+            raise ServiceExecutionReadError("service_execution_intent_capacity_reached")
         try:
             view = self._workflow.query(intent_id)
         except Exception as error:  # noqa: BLE001 - converted to a finite read diagnostic
@@ -447,10 +499,14 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
                 if isinstance(error, TimeoutError)
                 else _error_code(error)
             )
+            self._finish_intent_capacity_reservation(intent_id, retain=False)
             raise ServiceExecutionReadError(code) from None
         if view is None:
-            if intent_id in self._known_record_intents:
+            known = self._is_known_record_intent(intent_id)
+            if known:
+                self._finish_intent_capacity_reservation(intent_id, retain=False)
                 raise ServiceExecutionReadError("service_execution_record_missing")
+            self._finish_intent_capacity_reservation(intent_id, retain=False)
             return {
                 "kind": "service_execution_record",
                 "managed_intent_id": intent_id,
@@ -459,11 +515,91 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
                 "error_code": "service_execution_record_missing",
                 "error_msg": "The service holds no durable record for this intent.",
             }
-        self._known_record_intents.add(intent_id)
         revision = getattr(view, "updated_at_ns", None)
-        replayed = revision is not None and self._projected_revisions.get(intent_id) == revision
-        self._projected_revisions[intent_id] = revision
+        replayed = self._remember_refreshed_intent(intent_id, revision)
+        self._finish_intent_capacity_reservation(intent_id, retain=True)
         return _submission_projection(view, data_name=None, replayed=replayed)
+
+    def _reserve_intent_capacity(self, intent_id: str) -> bool:
+        """Reserve one unique intent slot without evicting retained evidence."""
+
+        if self._max_tracked_intents is None:
+            return True
+        lock = self._intent_capacity_lock
+        retained = self._intent_capacity_ids
+        reservations = self._intent_capacity_reservations
+        if lock is None or retained is None or reservations is None:
+            return False
+        with lock:
+            if intent_id not in retained and intent_id not in reservations:
+                slots = self._intent_capacity_slots
+                if slots is None:
+                    return False
+                if slots >= self._max_tracked_intents:
+                    return False
+                self._intent_capacity_slots = slots + 1
+            reservations[intent_id] = reservations.get(intent_id, 0) + 1
+        return True
+
+    def _finish_intent_capacity_reservation(self, intent_id: str, *, retain: bool) -> None:
+        if self._max_tracked_intents is None:
+            return
+        lock = self._intent_capacity_lock
+        retained = self._intent_capacity_ids
+        reservations = self._intent_capacity_reservations
+        if lock is None or retained is None or reservations is None:
+            return
+        with lock:
+            count = reservations.get(intent_id, 0)
+            if count <= 0:
+                return
+            if count <= 1:
+                reservations.pop(intent_id, None)
+                if not retain and intent_id not in retained:
+                    if self._intent_capacity_slots is not None:
+                        self._intent_capacity_slots -= 1
+            else:
+                reservations[intent_id] = count - 1
+            if retain:
+                retained.add(intent_id)
+
+    def _remember_submitted_intent(
+        self, intent_id: str, revision: Any, has_record: bool
+    ) -> bool:
+        if self._max_tracked_intents is None:
+            replayed = intent_id in self._returned_intents
+            self._returned_intents.add(intent_id)
+            self._projected_revisions[intent_id] = revision
+            if has_record:
+                self._known_record_intents.add(intent_id)
+            return replayed
+        with self._intent_capacity_lock:
+            replayed = intent_id in self._returned_intents
+            self._returned_intents.add(intent_id)
+            self._projected_revisions[intent_id] = revision
+            if has_record:
+                self._known_record_intents.add(intent_id)
+            self._intent_capacity_ids.add(intent_id)
+            return replayed
+
+    def _remember_refreshed_intent(self, intent_id: str, revision: Any) -> bool:
+        if self._max_tracked_intents is None:
+            self._known_record_intents.add(intent_id)
+            replayed = revision is not None and self._projected_revisions.get(intent_id) == revision
+            self._projected_revisions[intent_id] = revision
+            return replayed
+        with self._intent_capacity_lock:
+            self._intent_capacity_ids.add(intent_id)
+            self._known_record_intents.add(intent_id)
+            replayed = revision is not None and self._projected_revisions.get(intent_id) == revision
+            self._projected_revisions[intent_id] = revision
+            return replayed
+
+    def _is_known_record_intent(self, intent_id: str) -> bool:
+        if self._max_tracked_intents is None:
+            return intent_id in self._known_record_intents
+        with self._intent_capacity_lock:
+            return intent_id in self._known_record_intents
 
     # -- cancellation -------------------------------------------------------
 

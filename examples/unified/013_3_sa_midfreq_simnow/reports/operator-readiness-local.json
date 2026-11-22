@@ -1,0 +1,138 @@
+{
+  "config": {
+    "frozen_profile_contract": {
+      "issues": [],
+      "ready": true
+    },
+    "issues": [],
+    "loaded": true
+  },
+  "environment_file": {
+    "present": true,
+    "values_exposed": false
+  },
+  "inspection": {
+    "credential_values_exposed": false,
+    "ctp_writes_submitted": false,
+    "network_accessed": false,
+    "scope": "offline_local_configuration_only"
+  },
+  "production": {
+    "blockers": [
+      "production_requires_a_separate_ctp_profile",
+      "production_requires_new_account_bound_admission",
+      "production_requires_firm_specific_fronts_and_credentials"
+    ],
+    "ready": false,
+    "supported_by_iteration22_runner": false,
+    "verdict": "BLOCKED_ITER22_SIMNOW_ONLY"
+  },
+  "schema_version": "iter22.operator-readiness.v1",
+  "simnow_natural_signal": {
+    "admission_receipt": {
+      "required": true,
+      "status": "NOT_INSPECTED_OFFLINE"
+    },
+    "approval_trust_root": {
+      "configured": [],
+      "invalid": [],
+      "missing": [
+        "ITER22_APPROVAL_KEY_ID",
+        "ITER22_APPROVAL_HMAC_KEY"
+      ],
+      "ready": false,
+      "sources": {}
+    },
+    "blockers": [
+      "simnow_credentials_missing",
+      "calendar_artifact_unavailable",
+      "research_not_admitted",
+      "approval_trust_root_missing_or_invalid",
+      "signed_admission_receipt_not_inspected_offline",
+      "g1_g2_g3_runtime_evidence_not_inspected_offline",
+      "windows_g2_native_ctp_evidence_required"
+    ],
+    "ready": false,
+    "research": {
+      "admitted": false,
+      "status": "RESEARCH_NOT_ESTABLISHED"
+    },
+    "runtime_gates": {
+      "required": [
+        "G1",
+        "G2",
+        "G3"
+      ],
+      "status": "NOT_INSPECTED_OFFLINE"
+    },
+    "verdict": "REQUIRES_CONTROLLED_RUNTIME_ADMISSION",
+    "windows_g2_evidence": {
+      "required": true,
+      "status": "REQUIRED_NOT_INSPECTED_OFFLINE"
+    }
+  },
+  "simnow_static": {
+    "blockers": [
+      "simnow_credentials_missing",
+      "calendar_artifact_unavailable"
+    ],
+    "calendar": {
+      "artifact_configured": true,
+      "artifact_exists": false,
+      "contract_valid": null,
+      "coverage": "NOT_EVALUATED_OFFLINE",
+      "hash_configured": true,
+      "hash_matches": null,
+      "issues": [
+        "calendar_artifact_unavailable"
+      ],
+      "ready": false
+    },
+    "credentials": {
+      "aliases_used": {
+        "CTP_APP_ID": "CTP_APP_ID",
+        "CTP_AUTH_CODE": "CTP_AUTH_CODE",
+        "CTP_BROKER_ID": "CTP_BROKER_ID"
+      },
+      "configured": [
+        "CTP_BROKER_ID",
+        "CTP_APP_ID",
+        "CTP_AUTH_CODE"
+      ],
+      "missing": [
+        "CTP_USER_ID",
+        "CTP_PASSWORD"
+      ],
+      "ready": false,
+      "sources": {
+        "CTP_APP_ID": "dotenv",
+        "CTP_AUTH_CODE": "dotenv",
+        "CTP_BROKER_ID": "dotenv"
+      }
+    },
+    "front_overrides": {
+      "configured": false,
+      "issues": [],
+      "md_alias": null,
+      "md_source": null,
+      "ready": true,
+      "state": "NOT_CONFIGURED",
+      "td_alias": null,
+      "td_source": null
+    },
+    "profile": {
+      "front_pair_configured": true,
+      "issues": [],
+      "kind": "simnow",
+      "market_alignment": "actual_market_hours",
+      "name": "simnow_first_group1",
+      "ready": true,
+      "selection_source": "dotenv"
+    },
+    "ready": false
+  },
+  "strict": {
+    "scope": "simnow_static_only",
+    "would_pass": false
+  }
+}

@@ -235,3 +235,6 @@ examples/live/000_live_certification/*_penetration/reports/
 
 # Archived examples, reports and captures (local only; never committed)
 /archived/
+
+# Private runtime credentials (never commit)
+**/runtime-ctp-private/

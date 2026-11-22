@@ -1,0 +1,11 @@
+config_schema_version: 4
+
+strategy:
+  id: example.013_1.midfreq_cross_arbitrage
+
+runtime:
+  mode: simulation
+  preset: replay
+
+parameters: {}
+secrets_ref: none

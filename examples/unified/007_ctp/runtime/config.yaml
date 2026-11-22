@@ -1,0 +1,11 @@
+config_schema_version: 4
+
+strategy:
+  id: example.007_ctp.legacy_direct
+
+runtime:
+  mode: simulation
+  preset: replay
+
+parameters: {}
+secrets_ref: none

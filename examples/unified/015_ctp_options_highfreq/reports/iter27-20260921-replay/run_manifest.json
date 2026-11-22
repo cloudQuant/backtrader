@@ -1,0 +1,13 @@
+{
+  "actual_fills": 0,
+  "bundle_sha256": "2e81d6c53b72ebdba936615330a418a928e4a5c115665709a6057d933a538d91",
+  "config_sha256": "295aecbf2fd73cd005986422f3c9a91192c4098340eaa4d79f7db6a38e69ee70",
+  "external_network_requests": 0,
+  "external_write_requests": 0,
+  "fixture_sha256": "272c548f3214c3f09b59e412d3a6300c67c3422570ea699301167157495672b2",
+  "hft_status": "NOT_ADMITTED",
+  "mode": "replay",
+  "pnl_fields_emitted": false,
+  "purpose": "formula",
+  "schema_version": "iter25.ctp-options-highfreq-manifest.v1"
+}

@@ -1,0 +1,146 @@
+{
+  "account_fingerprint": "acct_replay_fixture",
+  "candidate_id": "iter22-sa-v0",
+  "code_hash": "259b57242a98ebfcddf07e61d04127628d29c1af1f121a85660ead612727c748",
+  "config_hash": "30a9f67674ebc77b3660f53f32aadcf5b04ba741d64e449ca03c42951b2c17e0",
+  "data_hash": "6809517706d02d104dd6609e5f433a12b102ee30e82f3ee6a8aa6dfba4e3387d",
+  "ended_at_utc": "2026-09-21T07:48:10.536268+00:00",
+  "environment": "local_fixture",
+  "evidence_counts": {
+    "bars": 106,
+    "orders": 0,
+    "quotes": 7500,
+    "risk_events": 1,
+    "signals": 7500,
+    "trades": 0
+  },
+  "evidence_dropped_counts": {
+    "bars": 0,
+    "orders": 0,
+    "quotes": 0,
+    "risk_events": 0,
+    "signals": 0,
+    "trades": 0
+  },
+  "evidence_enqueued_counts": {
+    "bars": 106,
+    "orders": 0,
+    "quotes": 7500,
+    "risk_events": 1,
+    "signals": 7500,
+    "trades": 0
+  },
+  "evidence_health": {
+    "complete": true,
+    "failure_reason": null,
+    "queue_limit": 23500
+  },
+  "evidence_max_pending_counts": {
+    "bars": 106,
+    "orders": 0,
+    "quotes": 7358,
+    "risk_events": 0,
+    "signals": 7358,
+    "trades": 0
+  },
+  "evidence_max_pending_total": 14822,
+  "evidence_pending_counts": {
+    "bars": 0,
+    "orders": 0,
+    "quotes": 0,
+    "risk_events": 0,
+    "signals": 0,
+    "trades": 0
+  },
+  "evidence_rotations": {
+    "bars": 0,
+    "orders": 0,
+    "quotes": 0,
+    "risk_events": 0,
+    "signals": 0,
+    "trades": 0
+  },
+  "execution_basis": "none",
+  "exit_status": "PASS_REPLAY_PATH",
+  "fee_source": "synthetic_formula_fixture",
+  "g4_gate_status": "NOT_RUN",
+  "hypothetical_fills": false,
+  "instrument_id": "SA701",
+  "iteration": 22,
+  "mode": "replay",
+  "purpose": "engineering_fixture",
+  "replay_audit_queue_limit": 23500,
+  "research_status": "RESEARCH_NOT_ESTABLISHED",
+  "retention": {
+    "retain_trading_days": 20,
+    "status": "NOT_APPLICABLE_EXPLICIT_OUTPUT_DIRECTORY"
+  },
+  "run_id": "iter22-replay-20260921T074801Z-a31213a3",
+  "runtime": {
+    "architecture": "AMD64",
+    "executable": "C:\\anaconda3\\python.exe",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.5"
+  },
+  "schema_version": "iter22.manifest.v1",
+  "source_components": {
+    "backtrader": {
+      "found": true,
+      "module": "backtrader",
+      "path": "D:/source_code/backtrader/backtrader/__init__.py",
+      "sha256": "a410a7181f1c4758fab76a929437a5629d137bebf78b87b5547949af908579f8",
+      "version": "1.3.0"
+    },
+    "backtrader_broker": {
+      "found": true,
+      "module": "backtrader.brokers.btapibroker",
+      "path": "D:/source_code/backtrader/backtrader/brokers/btapibroker.py",
+      "sha256": "6bcde4fbccecd77563a3bd0f9772c007bd923c24c3a978bc0d602e19475d7a37",
+      "version": "1.3.0"
+    },
+    "backtrader_feed": {
+      "found": true,
+      "module": "backtrader.feeds.btapifeed",
+      "path": "D:/source_code/backtrader/backtrader/feeds/btapifeed.py",
+      "sha256": "d34efe275b3eb8e53c09b09ebf7fee807bf672702ea8405c541aaedcbc2de803",
+      "version": "1.3.0"
+    },
+    "backtrader_store": {
+      "found": true,
+      "module": "backtrader.stores.btapistore",
+      "path": "D:/source_code/backtrader/backtrader/stores/btapistore.py",
+      "sha256": "d41e08018c338b9dc1f6e3310fed0ff4125fcc286c40f2d14e92effea89b91c0",
+      "version": "1.3.0"
+    },
+    "backtrader_trade_logger": {
+      "found": true,
+      "module": "backtrader.observers.trade_logger",
+      "path": "D:/source_code/backtrader/backtrader/observers/trade_logger.py",
+      "sha256": "47e410240a0f5c4270ac2751dca4e8cd4d524f32124093bc5082b0b0b47a2ca7",
+      "version": "1.3.0"
+    },
+    "bt_api_py": {
+      "found": true,
+      "module": "bt_api_py",
+      "path": "D:/bt_api_py/bt_api_py/__init__.py",
+      "sha256": "9013b08dcfce969ac4c4c7142aba721c82e805aaedb762093997965661f302d8",
+      "version": "0.15.3"
+    },
+    "bt_api_py_execution_session": {
+      "found": true,
+      "module": "bt_api_py._execution_session",
+      "path": "D:/bt_api_py/bt_api_py/_execution_session.py",
+      "sha256": "b8868ca40b65f6ecec61ad0e0ee55a68324488ae7b0ce007aafdc15c2cb27eda",
+      "version": "0.15.3"
+    },
+    "bt_api_py_facade": {
+      "found": true,
+      "module": "bt_api_py.bt_api",
+      "path": "D:/bt_api_py/bt_api_py/bt_api.py",
+      "sha256": "1211c54c41ada1872136d4fd657b031a3757c411ce8c163d62e5b2bf61f5b739",
+      "version": "0.15.3"
+    }
+  },
+  "started_at_utc": "2026-09-21T07:48:01.818444+00:00",
+  "trading_day": "20260909"
+}
