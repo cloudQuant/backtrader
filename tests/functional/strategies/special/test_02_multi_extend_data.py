@@ -368,10 +368,16 @@ class BondConvertTwoFactor(bt.Strategy):
         self.bar_num += 1
         if self.bar_num == 1:
             print(f"DEBUG: next() called, bar_num = {self.bar_num}")
+        if len(self.datas[0]) == 0:
+            return
         # self.log(f"self.bar_num = {self.bar_num}")
         # Previous trading day and current trading day
-        pre_date = self.datas[0].datetime.date(-1).strftime("%Y-%m-%d")
         current_date = self.datas[0].datetime.date(0).strftime("%Y-%m-%d")
+        pre_date = (
+            self.datas[0].datetime.date(-1).strftime("%Y-%m-%d")
+            if len(self.datas[0]) > 1
+            else current_date
+        )
         # 2025-01-01
         current_month = current_date[5:7]
         try:
@@ -394,6 +400,8 @@ class BondConvertTwoFactor(bt.Strategy):
         # Loop through all stocks and calculate the number of stocks
         self.stock_dict = {}
         for data in self.datas[1:]:
+            if len(data) == 0:
+                continue
             data_date = data.datetime.date(0).strftime("%Y-%m-%d")
             # If the two dates are equal, the stock is trading
             if current_date == data_date:
@@ -470,6 +478,8 @@ class BondConvertTwoFactor(bt.Strategy):
             order = self.position_dict[name]
             data = self.getdatabyname(name)
             close = data.close
+            if len(data) == 0:
+                continue
             data_date = data.datetime.date(0).strftime("%Y-%m-%d")
             current_date = self.datas[0].datetime.date(0).strftime("%Y-%m-%d")
             if data_date == current_date:

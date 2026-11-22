@@ -605,25 +605,26 @@ def test_195_0194_0970_framacandle() -> None:
     results = cerebro.run(runonce=True)
     metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
+    # Baseline updated after iter71 FRAMA recursive seed initialization fix (78373429f).
     assert metrics.get('bar_num') == 5887, f"bar_num: expected=5887, got={metrics.get('bar_num')!r}"
-    assert metrics.get('win_count') == 126, f"win_count: expected=126, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 114, f"loss_count: expected=114, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 240, f"total_trades: expected=240, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 240, f"trade_count: expected=240, got={metrics.get('trade_count')!r}"
+    assert metrics.get('win_count') == 139, f"win_count: expected=139, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 139, f"loss_count: expected=139, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 278, f"total_trades: expected=278, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 278, f"trade_count: expected=278, got={metrics.get('trade_count')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('buy_signal_count'), 241.0, tol=2.410000e-04, key='buy_signal_count')
-    _close(metrics.get('sell_signal_count'), 0.0, tol=1.000000e-06, key='sell_signal_count')
-    _close(metrics.get('completed_order_count'), 481.0, tol=4.810000e-04, key='completed_order_count')
+    _close(metrics.get('buy_signal_count'), 159.0, tol=1.590000e-04, key='buy_signal_count')
+    _close(metrics.get('sell_signal_count'), 126.0, tol=1.260000e-04, key='sell_signal_count')
+    _close(metrics.get('completed_order_count'), 556.0, tol=5.560000e-04, key='completed_order_count')
     _close(metrics.get('rejected_order_count'), 0.0, tol=1.000000e-06, key='rejected_order_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1007488.7000000046, tol=1.007489e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 7488.70000000461, tol=7.488700e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.7460798894913765, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 52.5, tol=5.250000e-05, key='win_rate')
-    _close(metrics.get('sharpe_ratio'), 6.8511168639915265, tol=6.851117e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 55.52865746670267, tol=5.552866e-05, key='annual_return_pct')
-    _close(metrics.get('max_drawdown'), 1.094455957786889, tol=1.094456e-06, key='max_drawdown')
-    _close(metrics.get('sqn'), 0.9552245385302753, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1016204.9000000027, tol=1.016205e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 16204.9000000027, tol=1.620490e-02, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 1.6075002051327423, tol=1.607500e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 50.0, tol=5.000000e-05, key='win_rate')
+    _close(metrics.get('sharpe_ratio'), 14.98823915680104, tol=1.498824e-05, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 158.98453508898376, tol=1.589845e-04, key='annual_return_pct')
+    _close(metrics.get('max_drawdown'), 0.4705536364842758, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sqn'), 2.1363169822899026, tol=2.136317e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

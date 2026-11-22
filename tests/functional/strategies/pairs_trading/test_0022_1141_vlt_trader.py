@@ -144,6 +144,8 @@ class VltTraderStrategy(bt.Strategy):
             True if the prior bar's range is below the minimum of the preceding
             ``period`` bars and the bar before it was not already contracted.
         """
+        if len(self.data) <= int(self.p.period) + 2:
+            return False
         current_range = float(self.data.high[-1]) - float(self.data.low[-1])
         prior_ranges = [float(self.data.high[-i]) - float(self.data.low[-i]) for i in range(2, int(self.p.period) + 2)]
         min_prior = min(prior_ranges)
@@ -532,9 +534,10 @@ def test_22_0022_1141_vlt_trader() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "no metrics captured during run"
 
+    # Guarding len(data) > period + 2 prevents early-bar wraparound into future tail prices.
     assert metrics.get('bar_num') == 6129, f"bar_num: expected=6129, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 1, f"buy_count: expected=1, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 0, f"sell_count: expected=0, got={metrics.get('sell_count')!r}"
+    assert metrics.get('buy_count') == 0, f"buy_count: expected=0, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 1, f"sell_count: expected=1, got={metrics.get('sell_count')!r}"
     assert metrics.get('win_count') == 0, f"win_count: expected=0, got={metrics.get('win_count')!r}"
     assert metrics.get('loss_count') == 0, f"loss_count: expected=0, got={metrics.get('loss_count')!r}"
     assert metrics.get('total_trades') == 1, f"total_trades: expected=1, got={metrics.get('total_trades')!r}"
@@ -544,16 +547,16 @@ def test_22_0022_1141_vlt_trader() -> None:
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('signal_count'), 1.0, tol=1.000000e-06, key='signal_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_cash'), 1009635.9990000045, tol=1.009636e+00, key='final_cash')
-    _close(metrics.get('final_value'), 1009636.0000000045, tol=1.009636e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 9636.00000000454, tol=9.636000e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.9636000000004641, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('final_cash'), 990472.8989999954, tol=9.904729e-01, key='final_cash')
+    _close(metrics.get('final_value'), 990472.8999999955, tol=9.904729e-01, key='final_value')
+    _close(metrics.get('net_pnl'), -9527.100000004517, tol=9.527100e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -0.9527100000004562, tol=1.000000e-06, key='total_return_pct')
     _close(metrics.get('win_rate'), 0.0, tol=1.000000e-06, key='win_rate')
-    _close(metrics.get('open_position_size'), 0.1, tol=1.000000e-06, key='open_position_size')
-    _close(metrics.get('open_position_price'), 4211.74, tol=4.211740e-03, key='open_position_price')
-    _close(metrics.get('max_drawdown'), 1.1174148207575316, tol=1.117415e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 8.426506746359186, tol=8.426507e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 76.43597721067505, tol=7.643598e-05, key='annual_return_pct')
+    _close(metrics.get('open_position_size'), -0.1, tol=1.000000e-06, key='open_position_size')
+    _close(metrics.get('open_position_price'), 4222.63, tol=4.222630e-03, key='open_position_price')
+    _close(metrics.get('max_drawdown'), 1.4107113067904222, tol=1.410711e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), -8.21968460752283, tol=8.219685e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), -43.264816249762376, tol=4.326482e-05, key='annual_return_pct')
     _close(metrics.get('sqn'), 0.0, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (

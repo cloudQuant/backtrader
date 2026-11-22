@@ -150,6 +150,8 @@ class ConvertibleBondIntradayStrategy(bt.Strategy):
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
 
         for data in self.datas[1:]:
+            if len(data) == 0:
+                continue
             data_datetime = bt.num2date(data.datetime[0])
             if data_datetime == self.current_datetime:
                 data_name = data._name

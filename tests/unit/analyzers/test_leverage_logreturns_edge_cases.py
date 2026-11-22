@@ -96,6 +96,15 @@ class TestGrossLeverageZeroValue:
         analyzer.next()
         assert analyzer.rets["2021-01-01"] == 0.0
 
+    def test_falls_back_to_strategy_datetime_when_data0_not_started(self):
+        """When data0 has not ticked yet, GrossLeverage uses strategy.datetime."""
+        analyzer = self._make_analyzer(value=10000.0, cash=5000.0)
+        analyzer.data0.datetime.datetime.side_effect = IndexError("array index out of range")
+        analyzer.strategy = MagicMock()
+        analyzer.strategy.datetime.datetime.return_value = "2020-12-31"
+        analyzer.next()
+        assert analyzer.rets["2020-12-31"] == pytest.approx(0.5)
+
 
 class TestLogReturnsRollingLogging:
     """Test that LogReturnsRolling logs errors instead of silently swallowing."""

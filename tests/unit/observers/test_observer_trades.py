@@ -201,5 +201,68 @@ def test_datatrades_writes_only_matching_data_line():
     assert observer.lines[1][0] == 12.5
 
 
+def test_datatrades_expands_lines_beyond_ten_feeds():
+    """DataTrades expands dynamically when Cerebro(stdstats=True) has >10 feeds."""
+    import pandas as pd
+
+    class LastFeedTrader(bt.Strategy):
+        def next(self):
+            target = self.datas[-1]
+            if len(self) == 1:
+                self.buy(data=target, size=1)
+            elif len(self) == 3:
+                self.close(data=target)
+
+    index = pd.date_range("2024-01-01", periods=6, freq="D")
+    cerebro = bt.Cerebro(stdstats=True)
+    cerebro.addstrategy(LastFeedTrader)
+    for i in range(12):
+        df = pd.DataFrame(
+            {
+                "open": [100.0 + i + d for d in range(6)],
+                "high": [101.0 + i + d for d in range(6)],
+                "low": [99.0 + i + d for d in range(6)],
+                "close": [100.5 + i + d for d in range(6)],
+                "volume": [1000] * 6,
+            },
+            index=index,
+        )
+        cerebro.adddata(bt.feeds.PandasData(dataname=df), name=f"asset_{i}")
+
+    strat = cerebro.run(runonce=True)[0]
+    obs = next(o for o in strat.observers if isinstance(o, bt.observers.DataTrades))
+    assert len(obs.lines) == 12
+    assert "data11" in obs.plotlines
+    recorded = [obs.lines[11][-k] for k in range(len(obs))]
+    assert any(not math.isnan(v) and v > 0 for v in recorded)
+
+
+def test_datatrades_fixed_lines_subclass_rejects_excess_feeds():
+    """A DataTrades subclass overriding lines still fails closed when feeds exceed slots."""
+    import pandas as pd
+    import pytest
+
+    class FixedTwoFeedDataTrades(bt.observers.DataTrades):
+        pass
+
+    FixedTwoFeedDataTrades.lines = bt.lineseries.Lines._derive(
+        "lines", ("data0", "data1"), 0, (), linesoverride=True
+    )
+
+    index = pd.date_range("2024-01-01", periods=3, freq="D")
+    df = pd.DataFrame(
+        {"open": [10.0, 11.0, 12.0], "high": [11.0, 12.0, 13.0], "low": [9.0, 10.0, 11.0], "close": [10.5, 11.5, 12.5], "volume": [100, 100, 100]},
+        index=index,
+    )
+    cerebro = bt.Cerebro(stdstats=False)
+    cerebro.addstrategy(bt.Strategy)
+    for i in range(3):
+        cerebro.adddata(bt.feeds.PandasData(dataname=df), name=f"d{i}")
+    cerebro.addobserver(FixedTwoFeedDataTrades)
+
+    with pytest.raises(ValueError, match="supports at most 2 data feeds; got 3"):
+        cerebro.run(runonce=True)
+
+
 if __name__ == "__main__":
     test_run(main=True)

@@ -12,7 +12,20 @@ Example:
     >>> cerebro.addobserver(bt.observers.Trades)
 """
 
+from ..lineseries import Lines
 from ..observer import Observer
+
+_DATA_TRADES_LINES_CACHE: dict = {}
+
+
+def _get_data_trades_lines_class(count):
+    """Return a cached Lines class declaring ``data0``..``data{count-1}``."""
+    lines_cls = _DATA_TRADES_LINES_CACHE.get(count)
+    if lines_cls is None:
+        line_names = tuple(f"data{i}" for i in range(count))
+        lines_cls = Lines._derive("lines", line_names, 0, (), linesoverride=True)
+        _DATA_TRADES_LINES_CACHE[count] = lines_cls
+    return lines_cls
 
 
 # This class saves all trades and plots PnL when trade is closed
@@ -123,12 +136,11 @@ class DataTrades(Observer):
     """
     Track closed-trade PnL in a dedicated line for each data feed.
 
-    This implementation declares ten fixed data lines. A strategy with more
-    than ten feeds is rejected during observer construction instead of
-    silently omitting trades for feeds without a corresponding line. Use the
-    custom observer with enough declared lines when more than ten feeds are
-    required. Disabling Cerebro's standard observers also avoids constructing
-    this fixed-capacity observer.
+    Declares ten default lines (``data0``..``data9``) on the class and
+    dynamically expands the instance's ``Lines`` container when attached to a
+    strategy with more than ten feeds, without using metaclasses. A custom
+    subclass that overrides ``lines`` with a fixed smaller capacity still
+    fails closed during construction instead of silently dropping feeds.
     """
 
     _stclock = True
@@ -169,13 +181,18 @@ class DataTrades(Observer):
             self.datas = list(owner_datas)
             self.ddatas = dict.fromkeys(self.datas)
 
+        feed_count = len(getattr(self, "datas", ()))
         max_datas = len(self.lines)
-        if len(getattr(self, "datas", ())) > max_datas:
-            raise ValueError(
-                "DataTrades supports at most {} data feeds; got {}".format(
-                    max_datas, len(self.datas)
+        if feed_count > max_datas:
+            if getattr(type(self), "lines", None) is DataTrades.lines:
+                self._expand_lines_for_feeds(feed_count)
+                max_datas = len(self.lines)
+            else:
+                raise ValueError(
+                    "DataTrades supports at most {} data feeds; got {}".format(
+                        max_datas, feed_count
+                    )
                 )
-            )
 
         # Feed ids are assigned by each Cerebro instance and are not the
         # observer's line contract. Bind each exact feed object to its local
@@ -186,6 +203,25 @@ class DataTrades(Observer):
 
         # Setup plotlines configuration after parent initialization
         self._setup_plotlines_simple()
+
+    def _expand_lines_for_feeds(self, count):
+        """Allocate a Lines instance sized for ``count`` feeds without metaclasses."""
+        lines_cls = _get_data_trades_lines_class(count)
+        new_lines = lines_cls()
+        object.__setattr__(new_lines, "_owner_ref", self)
+        strict_context = getattr(self, "_factor_strict_context", None)
+        if strict_context is not None:
+            object.__setattr__(new_lines, "_factor_strict_context", strict_context)
+        ltype = getattr(type(self), "_ltype", None)
+        minperiod = getattr(self, "_minperiod", 1)
+        for line in new_lines:
+            if hasattr(line, "_refresh_cached_line_flags"):
+                line._refresh_cached_line_flags(owner=new_lines, ltype=ltype)
+            if strict_context is not None:
+                line._factor_strict_context = strict_context
+            if minperiod > 1 and hasattr(line, "updateminperiod"):
+                line.updateminperiod(minperiod)
+        self.lines = new_lines
 
     def _setup_plotlines_simple(self):
         """Setup plotlines configuration using simple dictionary approach"""
@@ -268,13 +304,14 @@ class DataTrades(Observer):
         basedict = {"ls": "", "markersize": 8.0, "fillstyle": "full"}
 
         # Create plotlines configuration using simple dict update
-        for i, (lname, marker, color) in enumerate(zip(lnames, markers, colors)):
-            if i < len(self.lines):  # Only configure lines that exist
-                plot_config = basedict.copy()
-                plot_config.update(marker=marker, color=color)
-                # Set plotline configuration by line alias
-                line_name = getattr(self.lines, "_getlinealias", lambda x: f"data{x}")(i)
-                self.plotlines[line_name] = plot_config
+        for i in range(min(len(lnames), len(self.lines))):
+            marker = markers[i % len(markers)]
+            color = colors[i % len(colors)]
+            plot_config = basedict.copy()
+            plot_config.update(marker=marker, color=color)
+            # Set plotline configuration by line alias
+            line_name = getattr(self.lines, "_getlinealias", lambda x: f"data{x}")(i)
+            self.plotlines[line_name] = plot_config
 
     def next(self):
         """Update data-specific trade PnL values.

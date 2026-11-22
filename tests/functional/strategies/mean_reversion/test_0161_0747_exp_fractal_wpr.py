@@ -689,6 +689,7 @@ def test_161_0161_0747_exp_fractal_wpr() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
+    # Baseline updated after iter71 history wraparound guard (0032e65df) prevented bar-0 future tail reads.
     assert metrics.get('bar_num') == 6013, f"bar_num: expected=6013, got={metrics.get('bar_num')!r}"
     assert metrics.get('total_trades') == 75, f"total_trades: expected=75, got={metrics.get('total_trades')!r}"
     assert metrics.get('trade_count') == 75, f"trade_count: expected=75, got={metrics.get('trade_count')!r}"
@@ -700,14 +701,14 @@ def test_161_0161_0747_exp_fractal_wpr() -> None:
     _close(metrics.get('completed_orders'), 151.0, tol=1.510000e-04, key='completed_orders')
     _close(metrics.get('rejected_orders'), 0.0, tol=1.000000e-06, key='rejected_orders')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 991160.5999999979, tol=9.911606e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -8839.400000002119, tol=8.839400e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.8878699255475082, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('final_value'), 991095.0999999979, tol=9.910951e-01, key='final_value')
+    _close(metrics.get('net_pnl'), -8904.900000002119, tol=8.904900e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -0.8944785583312383, tol=1.000000e-06, key='total_return_pct')
     _close(metrics.get('win_rate'), 53.333333333333336, tol=5.333333e-05, key='win_rate')
-    _close(metrics.get('sharpe_ratio'), -10.685450293683695, tol=1.068545e-05, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -40.84930673256491, tol=4.084931e-05, key='annual_return_pct')
-    _close(metrics.get('max_drawdown'), 1.3409130783737295, tol=1.340913e-06, key='max_drawdown')
-    _close(metrics.get('sqn'), -1.216327638925675, tol=1.216328e-06, key='sqn')
+    _close(metrics.get('sharpe_ratio'), -10.766010438837485, tol=1.076601e-05, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), -41.08003496475472, tol=4.108003e-05, key='annual_return_pct')
+    _close(metrics.get('max_drawdown'), 1.3410007382691878, tol=1.341001e-06, key='max_drawdown')
+    _close(metrics.get('sqn'), -1.2262102817899334, tol=1.226210e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

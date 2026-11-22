@@ -248,7 +248,7 @@ class TDSequentialStrategy(bt.Strategy):
         self.buy_nine = False
         self.sell_nine = False
 
-        if len(self.dataclose) > self.p.candles_past_to_compare:
+        if len(self.dataclose) > self.p.candles_past_to_compare + 1:
             # Buy trigger
             if (self.dataclose[0] < self.dataclose[-self.p.candles_past_to_compare] and
                 self.dataclose[-1] > self.dataclose[-(self.p.candles_past_to_compare + 1)]):

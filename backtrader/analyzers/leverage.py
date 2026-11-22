@@ -99,9 +99,24 @@ class GrossLeverage(Analyzer):
         """
         # Updates the leverage for "dtkey" (see base class) for each cycle
         # 0.0 if 100% in cash, 1.0 if no short selling and fully invested
-        if scoped_missing_input(getattr(self, "strategy", None), self._value, self._cash):
+        strategy = getattr(self, "strategy", None)
+        dt = None
+        data0 = getattr(self, "data0", None)
+        if data0 is not None:
+            try:
+                dt = data0.datetime.datetime()
+            except IndexError:
+                dt = None
+        if dt is None and strategy is not None:
+            try:
+                dt = strategy.datetime.datetime()
+            except IndexError:
+                dt = None
+        if dt is None:
+            return
+        if scoped_missing_input(strategy, self._value, self._cash):
             record_result_gap(self)
-            self.rets[self.data0.datetime.datetime()] = float("nan")
+            self.rets[dt] = float("nan")
             return
         clear_result_gap(self)
         try:
@@ -117,4 +132,4 @@ class GrossLeverage(Analyzer):
         if isinstance(lev, complex) or not math.isfinite(lev):
             lev = 0.0
 
-        self.rets[self.data0.datetime.datetime()] = lev
+        self.rets[dt] = lev

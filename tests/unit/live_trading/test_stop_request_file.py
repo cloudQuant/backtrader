@@ -139,6 +139,7 @@ def test_a_foreign_or_invalid_document_is_not_a_request(tmp_path, overrides):
         json.dumps({}),
         json.dumps(_document()).replace('"schema"', '"unknown"'),
     ],
+    ids=("not_json", "empty_array", "empty_dict", "unknown_schema"),
 )
 def test_malformed_documents_are_ignored(tmp_path, payload):
     path = tmp_path / "stop_request.json"

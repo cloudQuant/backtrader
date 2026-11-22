@@ -130,6 +130,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     import backtrader as bt
     import fincore
     from backtrader.research import FactorPanel, ResearchSpec, evaluate_frames
+    from backtrader.research.factor_indicator import _factor_diagnostic_history_capture
     from backtrader.strategies.factor_strategy import FactorStrategy
     from backtrader.research import alpha101
 
@@ -210,7 +211,8 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
         for number, factor_class in production_factors.items()
     }
     cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
-    strategy = cerebro.run()[0]
+    with _factor_diagnostic_history_capture():
+        strategy = cerebro.run()[0]
     assert (broker.submits, broker.cancels) == (0, 0)
     collected = strategy.get_panel()
     assert isinstance(collected, FactorPanel)

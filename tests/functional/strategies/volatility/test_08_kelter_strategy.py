@@ -240,6 +240,9 @@ class KeltnerStrategy(bt.Strategy):
             self.buy_count += 1
             self.holding_contract_name = None
 
+        if len(data) < 2:
+            return
+
         # Open long position on upper rail breakout with rising middle line
         if self.holding_contract_name is None and data.close[-1] < self.upper_line[-1] and data.close[0] > self.upper_line[0] and self.middle_line[0] > self.middle_line[-1]:
             dominant_contract = self.get_dominant_contract()

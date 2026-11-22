@@ -172,8 +172,11 @@ class ETurboFxStrategy(bt.Strategy):
         if self.position:
             return
 
-        up_1, dn_1, up_2, dn_2 = self._signal_counts()
         n = int(self.p.n)
+        if len(self.data) <= n:
+            return
+
+        up_1, dn_1, up_2, dn_2 = self._signal_counts()
         open_buy = up_1 == n and up_2 == n - 1
         open_sell = dn_1 == n and dn_2 == n - 1
         if (open_buy and not open_sell) or (open_sell and not open_buy):

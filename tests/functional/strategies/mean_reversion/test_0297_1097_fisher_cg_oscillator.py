@@ -268,6 +268,8 @@ class FisherCGOscillatorStrategy(bt.Strategy):
 
     def _enough_history(self):
         idx = max(int(self.p.signal_bar), 1)
+        if len(self.h8) <= idx + 1:
+            return False
         needed = [self.fcg[-idx], self.fcg[-idx - 1], self.trigger[-idx], self.trigger[-idx - 1]]
         return not any(math.isnan(float(v)) for v in needed)
 
@@ -643,31 +645,32 @@ def test_298_0297_1097_fisher_cg_oscillator() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
+    # Guarding len(h8) > idx + 1 prevents early-bar wraparound into future H8 tail values.
     assert metrics.get('bar_num') == 5708, f"bar_num: expected=5708, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 9, f"buy_count: expected=9, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 10, f"sell_count: expected=10, got={metrics.get('sell_count')!r}"
+    assert metrics.get('buy_count') == 12, f"buy_count: expected=12, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 6, f"sell_count: expected=6, got={metrics.get('sell_count')!r}"
     assert metrics.get('win_count') == 9, f"win_count: expected=9, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 9, f"loss_count: expected=9, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 19, f"total_trades: expected=19, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 18, f"trade_count: expected=18, got={metrics.get('trade_count')!r}"
+    assert metrics.get('loss_count') == 8, f"loss_count: expected=8, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 18, f"total_trades: expected=18, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 17, f"trade_count: expected=17, got={metrics.get('trade_count')!r}"
     assert metrics.get('won') == 9, f"won: expected=9, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 9, f"lost: expected=9, got={metrics.get('lost')!r}"
+    assert metrics.get('lost') == 8, f"lost: expected=8, got={metrics.get('lost')!r}"
     _close(metrics.get('bars_m15'), 6129.0, tol=6.129000e-03, key='bars_m15')
     _close(metrics.get('bars_h8'), 190.0, tol=1.900000e-04, key='bars_h8')
     _close(metrics.get('buy_signals'), 14.0, tol=1.400000e-05, key='buy_signals')
-    _close(metrics.get('sell_signals'), 14.0, tol=1.400000e-05, key='sell_signals')
-    _close(metrics.get('completed_orders'), 37.0, tol=3.700000e-05, key='completed_orders')
+    _close(metrics.get('sell_signals'), 13.0, tol=1.300000e-05, key='sell_signals')
+    _close(metrics.get('completed_orders'), 35.0, tol=3.500000e-05, key='completed_orders')
     _close(metrics.get('rejected_orders'), 0.0, tol=1.000000e-06, key='rejected_orders')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1000937.8000000006, tol=1.000938e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 937.8000000006286, tol=9.378000e-04, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.09378000000006548, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 47.368421052631575, tol=4.736842e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.00001040940177, tol=1.000010e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.762410516642564, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 1.4859192449212615, tol=1.485919e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 5.700990089024762, tol=5.700990e-06, key='annual_return_pct')
-    _close(metrics.get('sqn'), 1.8665354762618738e-05, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1001717.1, tol=1.001717e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 1717.0999999999767, tol=1.717100e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.1717100000000027, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 50.0, tol=5.000000e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.0858152670579013, tol=1.085815e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.761821088908555, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 2.6951356235193558, tol=2.695136e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 10.680545402745894, tol=1.068055e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.14939721832882458, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

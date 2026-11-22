@@ -353,6 +353,10 @@ def test_runtime_schema_mutation_is_rejected_before_ack(tmp_path):
     store.close()
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows forbids os.replace while the store file handle is open",
+)
 def test_path_replaced_between_readonly_and_writable_open_is_rejected(tmp_path, monkeypatch):
     path = tmp_path / "outbox.sqlite"
     replacement = tmp_path / "replacement.sqlite"
@@ -376,6 +380,10 @@ def test_path_replaced_between_readonly_and_writable_open_is_rejected(tmp_path, 
     assert path.read_bytes() == before_replacement
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows forbids os.replace while the store file handle is open",
+)
 def test_new_path_replacement_during_initialization_is_rolled_back(tmp_path, monkeypatch):
     path = tmp_path / "new.sqlite"
     replacement = tmp_path / "unrelated"
@@ -399,6 +407,21 @@ def test_new_path_replacement_during_initialization_is_rolled_back(tmp_path, mon
         StrategyNotificationOutbox(path, SCOPE)
     assert path.read_bytes() == b"unrelated data"
     assert original.exists()
+
+
+def test_check_identity_detects_replaced_file_cross_platform(tmp_path):
+    """Verify _check_identity raises STORE_PATH_CHANGED when a closed file is swapped."""
+    path = tmp_path / "outbox.sqlite"
+    replacement = tmp_path / "replacement.sqlite"
+    original = tmp_path / "original.sqlite"
+    for candidate in (path, replacement):
+        store = StrategyNotificationOutbox(candidate, SCOPE)
+        store.close()
+    opened_identity = os.stat(path, follow_symlinks=False)
+    os.replace(path, original)
+    os.replace(replacement, path)
+    with pytest.raises(NotificationOutboxError, match="STORE_PATH_CHANGED"):
+        StrategyNotificationOutbox._check_identity(str(path), opened_identity)
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="FIFO unavailable on this platform")
@@ -439,7 +462,12 @@ def test_symlink_never_initializes_or_changes_its_target(tmp_path, dangling):
         store.close()
         before = target.read_bytes()
     link = tmp_path / "link.sqlite"
-    link.symlink_to(target)
+    try:
+        link.symlink_to(target)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("symbolic link creation requires elevated privileges on Windows")
+        raise
     with pytest.raises(NotificationOutboxError):
         StrategyNotificationOutbox(link, SCOPE)
     if dangling:

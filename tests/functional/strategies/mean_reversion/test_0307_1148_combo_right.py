@@ -282,6 +282,10 @@ class ComboRightStrategy(bt.Strategy):
         if self.position:
             return
 
+        max_shift = int(self.p.shift) + max(int(self.p.p2), int(self.p.p3), int(self.p.p4)) * 4
+        if len(self.data) <= max_shift:
+            return
+
         signal = self._supervisor()
         if signal > 0 or signal < 0:
             self.signal_count += 1
@@ -526,30 +530,31 @@ def test_308_0307_1148_combo_right() -> None:
     results = cerebro.run(runonce=True)
     metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
+    # Guarding len(data) > max_shift prevents perceptron wraparound into future tail prices.
     assert metrics.get('bar_num') == 6119, f"bar_num: expected=6119, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 1328, f"buy_count: expected=1328, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 1107, f"sell_count: expected=1107, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 1209, f"win_count: expected=1209, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 1225, f"loss_count: expected=1225, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 2435, f"total_trades: expected=2435, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 2434, f"trade_count: expected=2434, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 1209, f"won: expected=1209, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 1225, f"lost: expected=1225, got={metrics.get('lost')!r}"
+    assert metrics.get('buy_count') == 1315, f"buy_count: expected=1315, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 1099, f"sell_count: expected=1099, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 1197, f"win_count: expected=1197, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 1216, f"loss_count: expected=1216, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 2414, f"total_trades: expected=2414, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 2413, f"trade_count: expected=2413, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 1197, f"won: expected=1197, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 1216, f"lost: expected=1216, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('signal_count'), 2435.0, tol=2.435000e-03, key='signal_count')
+    _close(metrics.get('signal_count'), 2414.0, tol=2.414000e-03, key='signal_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_cash'), 1001345.299000003, tol=1.001345e+00, key='final_cash')
-    _close(metrics.get('final_value'), 1001345.3000000031, tol=1.001345e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 1345.3000000030734, tol=1.345300e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.13453000000029913, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 49.65092402464066, tol=4.965092e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.013742989802701, tol=1.013743e-06, key='profit_factor')
+    _close(metrics.get('final_cash'), 1000904.0990000032, tol=1.000904e+00, key='final_cash')
+    _close(metrics.get('final_value'), 1000904.1000000032, tol=1.000904e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 904.1000000032363, tol=9.041000e-04, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.09041000000031829, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 49.58574979287489, tol=4.958575e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.0092971867007672, tol=1.009297e-06, key='profit_factor')
     _close(metrics.get('open_position_size'), 0.1, tol=1.000000e-06, key='open_position_size')
     _close(metrics.get('open_position_price'), 5175.81, tol=5.175810e-03, key='open_position_price')
-    _close(metrics.get('max_drawdown'), 0.6497622946893601, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 1.6703126344234374, tol=1.670313e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 8.285136289212854, tol=8.285136e-06, key='annual_return_pct')
-    _close(metrics.get('sqn'), 0.21662907316947502, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('max_drawdown'), 0.6500472676701626, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 1.132493692231939, tol=1.132494e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 5.496217083834499, tol=5.496217e-06, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.14610825365746724, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

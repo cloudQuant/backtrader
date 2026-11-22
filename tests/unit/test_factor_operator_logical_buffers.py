@@ -512,12 +512,16 @@ def _sample_qbuffer_capacity(strategy, observation):
                 previous = lines.get(identity)
                 if previous is not None and previous["line"] is not line:
                     raise AssertionError("line identity was reused during QBuffer inventory")
+                configured = int(line.maxlen)
+                extrasize = int(getattr(line, "extrasize", 0))
+                deque_capacity = configured + extrasize
                 lines.setdefault(
                     identity,
                     {
                         "line": line,
                         "label": label,
-                        "configured": int(line.maxlen),
+                        "configured": configured,
+                        "deque_capacity": deque_capacity,
                         "retained_highwater": 0,
                         "samples": 0,
                     },
@@ -529,13 +533,20 @@ def _sample_qbuffer_capacity(strategy, observation):
         if getattr(line, "mode", None) != LineBuffer.QBuffer:
             raise AssertionError("sampled line %s stopped being a QBuffer" % state["label"])
         configured = int(line.maxlen)
+        extrasize = int(getattr(line, "extrasize", 0))
+        deque_capacity = configured + extrasize
         retained = int(line.buflen())
-        if configured != state["configured"]:
+        if configured != state["configured"] or deque_capacity != state["deque_capacity"]:
             raise AssertionError("QBuffer maxlen changed during the run for %s" % state["label"])
-        if configured <= 0 or retained < 0 or retained > configured:
+        if getattr(line.array, "maxlen", None) != deque_capacity:
             raise AssertionError(
-                "%s observed invalid QBuffer capacity %d/%d"
-                % (state["label"], configured, retained)
+                "%s deque maxlen %r != deque capacity %d"
+                % (state["label"], getattr(line.array, "maxlen", None), deque_capacity)
+            )
+        if configured <= 0 or extrasize < 0 or retained < 0 or retained > deque_capacity:
+            raise AssertionError(
+                "%s observed invalid QBuffer capacity %d(+%d)/%d"
+                % (state["label"], configured, extrasize, retained)
             )
         state["retained_highwater"] = max(state["retained_highwater"], retained)
         state["samples"] += 1
@@ -564,20 +575,21 @@ def _qbuffer_profile(strategy, observation):
         for identity, (line, label) in entries.items():
             state = observation["lines"][identity]
             configured = state["configured"]
+            deque_capacity = state["deque_capacity"]
             retained = state["retained_highwater"]
             if state["line"] is not line or state["samples"] != observation["callbacks"]:
                 raise AssertionError(
                     "QBuffer sampling did not follow line %s each callback" % label
                 )
-            if not 0 < retained <= configured:
+            if not 0 < retained <= deque_capacity:
                 raise AssertionError(
-                    "%s line %s had no positive in-run capacity %d/%d"
-                    % (role, label, configured, retained)
+                    "%s line %s had no positive in-run capacity %d(%d)/%d"
+                    % (role, label, configured, deque_capacity, retained)
                 )
-            capacities[role][identity] = (configured, retained)
-            distributions[role][(configured, retained)] += 1
+            capacities[role][identity] = (configured, deque_capacity, retained)
+            distributions[role][(configured, deque_capacity, retained)] += 1
             if len(samples[role]) < 4:
-                samples[role].append((label, configured, retained))
+                samples[role].append((label, configured, deque_capacity, retained))
 
     for identity in sampled["direct_inputs"]:
         if capacities["input"][identity] != capacities["target"][identity]:
@@ -602,7 +614,7 @@ def _qbuffer_profile(strategy, observation):
         role: {
             "count": len(capacities[role]),
             "distribution": tuple(
-                (*pair, count) for pair, count in sorted(distributions[role].items())
+                (*triple, count) for triple, count in sorted(distributions[role].items())
             ),
             "samples": tuple(samples[role]),
             **(
@@ -625,23 +637,26 @@ def _assert_qbuffer_profile(profile):
         assert receipt["count"] > 0, "no actual QBuffer lines for role %s" % role
         assert receipt["distribution"]
         assert receipt["samples"]
-        assert sum(count for _configured, _retained, count in receipt["distribution"]) == (
-            receipt["count"]
-        )
+        assert sum(
+            count for _configured, _deque_capacity, _retained, count in receipt["distribution"]
+        ) == (receipt["count"])
         assert all(
-            0 < retained <= configured and count > 0
-            for configured, retained, count in receipt["distribution"]
+            configured > 0
+            and deque_capacity >= configured
+            and 0 < retained <= deque_capacity
+            and count > 0
+            for configured, deque_capacity, retained, count in receipt["distribution"]
         ), ("invalid configured/retained QBuffer capacity for role %s" % role)
 
     assert profile["input"]["direct_target_lines"] > 0
 
     value_pairs = {
-        (configured, retained): count
-        for configured, retained, count in profile["value"]["distribution"]
+        (configured, deque_capacity, retained): count
+        for configured, deque_capacity, retained, count in profile["value"]["distribution"]
     }
     reason_pairs = {
-        (configured, retained): count
-        for configured, retained, count in profile["reason"]["distribution"]
+        (configured, deque_capacity, retained): count
+        for configured, deque_capacity, retained, count in profile["reason"]["distribution"]
     }
     assert (
         value_pairs == reason_pairs
@@ -649,7 +664,7 @@ def _assert_qbuffer_profile(profile):
     configured_capacities = {
         configured
         for receipt in profile.values()
-        for configured, _retained, _count in receipt["distribution"]
+        for configured, _deque_capacity, _retained, _count in receipt["distribution"]
     }
     assert (
         len(configured_capacities) > 1
@@ -722,20 +737,25 @@ def test_alpha101_maxlen_one_samples_during_run_before_eof_empties_buffer(monkey
         assert factor_close is target_close
         close_sample = capacity_observation["lines"][id(target_close)]
         assert close_sample["line"] is target_close
-        assert close_sample["configured"] == target_close.maxlen == 1
-        assert close_sample["retained_highwater"] == 1
+        assert target_close.maxlen == 1
+        expected_extrasize = int(getattr(target_close, "extrasize", 0))
+        expected_deque_capacity = target_close.maxlen + expected_extrasize
+        assert close_sample["configured"] == 1
+        assert close_sample["deque_capacity"] == expected_deque_capacity == target_close.array.maxlen
+        assert close_sample["retained_highwater"] == expected_deque_capacity
         assert close_sample["samples"] == len(grid)
         assert len(grid) >= 10 * close_sample["retained_highwater"]
 
-        # Cerebro's normal EOF rollback may leave a one-slot QBuffer empty.
-        # That terminal state is distinct from its observed in-run capacity.
-        assert target_close.buflen() == 0
-        assert len(target_close.array) - int(target_close.extension) == 0
+        # Cerebro's normal EOF rollback pops one slot from the bounded QBuffer
+        # (leaving 0 when extrasize=0, or extrasize retained slots under bounded
+        # multi-feed alignment). That terminal state is distinct from in-run capacity.
+        assert target_close.buflen() == expected_extrasize
+        assert len(target_close.array) - int(target_close.extension) == expected_extrasize
         assert target_close.lencount == len(grid)
         profile = _qbuffer_profile(queued_strategy, capacity_observation)
         _assert_qbuffer_profile(profile)
         assert all(
             len(grid) >= 10 * retained
             for receipt in profile.values()
-            for _configured, retained, _count in receipt["distribution"]
+            for _configured, _deque_capacity, retained, _count in receipt["distribution"]
         ), "not every observed QBuffer high-water wrapped ten times"

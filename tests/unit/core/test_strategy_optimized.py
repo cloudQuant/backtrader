@@ -39,6 +39,8 @@ import backtrader as bt
 import itertools
 import time
 
+import pytest
+
 try:
     time_clock = time.process_time
 except:
@@ -240,7 +242,9 @@ class RunStrategy(bt.Strategy):
 chkdatas = 1
 
 
-def test_run(main=False):
+@pytest.mark.parametrize("runonce", [True, False])
+@pytest.mark.parametrize("preload", [True, False])
+def test_run(runonce, preload, main=False):
     """Run comprehensive tests for optimized strategy execution.
 
     Tests the strategy execution across all combinations of:
@@ -252,6 +256,8 @@ def test_run(main=False):
     Results are validated against expected portfolio values and cash balances.
 
     Args:
+        runonce: Whether to run indicators in batch mode.
+        preload: Whether to preload feed bars upfront.
         main: If True, runs in verbose mode and prints results without
             asserting. If False, runs in test mode and validates results.
             Default is False.
@@ -263,44 +269,44 @@ def test_run(main=False):
     global _chkvalues
     global _chkcash
 
-    for runonce in [True, False]:
-        for preload in [True, False]:
-            for exbar in [True, False, -1, -2]:
-                _chkvalues = list()
-                _chkcash = list()
+    for exbar in [True, False, -1, -2]:
+        _chkvalues = list()
+        _chkcash = list()
 
-                datas = [testcommon.getdata(i) for i in range(chkdatas)]
-                testcommon.runtest(
-                    datas,
-                    RunStrategy,
-                    runonce=runonce,
-                    preload=preload,
-                    exbar=exbar,
-                    optimize=True,
-                    period=range(5, 45),
-                    printdata=main,
-                    printops=main,
-                    plot=False,
-                )
+        datas = [testcommon.getdata(i) for i in range(chkdatas)]
+        testcommon.runtest(
+            datas,
+            RunStrategy,
+            runonce=runonce,
+            preload=preload,
+            exbar=exbar,
+            optimize=True,
+            period=range(5, 45),
+            printdata=main,
+            printops=main,
+            plot=False,
+        )
 
-                if not main:
-                    assert CHKVALUES == _chkvalues
-                    assert CHKCASH == _chkcash
+        if not main:
+            assert CHKVALUES == _chkvalues
+            assert CHKCASH == _chkcash
 
-                else:
-                    print("*" * 50)
-                    print(CHKVALUES == _chkvalues)
-                    print("-" * 50)
-                    print(CHKVALUES)
-                    print("-" * 50)
-                    print(_chkvalues)
-                    print("*" * 50)
-                    print(CHKCASH == _chkcash)
-                    print("-" * 50)
-                    print(CHKCASH)
-                    print("-" * 50)
-                    print(_chkcash)
+        else:
+            print("*" * 50)
+            print(CHKVALUES == _chkvalues)
+            print("-" * 50)
+            print(CHKVALUES)
+            print("-" * 50)
+            print(_chkvalues)
+            print("*" * 50)
+            print(CHKCASH == _chkcash)
+            print("-" * 50)
+            print(CHKCASH)
+            print("-" * 50)
+            print(_chkcash)
 
 
 if __name__ == "__main__":
-    test_run(main=True)
+    for _runonce in [True, False]:
+        for _preload in [True, False]:
+            test_run(_runonce, _preload, main=True)

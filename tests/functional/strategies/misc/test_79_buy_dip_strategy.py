@@ -105,6 +105,8 @@ class BuyDipStrategy(bt.Strategy):
             return
 
         if not self.position:
+            if len(self.dataclose) < 3:
+                return
             # Entry: Buy after two consecutive down candles
             if self.dataclose[0] < self.dataclose[-1]:
                 if self.dataclose[-1] < self.dataclose[-2]:
@@ -160,12 +162,13 @@ def test_buy_dip_strategy(runonce):
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
+    # Guarding len(dataclose) >= 3 prevents bar-0/1 wraparound into 2014 tail prices.
     # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1257, f"Expected bar_num=1257, got {strat.bar_num}"
-    assert abs(final_value - 100087.43) < 0.01, f"Expected final_value=100087.43, got {final_value}"
-    assert abs(sharpe_ratio - (1.030465261762291)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
-    assert abs(annual_return - (0.00017522539339535496)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
-    assert abs(max_drawdown - 0.08379818319219477) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
+    assert abs(final_value - 100098.43) < 0.01, f"Expected final_value=100098.43, got {final_value}"
+    assert abs(sharpe_ratio - 1.35652115233859) < 1e-6, f"Expected sharpe_ratio=1.35652115233859, got {sharpe_ratio}"
+    assert abs(annual_return - 0.00019724990877430126) < 1e-6, f"Expected annual_return=0.00019724990877430126, got {annual_return}"
+    assert abs(max_drawdown - 0.0837889751410335) < 1e-6, f"Expected max_drawdown=0.0837889751410335, got {max_drawdown}"
 
     print("\nTest passed!")
 

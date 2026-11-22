@@ -66,13 +66,27 @@ class TotalValue(Analyzer):
         super().next()
         # Cache attribute access for performance
         strategy = getattr(self, "strategy", None)
+        data0 = self.datas[0] if self.datas else None
+        dt = None
+        if data0 is not None:
+            try:
+                dt = data0.datetime.datetime()
+            except IndexError:
+                dt = None
+        if dt is None and strategy is not None:
+            try:
+                dt = strategy.datetime.datetime()
+            except IndexError:
+                dt = None
+        if dt is None:
+            return
         value = portfolio_observation(strategy, consumer=self, broker=self._broker)
         if scoped_missing_input(strategy, value):
             record_result_gap(self)
-            self.rets[self.datas[0].datetime.datetime()] = float("nan")
+            self.rets[dt] = float("nan")
             return
         clear_result_gap(self)
-        self.rets[self.datas[0].datetime.datetime()] = _finite_real_or_zero(value)
+        self.rets[dt] = _finite_real_or_zero(value)
 
     def get_analysis(self):
         """Return the total value analysis results.

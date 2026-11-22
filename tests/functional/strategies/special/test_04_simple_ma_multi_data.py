@@ -253,6 +253,8 @@ class SimpleMAMultiDataStrategy(bt.Strategy):
         # First data is index used for date alignment, not for trading
         # Loop through all convertible bonds to count tradable ones for the day
         for data in self.datas[1:]:
+            if len(data) == 0:
+                continue
             data_date = data.datetime.date(0).strftime("%Y-%m-%d")
             if current_date == data_date:
                 stock_name = data._name
@@ -280,6 +282,8 @@ class SimpleMAMultiDataStrategy(bt.Strategy):
 
         # Loop through convertible bonds and execute trading logic
         for data in self.datas[1:]:
+            if len(data) == 0:
+                continue
             data_date = data.datetime.date(0).strftime("%Y-%m-%d")
             if current_date != data_date:
                 continue

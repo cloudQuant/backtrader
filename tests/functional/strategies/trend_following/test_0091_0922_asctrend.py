@@ -590,27 +590,28 @@ def test_91_0091_0922_asctrend() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
+    # Baseline updated after iter71 ASCtrend condition fix (bb36fe91a) and history wraparound guard (0032e65df).
     assert metrics.get('bar_num') == 6089, f"bar_num: expected=6089, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 125, f"buy_count: expected=125, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 76, f"sell_count: expected=76, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 74, f"win_count: expected=74, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 127, f"loss_count: expected=127, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 201, f"total_trades: expected=201, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 201, f"trade_count: expected=201, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 74, f"won: expected=74, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 127, f"lost: expected=127, got={metrics.get('lost')!r}"
+    assert metrics.get('buy_count') == 138, f"buy_count: expected=138, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 127, f"sell_count: expected=127, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 105, f"win_count: expected=105, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 160, f"loss_count: expected=160, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 265, f"total_trades: expected=265, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 265, f"trade_count: expected=265, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 105, f"won: expected=105, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 160, f"lost: expected=160, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('signal_count'), 201.0, tol=2.010000e-04, key='signal_count')
+    _close(metrics.get('signal_count'), 265.0, tol=2.650000e-04, key='signal_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 995136.2999999992, tol=9.951363e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -4863.700000000768, tol=4.863700e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.48637000000008035, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 36.81592039800995, tol=3.681592e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 0.5304039701849942, tol=1.000000e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.5855200000000652, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), -18.851469132325274, tol=1.885147e-05, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -25.04922147940093, tol=2.504922e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), -2.4892638346154907, tol=2.489264e-06, key='sqn')
+    _close(metrics.get('final_value'), 996435.1, tol=9.964351e-01, key='final_value')
+    _close(metrics.get('net_pnl'), -3564.9000000000233, tol=3.564900e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -0.3564899999999982, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 39.62264150943396, tol=3.962264e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 0.7039365501204266, tol=1.000000e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.466039174968289, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), -11.817657811366148, tol=1.181766e-05, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), -19.03903838475773, tol=1.903904e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), -1.5446204409491575, tol=1.544620e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

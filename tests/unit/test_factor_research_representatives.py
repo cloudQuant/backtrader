@@ -12,7 +12,10 @@ import pandas as pd
 import pytest
 
 import backtrader as bt
-from backtrader.research.factor_indicator import FactorIndicator
+from backtrader.research.factor_indicator import (
+    FactorIndicator,
+    _factor_diagnostic_history_capture,
+)
 from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.research.alpha101 import get_alpha
 from tests.test_utils.alpha101_full_reference import formula_metadata, formula_source
@@ -1223,7 +1226,9 @@ def test_alpha013_near_zero_covariance_matches_float64_input_oracle(runonce):
     alpha013 = get_alpha(13)
 
     frames = _frames(periods=56)
-    strategy = _run_subset(frames, {"alpha13": alpha013}, runonce=runonce)
+    strategy = _run_subset(
+        frames, {"alpha13": alpha013}, runonce=runonce, capture_lifecycle=True
+    )
     _, trace = _formula_reference(13, frames)
     factor = strategy.factor_instances["alpha13"]
     names = tuple(frames)
@@ -1280,6 +1285,7 @@ def _run_subset(
     *,
     runonce=True,
     groups=None,
+    capture_lifecycle=False,
 ):
     cerebro = bt.Cerebro(stdstats=False, runonce=runonce)
     research = _research_spec(frames, groups=groups)
@@ -1289,6 +1295,9 @@ def _run_subset(
         name: _factor_spec(name, indicator) for name, indicator in factor_classes.items()
     }
     cerebro.addstrategy(FactorStrategy, research=research, factors=specs)
+    if capture_lifecycle:
+        with _factor_diagnostic_history_capture():
+            return cerebro.run()[0]
     return cerebro.run()[0]
 
 

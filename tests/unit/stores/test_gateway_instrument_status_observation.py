@@ -23,9 +23,14 @@ _SDK_QUERY = GatewayBtApi.query_instrument_status
 
 @pytest.fixture
 def rig(monkeypatch):
+    import bt_api_py
+
+    rel_yaml = "examples/services/gateway-strategy-client.example.yaml"
     root = Path(__file__).resolve().parents[4] / "bt_api_py"
+    if not (root / rel_yaml).exists():
+        root = Path(bt_api_py.__file__).resolve().parents[1]
     raw = yaml.safe_load(
-        (root / "examples/services/gateway-strategy-client.example.yaml").read_text()
+        (root / rel_yaml).read_text(encoding="utf-8")
     )
     raw["requested_operations"].append("direct.instrument_status")
     config = parse_gateway_strategy_config(raw)
@@ -84,7 +89,13 @@ def rig(monkeypatch):
     adapter = object.__new__(GatewayMarketAdapter)
     adapter._store, adapter._feed, adapter._api = store, feed, api
     adapter._name, adapter._key = "main", config.market_settings.subscriptions["main"].key
-    adapter._claim_lock, adapter._claims = threading.Lock(), {"main": feed}
+    adapter._lifecycle_lock = threading.RLock()
+    adapter._lease_drain_pending = False
+    adapter._closed = False
+    adapter._lease_mode = False
+    adapter._session_generation = 1
+    adapter._claim_lock, adapter._claims = threading.Lock(), {"main": adapter}
+    store._gateway_market_feed_claims = adapter._claims
     adapter._projector = SimpleNamespace(_client=client)
     feed._gateway_market_adapter = adapter
     feed._session_active = True

@@ -322,6 +322,8 @@ class VolatilityPivotStrategy(bt.Strategy):
 
     def _enough_history(self):
         idx = max(int(self.p.signal_bar), 1)
+        if len(self.h4) <= idx:
+            return False
         values = [self.upper_trend[-idx], self.lower_trend[-idx], self.buy_signal[-idx], self.sell_signal[-idx]]
         return any(self._present(v) for v in values)
 

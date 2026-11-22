@@ -451,26 +451,27 @@ def test_33_0033_1295_color_bb_candles() -> None:
 
     assert metrics, "no metrics derived"
 
-    assert metrics.get('bar_num') == 5926, f"bar_num: expected=5926, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 190, f"buy_count: expected=190, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 129, f"sell_count: expected=129, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 121, f"win_count: expected=121, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 197, f"loss_count: expected=197, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 319, f"total_trades: expected=319, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 318, f"trade_count: expected=318, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 121, f"won: expected=121, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 197, f"lost: expected=197, got={metrics.get('lost')!r}"
+    # Baseline updated after iter71 ColorBBCandles warmup minperiod fix (7956bbd83).
+    assert metrics.get('bar_num') == 6025, f"bar_num: expected=6025, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 193, f"buy_count: expected=193, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 131, f"sell_count: expected=131, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 123, f"win_count: expected=123, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 200, f"loss_count: expected=200, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 324, f"total_trades: expected=324, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 323, f"trade_count: expected=323, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 123, f"won: expected=123, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 200, f"lost: expected=200, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1003679.0000000026, tol=1.003679e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 3679.000000002561, tol=3.679000e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.36790000000026524, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 37.93103448275862, tol=3.793103e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.1400576230684132, tol=1.140058e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.7024601912468812, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 4.408991493444186, tol=4.408991e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 24.286975767398943, tol=2.428698e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), 0.522778088952992, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1003601.6000000024, tol=1.003602e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 3601.6000000024214, tol=3.601600e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.3601600000002314, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 37.96296296296296, tol=3.796296e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.1362389697114281, tol=1.136239e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.702514074165367, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 4.313524336372891, tol=4.313524e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 23.720774569884682, tol=2.372077e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.5111530728739281, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

@@ -31,17 +31,50 @@ package is reported once at session start so you can confirm the source.
 
 from __future__ import annotations
 
+import ctypes
 import glob
 import os
 
 import pytest
 import shutil
 import stat
+import subprocess
 import sys
+import threading
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent
 _LOCAL_BACKTRADER = _REPO_ROOT / "backtrader"
+
+
+def _ensure_local_sdk_on_path() -> None:
+    """Place the local bt_api_py checkout and its subpackages ahead of site-packages."""
+    candidates = [
+        Path("D:/bt_api_py"),
+        _REPO_ROOT.parent / "bt_api_py",
+    ]
+    sdk_root = next(
+        (p.resolve() for p in candidates if (p / "bt_api_py").is_dir() and (p / "bt_api").is_dir()),
+        None,
+    )
+    if sdk_root is None:
+        return
+    sub_srcs = sorted((sdk_root / "bt_api").glob("bt_api_*/src")) if (sdk_root / "bt_api").is_dir() else []
+    desired = [str(sdk_root)] + [str(p.resolve()) for p in sub_srcs]
+    for entry in reversed(desired):
+        if entry in sys.path:
+            sys.path.remove(entry)
+        sys.path.insert(0, entry)
+    for name in list(sys.modules):
+        if name == "bt_api_py" or name.startswith("bt_api_"):
+            mod = sys.modules.get(name)
+            mod_file = getattr(mod, "__file__", None) or ""
+            if mod_file and not mod_file.lower().startswith(str(sdk_root).lower()):
+                sys.modules.pop(name, None)
+
+
+if os.environ.get("BACKTRADER_USE_INSTALLED", "").strip() not in {"1", "true", "TRUE", "yes"}:
+    _ensure_local_sdk_on_path()
 
 
 def remove_readonly(func, path, excinfo):
@@ -99,6 +132,17 @@ def pytest_addoption(parser):
         "copy instead of the local repository copy. Equivalent to "
         "BACKTRADER_USE_INSTALLED=1.",
     )
+    try:
+        parser.addoption(
+            "--timeout",
+            action="store",
+            type=float,
+            default=float(os.environ.get("BT_TEST_TIMEOUT", "90")),
+            help="Per-test timeout in seconds (0 to disable; default: 90s).",
+        )
+    except ValueError:
+        # pytest-timeout plugin is installed and already registered --timeout.
+        pass
 
 
 # Heavy strategy regression tests dominate suite wall-time (measured ~94% of
@@ -244,6 +288,69 @@ def pytest_configure(config):
                     shutil.rmtree(path, onerror=remove_readonly)
             except Exception:
                 pass
+
+
+@pytest.fixture(autouse=True)
+def _per_test_timeout_watchdog(request):
+    """Fail any test that runs longer than --timeout seconds (default 90s)."""
+    timeout_s = getattr(request.config.option, "timeout", None)
+    if timeout_s is None:
+        try:
+            timeout_s = float(os.environ.get("BT_TEST_TIMEOUT", "90"))
+        except ValueError:
+            timeout_s = 90.0
+    if not timeout_s or timeout_s <= 0:
+        yield
+        return
+
+    target_tid = threading.get_ident()
+    done_event = threading.Event()
+    spawned_popens: list[subprocess.Popen] = []
+    orig_popen_init = subprocess.Popen.__init__
+
+    def _tracked_popen_init(self, *args, **kwargs):
+        orig_popen_init(self, *args, **kwargs)
+        spawned_popens.append(self)
+
+    subprocess.Popen.__init__ = _tracked_popen_init  # type: ignore[method-assign]
+
+    def _inject_async_timeout():
+        exc_type = ctypes.py_object(TimeoutError)
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_ulong(target_tid),
+            exc_type,
+        )
+
+    def _watchdog():
+        if done_event.wait(timeout_s):
+            return
+        for proc in list(spawned_popens):
+            try:
+                if proc.poll() is None:
+                    proc.kill()
+            except Exception:
+                pass
+        while not done_event.is_set():
+            _inject_async_timeout()
+            if done_event.wait(0.2):
+                break
+
+    watcher = threading.Thread(
+        target=_watchdog,
+        name=f"bt-test-timeout-{request.node.name}",
+        daemon=True,
+    )
+    watcher.start()
+    try:
+        yield
+    finally:
+        done_event.set()
+        subprocess.Popen.__init__ = orig_popen_init  # type: ignore[method-assign]
+        # Clear any pending async exception if it raced with normal completion.
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_ulong(target_tid),
+            None,
+        )
 
 
 @pytest.fixture(autouse=True)

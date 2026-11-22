@@ -126,5 +126,19 @@ def test_totalvalue_invalid_broker_value_degrades_to_zero(value):
     assert analyzer.rets["2021-01-01"] == 0.0
 
 
+def test_totalvalue_falls_back_to_strategy_datetime_when_data0_not_started():
+    """When data0 has not ticked yet, TotalValue uses strategy.datetime."""
+    analyzer = _build_total_value_analyzer(10000.0)
+    analyzer.datas[0].datetime.datetime.side_effect = IndexError("array index out of range")
+    analyzer.strategy = MagicMock()
+    analyzer.strategy.datetime.datetime.return_value = "2020-12-31"
+    analyzer.strategy._broker = analyzer._broker
+
+    with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
+        analyzer.next()
+
+    assert analyzer.rets["2020-12-31"] == 10000.0
+
+
 if __name__ == "__main__":
     test_run(main=True)
