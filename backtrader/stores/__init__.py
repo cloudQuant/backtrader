@@ -32,6 +32,7 @@ from .btapistore import BtApiProviderNotImplementedError as BtApiProviderNotImpl
 from .btapistore import BtApiStore as BtApiStore
 from .direct_btapi_store import DirectBtApiStore as DirectBtApiStore
 from .gateway_btapi_store import GatewayBtApiStore as GatewayBtApiStore
+from .service_readonly_store import ServiceReadOnlyStore as ServiceReadOnlyStore
 
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables

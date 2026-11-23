@@ -129,6 +129,18 @@ class GatewayBtApiStore(BtApiStore):
             **kwargs,
         )
 
+    def getdata(self, *args: Any, **kwargs: Any) -> Any:
+        """Return a GatewayBtApiFeed bound to this Gateway Store."""
+        from ..feeds.direct_btapi_feed import DirectBtApiFeed
+        from ..feeds.gateway_btapi_feed import GatewayBtApiFeed
+
+        data_cls = kwargs.get("data_cls", self.DataCls)
+        if data_cls is None:
+            kwargs["data_cls"] = GatewayBtApiFeed
+        elif isinstance(data_cls, type) and issubclass(data_cls, DirectBtApiFeed):
+            raise LiveCompositionError("RUN_BINDING_MISMATCH", detail="direct_feed_on_gateway_store")
+        return super().getdata(*args, **kwargs)
+
     @property
     def gateway_readiness_proof(self) -> Optional[GatewayReadinessProof]:
         """Most recently validated GatewayReadinessProof snapshot."""

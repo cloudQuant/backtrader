@@ -355,16 +355,19 @@ class GatewayExecutionStreamBrokerMixin:
     def _gateway_require_trade_qualification(self, data, instrument):
         """Ask the exact Gateway feed to qualify its latest delivered live tick."""
         from ..feed import DataClone
-        from ..feeds.btapifeed import BtApiFeed, FeedTradeQualification
+        from ..feeds.base_btapi_feed import BaseBtApiFeed
+        from ..feeds.btapifeed import FeedTradeQualification
+        from ..feeds.direct_btapi_feed import DirectBtApiFeed
 
         source = data.data if isinstance(data, DataClone) else data
-        if (not isinstance(source, BtApiFeed) or getattr(data, "replaying", False)
+        if (not isinstance(source, BaseBtApiFeed) or isinstance(source, DirectBtApiFeed)
+                or getattr(data, "replaying", False)
                 or getattr(source, "replaying", False)):
             _fail("FEED_NOT_TRADABLE")
         try:
-            if BtApiFeed.historical_warmup_active(source):
+            if BaseBtApiFeed.check_historical_warmup_active(source):
                 _fail("FEED_NOT_TRADABLE")
-            verdict = BtApiFeed.gateway_trade_qualification(
+            verdict = BaseBtApiFeed.check_gateway_trade_qualification(
                 source, expected_store=self.store, expected_instrument=instrument
             )
         except Exception:

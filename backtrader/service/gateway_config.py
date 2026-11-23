@@ -405,9 +405,11 @@ def start_gateway_store(store, *, data, broker, error_type):
     if data is not None:
         # The Feed's explicit adapter owns the Gateway subscription; Store
         # must never fall back to its direct MarketStreamPort path.
-        from ..feeds.btapifeed import BtApiFeed
+        from ..feeds.base_btapi_feed import BaseBtApiFeed
+        from ..feeds.direct_btapi_feed import DirectBtApiFeed
         enabled = getattr(data, "_gateway_market_enabled_for_store", None)
-        if not isinstance(data, BtApiFeed) or not callable(enabled) or enabled(store) is not True:
+        if (not isinstance(data, BaseBtApiFeed) or isinstance(data, DirectBtApiFeed)
+                or not callable(enabled) or enabled(store) is not True):
             raise error_type("GATEWAY_MARKET_FEED_UNAVAILABLE")
     if store._gateway_closed:
         raise error_type("GATEWAY_STORE_CLOSED")

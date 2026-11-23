@@ -22,7 +22,7 @@ from ..utils.redaction import redact_diagnostic as _redact_diagnostic
 from ..utils import date2num
 from ..utils.log_message import get_logger, throttled_warning
 from .barrier import BarEvidence
-from .livefeed import LiveFeedBase
+from .base_btapi_feed import BaseBtApiFeed
 from .market_tick_adapter import (
     MARKET_TICK_QUALIFICATION_REASONS,
     MarketTickAdapterError,
@@ -31,7 +31,6 @@ from .market_tick_adapter import (
     qualify_market_tick_event,
 )
 from ._btapi_cohort import (
-    LiveBarCohortFeedMixin,
     _COHORT_MISSING,
     _LIVE_COHORT_EXTRA_LINES,
     _tick_value,
@@ -662,7 +661,7 @@ def _causal_event_kwargs(event):
     }
 
 
-class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
+class BtApiFeed(BaseBtApiFeed):
     """Data feed that backfills and streams bars through BtApiStore.
 
     ``orderbook_as_ticks=True`` exposes each depth snapshot as a zero-volume
@@ -1978,7 +1977,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             detached_instrument, detached_result, unavailable, validate_timeout,
         )
         from ..service.gateway_market_adapter import GatewayMarketAdapter
+        from ..stores.base_btapi_store import BaseBtApiStore
         from ..stores.btapistore import BtApiStore
+        from ..stores.direct_btapi_store import DirectBtApiStore
 
         timeout = validate_timeout(timeout_seconds)
         adapter = self.__dict__.get("_gateway_market_adapter")
@@ -1992,7 +1993,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         store = self.store
         symbol = self._dataname
         try:
-            if (not isinstance(store, BtApiStore) or self._session_active is not True
+            if (not isinstance(store, BaseBtApiStore) or isinstance(store, DirectBtApiStore)
+                    or self._session_active is not True
                     or type(symbol) is not str or symbol not in (key.instrument_id, key.native_symbol)
                     or not adapter.matches(store, self, key)):
                 return unavailable(key)

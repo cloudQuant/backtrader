@@ -87,15 +87,22 @@ _MARKET_COHORT_EXPORTS = frozenset(
     }
 )
 
-_OPTIONAL_FEED_EXPORTS = frozenset({"BtApiFeed"})
+_OPTIONAL_FEED_EXPORT_MODULES = {
+    "BaseBtApiFeed": ".base_btapi_feed",
+    "BtApiFeed": ".btapifeed",
+    "DirectBtApiFeed": ".direct_btapi_feed",
+    "GatewayBtApiFeed": ".gateway_btapi_feed",
+    "ReplayBtApiFeed": ".replay_btapi_feed",
+}
+_OPTIONAL_FEED_EXPORTS = frozenset(_OPTIONAL_FEED_EXPORT_MODULES)
 _DEPRECATED_FEED_EXPORTS = frozenset({"BlazeData"})
 
 
 def __getattr__(name):
     """Resolve optional feed and SDK-backed exports on explicit access."""
 
-    if name in _OPTIONAL_FEED_EXPORTS:
-        module = _importlib.import_module(".btapifeed", __name__)
+    if name in _OPTIONAL_FEED_EXPORT_MODULES:
+        module = _importlib.import_module(_OPTIONAL_FEED_EXPORT_MODULES[name], __name__)
     elif name in _DEPRECATED_FEED_EXPORTS:
         module = _importlib.import_module(".blaze", __name__)
     elif name in _MARKET_COHORT_EXPORTS:

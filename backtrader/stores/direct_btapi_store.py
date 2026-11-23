@@ -124,6 +124,18 @@ class DirectBtApiStore(BtApiStore):
             self._direct_write_mode = False
             self._direct_write_routes = frozenset()
 
+    def getdata(self, *args: Any, **kwargs: Any) -> Any:
+        """Return a DirectBtApiFeed bound to this Direct Store."""
+        from ..feeds.direct_btapi_feed import DirectBtApiFeed
+        from ..feeds.gateway_btapi_feed import GatewayBtApiFeed
+
+        data_cls = kwargs.get("data_cls", self.DataCls)
+        if data_cls is None:
+            kwargs["data_cls"] = DirectBtApiFeed
+        elif isinstance(data_cls, type) and issubclass(data_cls, GatewayBtApiFeed):
+            raise LiveCompositionError("RUN_BINDING_MISMATCH", detail="gateway_feed_on_direct_store")
+        return super().getdata(*args, **kwargs)
+
     def gateway_instrument_status(self, route: Any, instrument: Any, *, timeout_seconds: float = 5.0) -> Any:
         """Gateway instrument status queries are unavailable on DirectBtApiStore."""
         raise LiveCompositionError("MODE_CONFLICT", detail="gateway_instrument_status_on_direct_store")
