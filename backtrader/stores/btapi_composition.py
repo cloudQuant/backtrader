@@ -270,9 +270,15 @@ class GatewayReadinessProof:
 
 
 def parse_gateway_readiness_proof(raw: Any) -> GatewayReadinessProof:
-    """Convert a mapping or existing GatewayReadinessProof into a validated DTO."""
+    """Convert a mapping or neutral GatewayReadinessProof DTO into a validated DTO."""
     if isinstance(raw, GatewayReadinessProof):
         return raw
+    if not isinstance(raw, Mapping):
+        to_mapping = getattr(raw, "to_mapping", None)
+        if callable(to_mapping):
+            mapped = to_mapping()
+            if isinstance(mapped, Mapping):
+                raw = mapped
     if not isinstance(raw, Mapping):
         raise LiveCompositionError(
             "GATEWAY_READINESS_COMPONENT_NOT_READY", detail="proof_not_mapping"
