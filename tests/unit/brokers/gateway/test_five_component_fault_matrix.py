@@ -31,7 +31,7 @@ from backtrader.stores import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-SAMPLE_GATEWAY_YAML = REPO_ROOT / "examples/live/007_ctp/sa_dual_ma_gateway/config.yaml"
+SAMPLE_GATEWAY_YAML = REPO_ROOT / "examples/live/007_ctp_gateway/sa_dual_ma_gateway/config.yaml"
 
 
 @pytest.fixture(autouse=True)

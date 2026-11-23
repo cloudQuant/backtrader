@@ -119,6 +119,8 @@ def normalize_shutdown_summary(summary: Any, *, mode: Optional[str] = None) -> O
         return translated
 
     # Direct / generic path
+    if status == "NOT_STARTED":
+        return translated
     if status in CANONICAL_SHUTDOWN_OUTCOMES:
         return translated
     if translated.get("write_in_flight") is True:

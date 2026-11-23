@@ -821,8 +821,16 @@ class BtApiDirectModeMixin:
         account_hash = self._direct_account_reference()
         binding = {"exchange": self._direct_exchange, "account_hash": account_hash}
         check_host = bool(self.p.check_host_path)
+        run_binding = getattr(self, "_run_binding", None)
+        explicit_direct_mode = (
+            "direct" if run_binding is not None and getattr(run_binding, "mode", None) == "direct" else None
+        )
         try:
-            state = ls.StrategyStateDir(self.p.strategy_dir, check_host_path=check_host)
+            state = ls.StrategyStateDir(
+                self.p.strategy_dir,
+                check_host_path=check_host,
+                expected_mode=explicit_direct_mode,
+            )
             first = False
         except ls.LiveStateNotInitialized:
             if not self.p.first_init:
@@ -832,7 +840,10 @@ class BtApiDirectModeMixin:
                 ) from None
             self._direct_require_flat_account(facts)
             state = ls.StrategyStateDir.initialize(
-                self.p.strategy_dir, account_binding=binding, check_host_path=check_host
+                self.p.strategy_dir,
+                account_binding=binding,
+                check_host_path=check_host,
+                mode=explicit_direct_mode,
             )
             first = True
         self._direct_state = state

@@ -9,7 +9,7 @@ python examples/backtest/007_ctp/mixbroker_single_symbol/run.py --config other.y
 
 | 文件 | 内容 |
 | --- | --- |
-| `single_symbol_mix_strategy.py` | 期货策略基类与 `SingleSymbolMixStrategy`，与 `examples/live/007_ctp/mixbroker_single_symbol/` 中的同名文件相同 |
+| `single_symbol_mix_strategy.py` | 期货策略基类与 `SingleSymbolMixStrategy`，与 `examples/live/007_ctp_direct/mixbroker_single_symbol_direct/` 与 `examples/live/007_ctp_gateway/mixbroker_single_symbol_gateway/` 中的同名文件相同 |
 | `run.py` | 配置加载、`TradeLogger`、内存行情构造、`MixBroker` 回测入口 |
 | `config.yaml` | Broker、策略参数和内置行情场景（`scenario`） |
 

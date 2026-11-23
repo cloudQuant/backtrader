@@ -5,7 +5,7 @@
 | 类别 | 定义 | 目录 | 运行层 |
 |---|---|---|---|
 | **backtest** | 只做回测/离线分析，没有实盘通道 | `backtest/<id>/` | 离线 |
-| **live** | 只做实盘（穿透认证或实盘示例），没有回测通道 | `live/000_live_certification/<venue>_penetration/cases/<ID>/`、`live/007_ctp/<strategy>/` | 干跑自检 + `--live`；007 为 `--dry-run` |
+| **live** | 只做实盘（穿透认证或实盘示例），没有回测通道 | `live/000_live_certification/<venue>_penetration/cases/<ID>/`、`live/007_ctp_direct/<strategy>_direct/`、`live/007_ctp_gateway/<strategy>_gateway/` | 干跑自检 + `--live`；007 为 `--dry-run` |
 | **unified** | 回测与实盘一体，**由 `config.yaml` 的 `entry.tier` 选层** | `unified/<id>/` | `dry / replay / live` |
 
 **交易模式现状（旧接口）**：本索引中的 `dry / replay / live`、`entry.tier` 和
@@ -35,7 +35,7 @@
 | `014_1_ctp_options_lowfreq` | 同上 | ✅ | ✅ `run_live_observe()` | 同上（严格 feed 密封写 drill，另需 `--drill`） | ✅ |
 | `014_2_ctp_options_midfreq` | 同上 | ✅ | ✅ live 层按契约只观察，`--allow-write` 首条语句即拒 | 无（本目录策略无下单路径） | ✅ |
 | `015_ctp_options_highfreq` | 同上 | ✅ | ✅ 同上 | 无（`write_tier_not_implemented_for_decision_only_strategy`） | ✅ |
-| `007_ctp` | 已拆分：回测→`backtest/007_ctp`，实盘→`live/007_ctp`；退役 runtime 残留仅在本地 `archived/` | n/a | n/a | n/a | n/a |
+| `007_ctp` | 已拆分：回测→`backtest/007_ctp`，实盘 Direct→`live/007_ctp_direct`，实盘 Gateway→`live/007_ctp_gateway`；退役 runtime 残留仅在本地 `archived/` | n/a | n/a | n/a | n/a |
 | `052_provider_demo_roundtrip` | `run.py` / `--config config.okx.yaml` / `--config config.simnow.yaml`（离线 schema 校验） | 未声明（CLI `--live` 选层） | `BLOCKED / write_not_authorized`（不读凭据） | `--live --allow-write` + 有界 `DirectWriteGrant`（Binance USD-M 挂/撤、OKX SWAP IOC 开/平、SimNow registered-sim 1 手开/平，同一策略源码） | ⚠️ crypto 配置可复制；SimNow 需本仓 013_3 helper 与私有 runtime 配置（checkout-bound） |
 
 选层真值表、`backtest` 别名、`entry_tier` 与既有 `tier`（结果层级标签）之别，见各目录 README 的
@@ -73,8 +73,8 @@
 `BLOCKED / optional16_acceptance_retired`（**不得拆到 `live/optional16/`**）。
 命令 `python cases/<ID>/run.py` 干跑 / `--live [--allow-write] [--allow-dangerous]`；
 私有 `.env` 与真实 `config.yaml` 不进仓库，因此副本内以 `env_keys_missing` 阻塞属设计结果。
-`live/007_ctp/`：11 个 CTP SimNow 策略文件夹（四件套，自包含；其中 10 个与 `backtest/007_ctp` 同名文件夹的策略文件相同）；`--dry-run` 离线校验配置，
-不带 `--dry-run` 时在读取凭据或连接前以 `BLOCKED`（退出码 2）拒绝，因当前无 CTP SDK 组合。
+`live/007_ctp_direct/`：11 个 CTP SimNow Direct 直连策略文件夹（四件套，自包含，显式 `mode: direct`，经 `create_direct_store` 装配 `DirectBtApiStore`/`DirectBtApiFeed`/`DirectBtApiBroker`；其中 10 个与 `backtest/007_ctp` 同名文件夹的策略文件相同）；`--dry-run` 离线校验配置。
+`live/007_ctp_gateway/`：11 个 CTP SimNow Gateway 策略文件夹（四件套，自包含，显式 `mode: gateway`，经 `create_gateway_store` 装配 `GatewayBtApiStore`/`GatewayBtApiFeed`/`GatewayBtApiBroker` 并连接独立 Gateway 五组件服务）；`--dry-run` 离线校验配置。
 
 ## 4. 旧→新映射与遗留登记
 
@@ -85,7 +85,7 @@
 | `examples/001…017`（回测类同名目录） | `examples/backtest/<同名>` |
 | `examples/012_1…015`、`examples/007_ctp` | `examples/unified/<同名>` |
 | `examples/000_live_certification/**` | `examples/live/000_live_certification/**` |
-| `examples/unified/007_ctp`（回测/实盘一体） | 回测 → `examples/backtest/007_ctp`；实盘 → `examples/live/007_ctp`（2026-11-05 拆分） |
+| `examples/unified/007_ctp`（回测/实盘一体） | 回测 → `examples/backtest/007_ctp`；实盘 Direct → `examples/live/007_ctp_direct`；实盘 Gateway → `examples/live/007_ctp_gateway`（2026-11-23 拆分为双独立目录） |
 | `examples/sample*`、`clean_bond_data.py`、`cross_exchange_replay_rules.py`、`strategy_candidate_approval.py`、`demo-approval-trust-root.pem`、`iteration41-runtime-inventory.json` | `examples/_support/…` |
 | `examples/113013.csv`、`bond_index_000000.csv`、`DOGEUSDT_15m_*.csv`、`113013_strategy_result.png` | 数据并入 `tests/datas/…`（`examples/data/` 已删除）；结果图归对应示例的 `reports/reference/` |
 

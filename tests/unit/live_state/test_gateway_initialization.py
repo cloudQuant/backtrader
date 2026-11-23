@@ -19,7 +19,7 @@ from backtrader.live_state.gateway_initialization import (
 from backtrader.live_state.state_dir import StrategyStateDir
 
 ROOT = Path(__file__).resolve().parents[3]
-RUNNER_DIR = ROOT / 'examples/live/007_ctp'
+RUNNER_DIR = ROOT / 'examples/live/007_ctp_gateway'
 
 
 def _mkdir_owner_only(path: Path) -> None:

@@ -205,6 +205,11 @@ tests/functional/**/backtest_result.json
 # files locally because they fence interrupted initialization and state writes.
 /examples/live/007_ctp/*/.gateway_example_init.reserve
 /examples/live/007_ctp/*/.state-coordination.lock
+/examples/live/007_ctp_direct/*/.state-coordination.lock
+/examples/live/007_ctp_direct/*/state/
+/examples/live/007_ctp_gateway/*/.gateway_example_init.reserve
+/examples/live/007_ctp_gateway/*/.state-coordination.lock
+/examples/live/007_ctp_gateway/*/state/
 # The 007 CTP runtime directories carry their own .gitignore; the 000 suites
 # are listed here because one ignored config.yaml sits at each suite root.
 account_config.yaml

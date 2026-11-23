@@ -9,7 +9,7 @@ python examples/backtest/007_ctp/tickbroker_5s_pair_arbitrage/run.py --config ot
 
 | 文件 | 内容 |
 | --- | --- |
-| `pair_spread_strategy.py` | 期货策略基类与 `PairSpreadStrategy`，与 `examples/live/007_ctp/tickbroker_5s_pair_arbitrage/` 中的同名文件相同 |
+| `pair_spread_strategy.py` | 期货策略基类与 `PairSpreadStrategy`，与 `examples/live/007_ctp_direct/tickbroker_5s_pair_arbitrage_direct/` 与 `examples/live/007_ctp_gateway/tickbroker_5s_pair_arbitrage_gateway/` 中的同名文件相同 |
 | `run.py` | 配置加载、`TradeLogger`、内存行情构造、`TickBroker` 回测入口 |
 | `config.yaml` | Broker、策略参数和内置行情场景（`scenario`） |
 
