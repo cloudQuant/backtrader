@@ -250,6 +250,16 @@ def _parser() -> argparse.ArgumentParser:
     p_clear.add_argument("--trading-day", dest="trading_day", required=True)
     p_clear.add_argument("--window-start", dest="window_start", required=True)
     p_clear.add_argument("--window-end", dest="window_end", required=True)
+
+    p_export = sub.add_parser(
+        "export-legacy-execution-routing",
+        help="read-only JSON export of retired path 5 state/execution_routing.sqlite (never mutates DB)",
+    )
+    p_export.add_argument("strategy_dir")
+    p_export.add_argument("--output", default=None)
+    p_export.add_argument("--operator", default=None)
+    p_export.add_argument("--reason", default=None)
+    p_export.add_argument("--approval-ref", dest="approval_ref", default=None)
     return parser
 
 
@@ -295,6 +305,17 @@ def _run(args: argparse.Namespace) -> dict:
             action(operator=args.operator, reason=args.reason),
             ok=True,
         )
+    if args.command == "export-legacy-execution-routing":
+        from .legacy_export import export_legacy_execution_routing
+
+        exported = export_legacy_execution_routing(
+            args.strategy_dir,
+            output_path=args.output,
+            operator=args.operator,
+            reason=args.reason,
+            approval_ref=args.approval_ref,
+        )
+        return dict(exported, ok=True)
     if args.command == "waiting-clear":
         identity = load_identity(args.strategy_dir, check_host_path=True)
         store = WaitingOrderStore(args.strategy_dir, identity.strategy_uuid)

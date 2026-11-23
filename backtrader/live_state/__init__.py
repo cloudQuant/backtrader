@@ -42,6 +42,13 @@ from .identity import (
     rebind_identity,
     stamp_identity_mode,
 )
+from .legacy_export import (
+    APPROVAL_AUTHORITY,
+    GATEWAY_EXECUTION_ROUTING_DB_FILENAME,
+    LEGACY_EXECUTION_ROUTING_DB_FILENAME,
+    export_legacy_execution_routing,
+    verify_mode_migration_preconditions,
+)
 from .pending import (
     ACTIVE_STATUSES,
     MANUAL_CONCLUSIONS,
@@ -60,13 +67,16 @@ from .waiting import CALENDAR_DISPOSITIONS, WAITING_STATUSES, WaitingOrderStore
 
 __all__ = (
     "ACTIVE_STATUSES",
+    "APPROVAL_AUTHORITY",
     "AuditLog",
     "CALENDAR_DISPOSITIONS",
     "BoundPreDispatchPort",
     "ERROR_CODES",
     "FileLock",
+    "GATEWAY_EXECUTION_ROUTING_DB_FILENAME",
     "IDENTITY_MODES",
     "IDENTITY_MODE_VERSION",
+    "LEGACY_EXECUTION_ROUTING_DB_FILENAME",
     "LegacyPositions",
     "LiveStateCorrupt",
     "LiveStateError",
@@ -93,6 +103,7 @@ __all__ = (
     "atomic_write_json",
     "atomic_write_text",
     "bind_account",
+    "export_legacy_execution_routing",
     "hash_account_id",
     "initialize_identity",
     "load_identity",
@@ -100,4 +111,5 @@ __all__ = (
     "read_json",
     "rebind_identity",
     "stamp_identity_mode",
+    "verify_mode_migration_preconditions",
 )
