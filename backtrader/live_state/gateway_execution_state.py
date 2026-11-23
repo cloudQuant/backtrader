@@ -232,12 +232,118 @@ def verify_gateway_trade_attribution(event, record, binding) -> bool:
     return True
 
 
+def _execution_parent_child_key(parent_ref: str) -> str:
+    child_id = f"{parent_ref}:c0"
+    digest = hashlib.sha256(f"{parent_ref}:{child_id}".encode("utf-8")).hexdigest()[:24]
+    return f"exec-child-{digest}"
+
+
+def _expected_execution_parent_child_digest(payload: dict, child_key: str) -> str:
+    """Recompute the canonical child OrderRequest digest matching ExecutionParentDispatcher."""
+    from bt_api_base.gateway_direct_protocol import gateway_payload_digest
+    from bt_api_py._contracts.models import OrderRequest, OrderType, Side
+
+    offset = str(payload.get("offset") or "open").lower()
+    side_str = str(payload["side"]).lower()
+    raw_type = str(payload.get("order_type") or "limit").lower()
+    order_type = OrderType.LIMIT if raw_type == "limit" else OrderType(raw_type)
+    raw_price = payload.get("price")
+    order_req = OrderRequest(
+        symbol=str(payload["symbol"]),
+        side=Side.BUY if side_str == "buy" else Side.SELL,
+        order_type=order_type,
+        quantity=Decimal(str(payload["quantity"])),
+        account_id=str(payload["account_id"]),
+        client_order_id=child_key,
+        idempotency_key=child_key,
+        price=None if raw_price is None else Decimal(str(raw_price)),
+        quantity_unit=str(payload.get("quantity_unit") or "contracts"),
+        time_in_force="DAY",
+        offset=offset,
+        position_side=payload.get("position_side"),
+        reduce_only=offset in ("close", "close_today", "close_yesterday"),
+        exchange_id=payload.get("exchange_id"),
+    )
+    return gateway_payload_digest(order_req.to_dict())
+
+
+def _resolve_execution_parent_child_route(state: dict, request_key: str):
+    if (
+        state.get("version") != 8
+        or type(request_key) is not str
+        or not request_key.startswith("exec-child-")
+    ):
+        return None, None
+    routes = state["gateway"].get("execution_routes") or {}
+    for parent_key, route in routes.items():
+        if (
+            type(route) is dict
+            and route.get("kind") == "EXECUTION_PARENT"
+            and type(route.get("parent_ref")) is str
+            and route["parent_ref"]
+            and _execution_parent_child_key(route["parent_ref"]) == request_key
+        ):
+            return parent_key, route
+    return None, None
+
+
+def _execution_parent_child_event(
+    event: GatewayExecutionStreamEvent,
+    state: dict,
+    binding,
+    parent_key: str,
+    parent_route: dict,
+) -> dict:
+    entry = state["gateway"]["intents"].get(parent_key)
+    if entry is None:
+        raise ValueError("EXECUTION_EVENT_ORPHAN")
+    intent = gateway_intent_from_mapping(entry["intent"], expected_binding=binding)
+    obs = event.observation
+    payload = json.loads(intent.canonical_payload)
+    expected_digest = _expected_execution_parent_child_digest(payload, event.request_key)
+    if (
+        type(event.command_principal) is not str
+        or not event.command_principal
+        or event.command_principal == binding.principal
+        or event.command_digest != expected_digest
+        or type(event.reservation_id) is not str
+        or not event.reservation_id
+        or obs.account_scope != binding.account_scope
+        or obs.instrument.native_symbol != payload["symbol"]
+    ):
+        raise ValueError("EXECUTION_EVENT_BINDING_MISMATCH")
+    proof = obs.trade_attribution
+    if proof is not None:
+        from bt_api_base.direct_write_protocol import DirectExecutionEventKind
+        from bt_api_base.gateway_execution_stream_protocol import GatewayTradeAttribution
+
+        if type(proof) is not GatewayTradeAttribution:
+            raise ValueError("EXECUTION_TRADE_ATTRIBUTION_MISMATCH")
+        proof = GatewayTradeAttribution.from_mapping(proof.to_mapping())
+        if (
+            obs.kind is not DirectExecutionEventKind.TRADE
+            or proof.account_scope != binding.account_scope
+            or proof.strategy_scope != binding.strategy_scope
+            or proof.fact_digest != event.fact_digest
+            or proof.reservation_id != event.reservation_id
+            or proof.command_digest != event.command_digest
+            or proof.anchor_sequence >= event.sequence
+            or proof.venue_key_digest != obs.venue_key_digest
+            or proof.venue_key_digest not in obs.identity_key_digests
+        ):
+            raise ValueError("EXECUTION_TRADE_ATTRIBUTION_MISMATCH")
+    return event.to_mapping(schema_version=3)
+
+
 def _event(event: GatewayExecutionStreamEvent, state: dict, binding) -> dict:
     if type(event) is not GatewayExecutionStreamEvent:
         raise ValueError("EXECUTION_EVENT_INVALID")
     event = GatewayExecutionStreamEvent.from_mapping(
         event.to_mapping(schema_version=3), schema_version=3
     )
+    parent_key, parent_route = _resolve_execution_parent_child_route(state, event.request_key)
+    if parent_key is not None:
+        return _execution_parent_child_event(event, state, binding, parent_key, parent_route)
     from .gateway_execution_route import require_route
     require_route(state, event.request_key, {"GATEWAY", "RISK"})
     entry = state["gateway"]["intents"].get(event.request_key)

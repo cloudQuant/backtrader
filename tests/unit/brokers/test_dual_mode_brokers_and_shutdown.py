@@ -445,3 +445,47 @@ def test_s10_gateway_and_direct_broker_get_shutdown_summary(tmp_path):
     ds = d_broker.get_shutdown_summary()
     assert ds["status"] == "STOPPED"
     assert ds["mode"] == "direct"
+
+
+def test_gateway_auto_bind_uses_identity_check_on_empty_multi_symbol_feeds(tmp_path, monkeypatch):
+    """Regression: LineRoot.__eq__ raises IndexError when len(data) == 0 on multi-symbol feeds."""
+    from backtrader.brokers._btapi_gateway_stream import GatewayExecutionStreamError
+
+    class _EmptyLineFeed:
+        def __init__(self, symbol: str) -> None:
+            self._name = symbol
+            self.p = SimpleNamespace(dataname=symbol)
+
+        def __len__(self) -> int:
+            return 0
+
+        def __eq__(self, other: object) -> bool:
+            raise IndexError("Index 0 out of range for data feed")
+
+    g_store, _ = _make_gateway_store(tmp_path)
+    monkeypatch.setattr(type(g_store), "is_connected", property(lambda _self: True))
+    g_store._gateway_strategy_config = SimpleNamespace(
+        instruments_by_ref={
+            "rb2701": SimpleNamespace(native_symbol="rb2701"),
+            "hc2701": SimpleNamespace(native_symbol="hc2701"),
+        }
+    )
+    g_broker = g_store.getbroker()
+    feed_a = _EmptyLineFeed("rb2701")
+    feed_b = _EmptyLineFeed("hc2701")
+    strategy = SimpleNamespace(broker=g_broker, datas=[feed_a, feed_b])
+
+    # Must not invoke LineRoot.__eq__ (which would raise IndexError on len==0 feeds).
+    assert g_broker._gateway_auto_bind(strategy) is None
+    assert g_broker._gateway_waiting_for_feed is True
+
+    # Two refs matching the exact same feed object must still fail closed.
+    g_store._gateway_strategy_config = SimpleNamespace(
+        instruments_by_ref={
+            "rb2701": SimpleNamespace(native_symbol="rb2701"),
+            "rb2701_dup": SimpleNamespace(native_symbol="rb2701"),
+        }
+    )
+    strategy_dup = SimpleNamespace(broker=g_broker, datas=[feed_a])
+    with pytest.raises(GatewayExecutionStreamError, match="GATEWAY_STREAM_INSTRUMENT_SCOPE"):
+        g_broker._gateway_auto_bind(strategy_dup)

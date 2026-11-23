@@ -298,6 +298,31 @@ class GatewayNotificationsBrokerMixin:
             _error("MODE_CONFLICT")
         return super().bind_strategy_notification_recovery(strategy, *args, **kwargs)
 
+    @staticmethod
+    def _resolve_notification_order_key(binding, raw_key, candidate_keys=None):
+        keys = binding.orders if candidate_keys is None else candidate_keys
+        if raw_key in keys:
+            return raw_key
+        if type(raw_key) is str and raw_key.startswith("exec-child-"):
+            load_route = getattr(binding.host, "load_execution_route", None)
+            if callable(load_route):
+                from ..live_state.gateway_execution_state import _execution_parent_child_key
+
+                for key in keys:
+                    try:
+                        route = load_route(key)
+                    except Exception:
+                        continue
+                    if (
+                        route is not None
+                        and getattr(route, "kind", None) == "EXECUTION_PARENT"
+                        and type(getattr(route, "parent_ref", None)) is str
+                        and route.parent_ref
+                        and _execution_parent_child_key(route.parent_ref) == raw_key
+                    ):
+                        return key
+        return raw_key
+
     def arm_gateway_notification_state(self, strategy, through_sequence):
         binding = self._gateway_binding(strategy, required=True)
         if type(through_sequence) is not int or through_sequence <= 0:
@@ -319,7 +344,8 @@ class GatewayNotificationsBrokerMixin:
         if not events or events[0].sequence != through_sequence:
             _error("SEQUENCE")
         event = events[0]
-        if event.request_key not in binding.orders or checkpoint.epoch is None:
+        order_key = self._resolve_notification_order_key(binding, event.request_key)
+        if order_key not in binding.orders or checkpoint.epoch is None:
             _error("ORDER_BINDING")
         binding.armed, binding.arm_checkpoint = event, checkpoint
         return event
@@ -351,8 +377,9 @@ class GatewayNotificationsBrokerMixin:
         ):
             _error("METADATA_SCOPE")
         key, date, time = _metadata_event(binding.armed)
-        order = binding.orders.get(binding.armed.request_key)
-        if order is None or self._gateway_request(binding, order) != binding.armed.request_key:
+        order_key = self._resolve_notification_order_key(binding, binding.armed.request_key)
+        order = binding.orders.get(order_key)
+        if order is None or self._gateway_request(binding, order) != order_key:
             _error("ORDER_BINDING")
         current = binding.host.load_execution_checkpoint()
         next_events = binding.host.read_execution_events(limit=1)
@@ -582,7 +609,8 @@ class GatewayNotificationsBrokerMixin:
         _reject_metadata_notification(binding.armed)
         if not orders:
             _error("EVENT_SCOPE")
-        if any(self._gateway_request(binding, o) != binding.armed.request_key for o in orders):
+        order_key = self._resolve_notification_order_key(binding, binding.armed.request_key)
+        if any(self._gateway_request(binding, o) != order_key for o in orders):
             _error("EVENT_SCOPE")
         binding.fault = "restart_required"
         # Build once to resolve stable object keys, then attach notification identities
@@ -752,9 +780,14 @@ class GatewayNotificationsBrokerMixin:
     def _gateway_validate_fee_inner(self, binding, order, corrections, done):
         if binding.fault is not None or binding.receipt is not None:
             _error("FAULT")
+        armed_key = (
+            None
+            if binding.armed is None
+            else self._resolve_notification_order_key(binding, binding.armed.request_key)
+        )
         if (
             binding.armed is None
-            or self._gateway_request(binding, order) != binding.armed.request_key
+            or self._gateway_request(binding, order) != armed_key
         ):
             _error("EVENT_SCOPE")
         _reject_metadata_notification(binding.armed)
@@ -936,7 +969,10 @@ class GatewayNotificationsBrokerMixin:
             _error("METADATA_CHECKPOINT_INVALID")
         event = events[0]
         key, date, time = _metadata_event(event)
-        original_key = metadata["originals"].get(event.request_key)
+        order_key = self._resolve_notification_order_key(
+            binding, event.request_key, metadata["originals"]
+        )
+        original_key = metadata["originals"].get(order_key)
         state = _validate(snapshot, _sources(binding.feeds))
         if type(original_key) is not str or original_key not in state["orders"]:
             _error("METADATA_CHECKPOINT_INVALID")
@@ -948,10 +984,10 @@ class GatewayNotificationsBrokerMixin:
         if not _metadata_maps_match(info, key, date, time, metadata["version"]):
             _error("METADATA_CHECKPOINT_INVALID")
         if require_order:
-            order = binding.orders.get(event.request_key)
+            order = binding.orders.get(order_key)
             if (
                 order is None
-                or self._gateway_request(binding, order) != event.request_key
+                or self._gateway_request(binding, order) != order_key
                 or not _metadata_maps_match(order.info, key, date, time, metadata["version"])
             ):
                 _error("METADATA_CHECKPOINT_INVALID")
@@ -1069,8 +1105,13 @@ class GatewayNotificationsBrokerMixin:
             ):
                 _error("RESTORE_INVALID")
             delegated = getattr(binding.host, "load_delegated_command", None)
-            if (binding.host.load_record(request_key) is None
-                    and (not callable(delegated) or delegated(request_key) is None)):
+            load_route = getattr(binding.host, "load_execution_route", None)
+            exec_route = load_route(request_key) if callable(load_route) else None
+            if (
+                binding.host.load_record(request_key) is None
+                and (not callable(delegated) or delegated(request_key) is None)
+                and (exec_route is None or getattr(exec_route, "kind", None) != "EXECUTION_PARENT")
+            ):
                 # A validated reserve denial has no Gateway record; it was
                 # finalized locally as Rejected with a durable reject: notice.
                 # (An order placed through Risk has a delegated command record.)
@@ -1162,10 +1203,15 @@ class GatewayNotificationsBrokerMixin:
         events = binding.host.read_execution_events(
             after_sequence=checkpoint.applied_sequence - 1, limit=1
         )
+        event_order_key = (
+            self._resolve_notification_order_key(binding, events[0].request_key, originals)
+            if events
+            else None
+        )
         if (
             not events
             or events[0].sequence != checkpoint.applied_sequence
-            or events[0].request_key not in originals
+            or event_order_key not in originals
             or (not is_metadata and events[0].observation.trade_metadata_only is True)
         ):
             _error("RESTORE_INVALID")
@@ -1174,7 +1220,7 @@ class GatewayNotificationsBrokerMixin:
         try:
             if is_metadata:
                 key, date, time = _metadata_event(events[0])
-                if not _metadata_maps_match(originals[events[0].request_key].info,
+                if not _metadata_maps_match(originals[event_order_key].info,
                                             key, date, time, metadata["version"]):
                     _error("RESTORE_INVALID")
             notices = (
@@ -1245,7 +1291,7 @@ class GatewayNotificationsBrokerMixin:
                 ):
                     _error("RESTORE_INVALID")
             for order in qorders:
-                if order.ref != originals[events[0].request_key].ref:
+                if order.ref != originals[event_order_key].ref:
                     _error("RESTORE_INVALID")
         except BaseException:
             binding.armed = binding.arm_checkpoint = None

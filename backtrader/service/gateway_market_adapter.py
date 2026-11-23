@@ -1,6 +1,7 @@
 """Bind one BT feed to one explicitly configured SDK Gateway subscription."""
 from __future__ import annotations
 
+import logging
 import math
 import threading
 import time
@@ -320,10 +321,14 @@ class GatewayMarketAdapter:
                 error = number("max_error_bound_ms", 500, 0.001, 60000)
                 timeout = number("timeout_seconds", 2, 0.001, 30)
                 self._clock_interval = number("refresh_interval_seconds", 300, 1, 3600)
-                jump = options.get("max_wall_jump_ns", 10_000_000)
-                self._clock_verifier = GatewayClockVerifier(ClockVerifier(
+                verifier = ClockVerifier(
                     servers=tuple(servers), validity_seconds=validity,
-                    max_error_bound_ms=error, timeout_seconds=timeout), max_wall_jump_ns=jump)
+                    max_error_bound_ms=error, timeout_seconds=timeout)
+                if "max_wall_jump_ns" in options:
+                    self._clock_verifier = GatewayClockVerifier(
+                        verifier, max_wall_jump_ns=options["max_wall_jump_ns"])
+                else:
+                    self._clock_verifier = GatewayClockVerifier(verifier)
                 self._clock_owned = True
             else:
                 raise ValueError("GATEWAY_CLOCK_CONFIGURATION_INVALID")
@@ -564,6 +569,12 @@ class GatewayMarketAdapter:
 
     def _start_owned_clock(self):
         if self._clock_owned and not self._clock_started:
+            refresh = getattr(self._clock_verifier, "refresh", None)
+            if callable(refresh):
+                try:
+                    refresh()
+                except Exception:
+                    pass
             self._clock_verifier.start_background_refresh(self._clock_interval)
             self._clock_started = True
 
@@ -1118,6 +1129,12 @@ class GatewayMarketAdapter:
                     or self._status_reason(status) is not None
                     or type(result.expires_monotonic_ns) is not int
                     or time.monotonic_ns() >= result.expires_monotonic_ns):
+                logging.getLogger("bt_api_ctp").warning(
+                    "gateway market qualify_latest rejected: ok=%s reason=%s status_reason=%s",
+                    getattr(result, "ok", None),
+                    getattr(result, "reason", None),
+                    self._status_reason(status),
+                )
                 return None
             key = self._key.to_dict()
             key["instrument"] = MappingProxyType(key["instrument"])

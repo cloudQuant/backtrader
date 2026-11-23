@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import logging
 import math
 import os
 import threading
@@ -154,7 +155,9 @@ class GatewayExecutionStreamBrokerMixin:
         for ref, instrument in configured.items():
             candidates = [data for data in strategy.datas
                           if self._position_key(data) in (ref, instrument.native_symbol)]
-            if len(candidates) != 1 or candidates[0] in data_by_ref.values():
+            if len(candidates) != 1 or any(
+                existing is candidates[0] for existing in data_by_ref.values()
+            ):
                 _fail("INSTRUMENT_SCOPE")
             data_by_ref[ref] = candidates[0]
         # Framework snapshot/restore requires every bound feed to have its
@@ -376,6 +379,18 @@ class GatewayExecutionStreamBrokerMixin:
                 or verdict.live is not True or verdict.reasons != ()
                 or type(verdict.expires_monotonic_ns) is not int
                 or time.monotonic_ns() >= verdict.expires_monotonic_ns):
+            _logger.warning(
+                "gateway trade qualification failed: ok=%s live=%s reasons=%s",
+                getattr(verdict, "ok", None),
+                getattr(verdict, "live", None),
+                getattr(verdict, "reasons", None),
+            )
+            logging.getLogger("bt_api_ctp").warning(
+                "gateway trade qualification failed: ok=%s live=%s reasons=%s",
+                getattr(verdict, "ok", None),
+                getattr(verdict, "live", None),
+                getattr(verdict, "reasons", None),
+            )
             _fail("FEED_NOT_TRADABLE")
         from bt_api_base.market_protocol import MarketSubscriptionKey
         ref = verdict.dispatch_market_ref
@@ -663,6 +678,10 @@ class GatewayExecutionStreamBrokerMixin:
         for prior_key, prior_order in notice.orders.items():
             if prior_order.data is not order.data:
                 continue
+            if "reject:" + prior_key in local_notices or "cancel:" + prior_key in local_notices:
+                continue  # finalized locally (never sent)
+            if _bt_terminal(prior_order):
+                continue  # its outcome is known; a stale local record cannot block
             prior_route = binding.host.load_execution_route(prior_key)
             if prior_route is not None and prior_route.kind in ("PENDING", "EXECUTION_PARENT"):
                 _fail("ORDER_RECONCILE_REQUIRED")
@@ -672,10 +691,6 @@ class GatewayExecutionStreamBrokerMixin:
                 # in-flight commands are covered. A trusted cross-generation
                 # contract is required before another order on this feed.
                 _fail("ORDER_RECONCILE_REQUIRED")
-            if "reject:" + prior_key in local_notices or "cancel:" + prior_key in local_notices:
-                continue  # finalized locally (never sent)
-            if _bt_terminal(prior_order):
-                continue  # its outcome is known; a stale local record cannot block
             record = binding.host.load_record(prior_key)
             context = binding.host.load_context(prior_key)
             if (record is None or record.state == "UNKNOWN" or not record.generation_current
@@ -1634,6 +1649,58 @@ class GatewayExecutionStreamBrokerMixin:
             return None
         return GatewayPendingContext(entry["marker_id"], entry["local_seq"], entry["bt_ref"])
 
+    @staticmethod
+    def _resolve_execution_parent_child_key(binding, notice, request_key):
+        if request_key in notice.orders:
+            return None
+        if type(request_key) is not str or not request_key.startswith("exec-child-"):
+            return None
+        from ..live_state.gateway_execution_state import _execution_parent_child_key
+
+        for parent_key in notice.orders:
+            route = binding.host.load_execution_route(parent_key)
+            if (
+                route is not None
+                and route.kind == "EXECUTION_PARENT"
+                and type(route.parent_ref) is str
+                and route.parent_ref
+                and _execution_parent_child_key(route.parent_ref) == request_key
+            ):
+                return parent_key
+        return None
+
+    def _gateway_execution_parent_event_binding(self, binding, event, order, parent_key):
+        from ..live_state.gateway_execution_state import _expected_execution_parent_child_digest
+
+        intent, _, request = self._gateway_stream_order(
+            binding, parent_key, order, allow_unreserved=True
+        )
+        obs = event.observation
+        feed_ref = next(ref for ref, data in binding.feeds.items() if data is order.data)
+        payload = json.loads(intent.canonical_payload)
+        expected_digest = _expected_execution_parent_child_digest(payload, event.request_key)
+        if (
+            type(event.command_principal) is not str
+            or not event.command_principal
+            or event.command_principal == intent.binding.principal
+            or type(event.reservation_id) is not str
+            or not event.reservation_id
+            or event.command_digest != expected_digest
+            or obs.account_scope != intent.binding.account_scope
+            or obs.route != binding.policy.route
+            or request.symbol != obs.instrument.native_symbol
+            or obs.instrument != binding.instruments[feed_ref]
+            or (request.instrument is not None and request.instrument != obs.instrument)
+            or (obs.side is not None and obs.side != request.side.value.lower())
+            or (obs.offset is not None and obs.offset != request.offset)
+            or (
+                obs.order_quantity is not None
+                and Decimal(obs.order_quantity) != request.quantity
+            )
+        ):
+            _fail("EVENT_BINDING")
+        return request
+
     def _gateway_stream_event_binding(self, binding, event, order):
         from bt_api_base.direct_write_protocol import DirectExecutionEventKind
         from ..live_state.gateway_execution_state import verify_gateway_trade_attribution
@@ -1763,6 +1830,8 @@ class GatewayExecutionStreamBrokerMixin:
             else:
                 execution_route = binding.host.load_execution_route(key)
             if execution_route is not None and execution_route.kind in ("PENDING", "EXECUTION_PARENT"):
+                if _bt_terminal(order):
+                    continue
                 # Query the original intent only. Missing records and NOT_FOUND
                 # never establish that a parent was not sent.
                 try:
@@ -1921,6 +1990,8 @@ class GatewayExecutionStreamBrokerMixin:
             if type(result.page) is GatewayExecutionStreamPage:
                 for event in result.page.events:
                     key = event.request_key
+                    if self._resolve_execution_parent_child_key(binding, notice, key) is not None:
+                        continue
                     if key not in notice.orders:
                         continue  # normal page validation will reject the orphan
                     route = binding.host.load_execution_route(key)
@@ -1972,26 +2043,39 @@ class GatewayExecutionStreamBrokerMixin:
                 return
         binding.next_idle_read = 0.0
         event = events[0]
-        order = notice.orders.get(event.request_key)
+        parent_key = self._resolve_execution_parent_child_key(binding, notice, event.request_key)
+        order_key = parent_key if parent_key is not None else event.request_key
+        order = notice.orders.get(order_key)
         if order is None:
             binding.state = "ORDER_UNAVAILABLE"
             return
-        route = binding.host.load_execution_route(event.request_key)
-        if route is not None and route.kind in ("PENDING", "EXECUTION_PARENT", "EXECUTION_REJECTED"):
+        route = binding.host.load_execution_route(order_key)
+        if route is not None and route.kind in ("PENDING", "EXECUTION_REJECTED"):
             binding.state = "EXECUTION_EVENT_UNBOUND"
             return
-        if (route is not None and route.kind == "RISK") or (route is None and order.info.get("gateway_risk_routed") is True):
-            delegated = binding.host.load_delegated_command(event.request_key)
-            if delegated is None or delegated.actor_principal is None:
-                binding.state = "ORDER_UNAVAILABLE"
+        if route is not None and route.kind == "EXECUTION_PARENT":
+            if parent_key is None:
+                binding.state = "EXECUTION_EVENT_UNBOUND"
                 return
-        elif binding.host.load_record(event.request_key) is None:
-            result = binding.api.command_status(binding.policy.route, event.request_key,
-                                                timeout_seconds=binding.timeout)
-            if result.outcome != "OBSERVED" or result.record is None:
-                binding.state = "ORDER_UNAVAILABLE"
-                return
-        request = self._gateway_stream_event_binding(binding, event, order)
+            request = self._gateway_execution_parent_event_binding(
+                binding, event, order, parent_key
+            )
+        else:
+            if (route is not None and route.kind == "RISK") or (
+                route is None and order.info.get("gateway_risk_routed") is True
+            ):
+                delegated = binding.host.load_delegated_command(event.request_key)
+                if delegated is None or delegated.actor_principal is None:
+                    binding.state = "ORDER_UNAVAILABLE"
+                    return
+            elif binding.host.load_record(event.request_key) is None:
+                result = binding.api.command_status(
+                    binding.policy.route, event.request_key, timeout_seconds=binding.timeout
+                )
+                if result.outcome != "OBSERVED" or result.record is None:
+                    binding.state = "ORDER_UNAVAILABLE"
+                    return
+            request = self._gateway_stream_event_binding(binding, event, order)
         obs = event.observation
         if obs.kind is DirectExecutionEventKind.TRADE:
             def trade_facts():
