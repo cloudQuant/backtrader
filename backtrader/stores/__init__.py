@@ -16,9 +16,22 @@ Example:
 
 import os as _os
 
+from ._btapi_errors import LiveCompositionError as LiveCompositionError
+from .base_btapi_store import BaseBtApiStore as BaseBtApiStore
+from .btapi_composition import (
+    GatewayReadinessProof as GatewayReadinessProof,
+    LiveRunBinding as LiveRunBinding,
+    ProcessModeFence as ProcessModeFence,
+    create_direct_store as create_direct_store,
+    create_gateway_store as create_gateway_store,
+    create_live_store as create_live_store,
+    validate_live_config as validate_live_config,
+)
 from .btapistore import BtApiMissingDependencyError as BtApiMissingDependencyError
 from .btapistore import BtApiProviderNotImplementedError as BtApiProviderNotImplementedError
 from .btapistore import BtApiStore as BtApiStore
+from .direct_btapi_store import DirectBtApiStore as DirectBtApiStore
+from .gateway_btapi_store import GatewayBtApiStore as GatewayBtApiStore
 
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables

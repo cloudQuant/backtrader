@@ -37,10 +37,16 @@ from ..utils.runtime_redaction import replace_secret_values as _runtime_replace_
 from ..utils.runtime_redaction import sanitize_exception as _runtime_sanitize_exception
 from ..utils.bar_projection import normalize_bar as _normalize_bar
 from ..utils.tick_snapshot import snapshot_tick as _snapshot_tick
-from .livestore import LiveStoreBase
+from .base_btapi_store import BaseBtApiStore
+from .btapi_composition import (
+    GatewayReadinessProof,
+    LiveRunBinding,
+    verify_run_binding,
+)
 from ._btapi_errors import (
     BtApiStoreError,
     LegacyGatewayMigrationRequiredError,
+    LiveCompositionError,
     _ApprovalLeaseRejected,
     BtApiMissingDependencyError,
     BtApiProviderNotImplementedError,
@@ -435,31 +441,11 @@ def _resolve_backend(provider: Any, backend: Any = None) -> str:
     return "direct"
 
 
-class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixin, LiveStoreBase):
+class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixin, BaseBtApiStore):
     """Backtrader lifecycle and projection facade over the bt_api_py API."""
 
     BrokerCls = None
     DataCls = None
-
-    @property
-    def _broker(self):
-        """Compatibility alias for the inherited single broker field."""
-        return self.broker
-
-    @_broker.setter
-    def _broker(self, broker):
-        self.broker = broker
-
-    @property
-    def _data_feeds(self):
-        """Compatibility alias for the inherited Store data list."""
-        if self.datas is None:
-            self.datas = []
-        return self.datas
-
-    @_data_feeds.setter
-    def _data_feeds(self, feeds):
-        self.datas = feeds
 
     def __init__(
         self,
@@ -492,6 +478,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         service_client_config: Any = None,
         gateway_client_config: Any = None,
         execution_parent_port: Any = None,
+        run_binding: Optional[LiveRunBinding] = None,
+        gateway_readiness_proof: Optional[GatewayReadinessProof] = None,
         **kwargs: Any,
     ):
         """Initialize the BtApiStore.
@@ -647,6 +635,22 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._gateway_reconnect_attempt = 0
         self._gateway_reconnect_reason = None
         self._gateway_session_generation = 0
+        self._gateway_readiness_proof: Optional[GatewayReadinessProof] = None
+        if run_binding is not None:
+            if not isinstance(run_binding, LiveRunBinding):
+                raise LiveCompositionError("RUN_BINDING_MISMATCH", detail="invalid_run_binding")
+            expected_mode = "gateway" if self._gateway_mode else "direct"
+            if run_binding.mode != expected_mode:
+                raise LiveCompositionError("RUN_BINDING_MISMATCH", detail="store_mode_mismatch")
+            self._run_binding = run_binding
+        if gateway_readiness_proof is not None:
+            if not self._gateway_mode:
+                raise LiveCompositionError("MODE_CONFLICT", detail="gateway_readiness_proof")
+            if not isinstance(gateway_readiness_proof, GatewayReadinessProof):
+                raise LiveCompositionError(
+                    "GATEWAY_READINESS_COMPONENT_NOT_READY", detail="invalid_proof_type"
+                )
+            self._gateway_readiness_proof = gateway_readiness_proof
         if self._gateway_mode:
             from bt_api_py.gateway_strategy_config import parse_gateway_strategy_config
             from ..live_state.gateway_pending import GatewayPendingHost
@@ -2563,6 +2567,14 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def getbroker(self, *args, **kwargs):
         """Return a BtApiBroker bound to this store."""
+        explicit_binding = kwargs.pop("run_binding", None)
+        if explicit_binding is not None:
+            if self._run_binding is not None:
+                verify_run_binding(self._run_binding, explicit_binding)
+            elif not isinstance(explicit_binding, LiveRunBinding) or (
+                self.live_mode is not None and explicit_binding.mode != self.live_mode
+            ):
+                raise LiveCompositionError("RUN_BINDING_MISMATCH")
         broker_cls = kwargs.pop("broker_cls", self.BrokerCls)
         if broker_cls is None:
             from ..brokers.btapibroker import BtApiBroker
@@ -2570,11 +2582,23 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             broker_cls = BtApiBroker
 
         broker = broker_cls(store=self, provider=self.provider, *args, **kwargs)
+        if self._run_binding is not None:
+            broker._run_binding = self._run_binding
+        elif explicit_binding is not None:
+            broker._run_binding = explicit_binding
         self._broker = broker
         return broker
 
     def getdata(self, *args, **kwargs):
         """Return a BtApiFeed bound to this store."""
+        explicit_binding = kwargs.pop("run_binding", None)
+        if explicit_binding is not None:
+            if self._run_binding is not None:
+                verify_run_binding(self._run_binding, explicit_binding)
+            elif not isinstance(explicit_binding, LiveRunBinding) or (
+                self.live_mode is not None and explicit_binding.mode != self.live_mode
+            ):
+                raise LiveCompositionError("RUN_BINDING_MISMATCH")
         data_cls = kwargs.pop("data_cls", self.DataCls)
         if data_cls is None:
             from ..feeds.btapifeed import BtApiFeed
@@ -2585,6 +2609,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         kwargs.setdefault("provider", self.provider)
         data = data_cls(*args, **kwargs)
         data._store = self
+        if self._run_binding is not None:
+            data._run_binding = self._run_binding
+        elif explicit_binding is not None:
+            data._run_binding = explicit_binding
         return data
 
     def set_source_stop_callback(self, callback) -> bool:
