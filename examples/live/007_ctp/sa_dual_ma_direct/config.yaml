@@ -1,5 +1,6 @@
 # SA (soda ash) on CZCE; common active months are 01, 05 and 09.
 # SA701 is the furthest SA contract SimNow lists as of 2026-11; roll it as it expires.
+mode: direct
 symbols:
 - SA701
 contracts:

@@ -1,6 +1,7 @@
 # CTP SimNow direct mode (iteration 62): see ../README.md for first init, restart
 # reconciliation, waiting orders and manual UNKNOWN resolution.
 # rb/hc are SHFE contracts; roll the 2701 contracts as they expire.
+mode: direct
 symbols:
 - rb2701
 - hc2701

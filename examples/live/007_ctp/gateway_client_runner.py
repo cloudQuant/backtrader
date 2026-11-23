@@ -41,50 +41,10 @@ def run_id_from_cli(value):
 
 
 def contract_broker_summary(summary):
-    """Translate the Gateway shutdown summary to the run contract's statuses.
+    """Delegate Gateway shutdown normalization to the product Broker contract (T-031/T-041)."""
+    from backtrader.brokers.base_btapi_broker import normalize_shutdown_summary
 
-    The Gateway stop reports session/Store facts (``PASS``/``INCOMPLETE``/
-    ``FAIL`` plus the nested ``gateway_working_orders``), while the run
-    contract reads the direct-mode stop vocabulary from
-    ``broker.get_shutdown_summary()``.  Only a ``PASS`` shutdown with no
-    unresolved working order is claimed clean; unresolved orders are
-    ``STOPPED_WITH_WORKING_ORDERS``; every other combination stays ``UNKNOWN``
-    (never a clean stop).  This bridge is example-local: the Gateway stop needs
-    its own contract status in iteration 66 before this translation can move
-    into the product.
-    """
-    if not isinstance(summary, Mapping):
-        return None
-    working = summary.get("gateway_working_orders")
-    working = working if isinstance(working, Mapping) else None
-    unresolved = working.get("unresolved_working_orders") if working is not None else None
-    # The broker summary carries the session-level status under
-    # ``gateway_status`` and its own local status under ``status``.  Read the
-    # nested value first so an ``OBSERVATION_ONLY`` Gateway run is not mistaken
-    # for a local ``UNKNOWN`` stop.
-    gateway_status = summary.get("gateway_status", summary.get("status"))
-    market_data_only = summary.get("market_data_only") is True
-    translated = dict(summary, gateway_status=gateway_status)
-    if isinstance(unresolved, int) and not isinstance(unresolved, bool) and unresolved > 0:
-        return dict(
-            translated,
-            status="STOPPED_WITH_WORKING_ORDERS",
-            unresolved_working_orders=unresolved,
-        )
-    if gateway_status == "PASS" and unresolved == 0:
-        return dict(translated, status="STOPPED")
-    # A read-only market-data run mutates no orders.  ``OBSERVATION_ONLY`` with
-    # zero observed active orders is therefore a clean stop, not an unknown
-    # one; the run still reports ``market_data_only`` and never claims a
-    # remote-flat or order capability.
-    if (
-        market_data_only
-        and gateway_status == "OBSERVATION_ONLY"
-        and not unresolved
-        and summary.get("active_order_count") == 0
-    ):
-        return dict(translated, status="STOPPED")
-    return dict(translated, status="UNKNOWN")
+    return normalize_shutdown_summary(summary, mode="gateway")
 
 
 def load_config(path):
@@ -103,6 +63,12 @@ def validate_config(config):
         raise ValueError("RISK_SELECTION_INVALID")
     if "execution" in config:
         raise GatewayExecutionConfigUnsupported("GATEWAY_TOP_LEVEL_EXECUTION_UNSUPPORTED")
+
+    from backtrader.stores.btapi_composition import validate_live_config
+
+    if config.get("mode") != "gateway":
+        raise ValueError("GATEWAY_MODE_REQUIRED")
+    validate_live_config(config)
 
     from bt_api_py.gateway_strategy_config import parse_gateway_strategy_config
 
@@ -379,7 +345,7 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
                 DEFAULT_HEARTBEAT_INTERVAL_S, RunStatusWriter, stop_on_terminate,
             )
             from backtrader.live_state import load_identity
-            from backtrader.stores.btapistore import BtApiStore
+            from backtrader.stores.btapi_composition import create_gateway_store
 
             instruments = {key.native_symbol: key for key in parsed.instruments_by_ref.values()}
             contracts = config["contracts"]
@@ -390,11 +356,14 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
                                  "multiplier": contracts[symbol].get("multiplier", 1)}
                         for symbol in config["symbols"]}
             stage = "store"
-            # Gateway mode routes by the configured exchange_name; the Store refuses
-            # direct-mode options such as symbol_routes (GATEWAY_CONFIGURATION_CONFLICT).
-            store = BtApiStore(config={"gateway_strategy": config["gateway_strategy"]},
-                               gateway_host=host, gateway_security_profiles=profiles,
-                               contract_metadata=metadata)
+            # Compose via the single Gateway composition root (returns GatewayBtApiStore).
+            store = create_gateway_store(
+                config={"mode": "gateway", "gateway_strategy": config["gateway_strategy"]},
+                gateway_host=host,
+                gateway_security_profiles=profiles,
+                expected_run_id=run_id,
+                contract_metadata=metadata,
+            )
             lifecycle.store = store
             stage = "broker"
             broker = store.getbroker(**config.get("broker", {}))
@@ -517,7 +486,7 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
                 failure = failure or RuntimeError("GATEWAY_CLEANUP_UNCERTAIN")
             try:
                 if cleanup_confirmed:
-                    summary = contract_broker_summary(lifecycle.broker.get_shutdown_summary())
+                    summary = lifecycle.broker.get_shutdown_summary()
             except BaseException as exc:
                 if isinstance(exc, (KeyboardInterrupt, SystemExit)) and not isinstance(
                     failure, (KeyboardInterrupt, SystemExit)

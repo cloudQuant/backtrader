@@ -72,13 +72,8 @@ class GatewayCalendarQueryPort:
         calendar_scope: Mapping[str, Optional[str]],
         *,
         config: Optional[Mapping[str, Any]] = None,
+        gateway_calendar_settings: Optional[Mapping[str, Any]] = None,
     ) -> None:
-        for field_name in CALENDAR_PARAM_FIELDS:
-            if calendar_scope.get(field_name) is not None:
-                raise LiveCompositionError(
-                    "CALENDAR_SCOPE_CONFLICT",
-                    detail=f"gateway_feed_forbids_calendar_{field_name}",
-                )
         if isinstance(config, Mapping):
             calendars = config.get("calendars")
             if isinstance(calendars, Mapping) and "feed_scope" in calendars:
@@ -86,6 +81,28 @@ class GatewayCalendarQueryPort:
                     "CALENDAR_SCOPE_CONFLICT",
                     detail="calendars.feed_scope",
                 )
+        provided = {
+            field_name: calendar_scope.get(field_name)
+            for field_name in CALENDAR_PARAM_FIELDS
+            if calendar_scope.get(field_name) is not None
+        }
+        if not provided:
+            return
+        # Allow calendar_* params ONLY when they match an explicit Gateway server
+        # calendar_settings scope declared on the bound GatewayBtApiStore.
+        if gateway_calendar_settings is not None:
+            scopes = gateway_calendar_settings.get("scopes") or ()
+            if len(provided) == len(CALENDAR_PARAM_FIELDS) and any(
+                isinstance(scope, Mapping)
+                and all(scope.get(k) == provided[k] for k in CALENDAR_PARAM_FIELDS)
+                for scope in scopes
+            ):
+                return
+        first_field = next(iter(provided))
+        raise LiveCompositionError(
+            "CALENDAR_SCOPE_CONFLICT",
+            detail=f"gateway_feed_forbids_calendar_{first_field}",
+        )
 
     @staticmethod
     def active_gateway_calendar_settings(store: Any) -> Optional[Dict[str, Any]]:

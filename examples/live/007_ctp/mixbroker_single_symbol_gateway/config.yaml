@@ -1,4 +1,5 @@
 # Public placeholders only; provide protected key files and registered identities.
+mode: gateway
 symbols:
 - rb2701
 contracts:

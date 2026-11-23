@@ -52,7 +52,16 @@ class GatewayBtApiFeed(BtApiFeed):
         self._calendar_query_port = GatewayCalendarQueryPort()
         self._market_source_port.validate_feed_capabilities(self)
         store_cfg = getattr(self.store, "_config", None) if self.store is not None else None
-        self._calendar_query_port.validate_feed_scope(self._calendar_scope, config=store_cfg)
+        gw_cal_settings = (
+            GatewayCalendarQueryPort.active_gateway_calendar_settings(self.store)
+            if self.store is not None
+            else None
+        )
+        self._calendar_query_port.validate_feed_scope(
+            self._calendar_scope,
+            config=store_cfg,
+            gateway_calendar_settings=gw_cal_settings,
+        )
 
     def start(self) -> None:
         if self._market_source_port is not None:
