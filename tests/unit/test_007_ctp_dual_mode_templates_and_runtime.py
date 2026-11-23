@@ -271,3 +271,22 @@ def test_s12_all_11_direct_templates_compose_strict_direct_stack():
         for entry in added_paths:
             if entry in sys.path:
                 sys.path.remove(entry)
+
+
+def test_s12_all_30_007_ctp_strategies_recognize_direct_and_gateway_brokers_for_offset():
+    """Guard against brittle module-name checks that broke offset forwarding on Direct/GatewayBtApiBroker."""
+    roots = (
+        EXAMPLES_007_DIRECT,
+        EXAMPLES_007_GATEWAY,
+        REPO_ROOT / "examples/backtest/007_ctp",
+    )
+    checked = 0
+    for root in roots:
+        for strat_py in sorted(root.glob("*/*_strategy.py")):
+            if strat_py.name == "sa_dual_ma_strategy.py":
+                continue
+            src = strat_py.read_text(encoding="utf-8")
+            assert "is_live_btapi_broker" in src, strat_py
+            assert '"btapi_broker" in broker_module' in src, strat_py
+            checked += 1
+    assert checked == 30

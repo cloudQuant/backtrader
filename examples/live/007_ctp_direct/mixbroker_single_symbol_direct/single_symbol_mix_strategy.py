@@ -394,9 +394,13 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         else:
             kwargs["exectype"] = bt.Order.Market
         extra_info = {"offset": offset, "signal_tag": signal_tag}
-        broker_module = str(type(self.broker).__module__ or "").lower()
+        broker_cls = type(self.broker)
+        broker_module = str(broker_cls.__module__ or "").lower()
+        broker_name = str(broker_cls.__name__ or "").lower()
         is_live_btapi_broker = (
-            broker_module.endswith("btapibroker") or "btapibroker" in broker_module
+            "btapibroker" in broker_module
+            or "btapi_broker" in broker_module
+            or "btapibroker" in broker_name
         )
         if is_live_btapi_broker:
             kwargs.update(extra_info)
