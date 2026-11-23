@@ -977,25 +977,32 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
             and current_bar - int(self._pair_open_bar_at) >= int(self.p.force_exit_after_bars)
         ):
             pos_a, pos_b = self._pair_positions()
-            blocked = self._pair_legs_blocked(("buy", self.p.symbol_a), ("sell", self.p.symbol_b))
+            close_legs = []
+            if pos_a < 0:
+                close_legs.append(("buy", self.p.symbol_a, abs(pos_a), "forced_pair_bar_close_buy_a"))
+            elif pos_a > 0:
+                close_legs.append(("sell", self.p.symbol_a, abs(pos_a), "forced_pair_bar_close_sell_a"))
+            if pos_b > 0:
+                close_legs.append(("sell", self.p.symbol_b, abs(pos_b), "forced_pair_bar_close_sell_b"))
+            elif pos_b < 0:
+                close_legs.append(("buy", self.p.symbol_b, abs(pos_b), "forced_pair_bar_close_buy_b"))
+            if not close_legs:
+                return False
+            blocked = self._pair_legs_blocked(*[(s, sym) for s, sym, _, _ in close_legs])
             if blocked:
                 self.log(f"forced pair exit waits: {blocked}")
                 return True
-            order_a = self._submit_market(
-                side="buy",
-                symbol=self.p.symbol_a,
-                size=max(abs(pos_a), float(self.p.order_size)),
-                offset=self.p.close_offset,
-                signal_tag="forced_pair_bar_close_buy_a",
-            )
-            order_b = self._submit_market(
-                side="sell",
-                symbol=self.p.symbol_b,
-                size=max(abs(pos_b), float(self.p.order_size)),
-                offset=self.p.close_offset,
-                signal_tag="forced_pair_bar_close_sell_b",
-            )
-            submitted = int(order_a is not None) + int(order_b is not None)
+            submitted = 0
+            for side, sym, qty, tag in close_legs:
+                order = self._submit_market(
+                    side=side,
+                    symbol=sym,
+                    size=qty,
+                    offset=self.p.close_offset,
+                    signal_tag=tag,
+                )
+                if order is not None:
+                    submitted += 1
             if submitted:
                 self._forced_phase = "exit_submitted"
                 self._forced_legs = submitted
@@ -1015,6 +1022,8 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
 
         if self._pair_is_open():
             self._observed_open_pair = True
+            if self._forced_phase == "idle":
+                self._forced_phase = "open"
             if self._pair_open_bar_at is None:
                 self._pair_open_bar_at = self.pair_bar_progress(self.p.symbol_a, self.p.symbol_b)
 
@@ -1117,7 +1126,7 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
         if signal_tag.startswith("forced_pair_bar_close_"):
             self._forced_exit_terminal_refs.add(order.ref)
             if not self.pending_refs:
-                if order.status in (order.Canceled, order.Margin, order.Rejected):
+                if order.status in (order.Canceled, order.Margin, order.Rejected) or not self._pair_is_flat():
                     self._forced_phase = "open"
                     self._forced_exit_terminal_refs.clear()
                 elif len(self._forced_exit_terminal_refs) >= self._forced_legs:

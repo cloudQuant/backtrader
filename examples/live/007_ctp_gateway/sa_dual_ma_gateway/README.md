@@ -1,5 +1,41 @@
 ﻿# sa_dual_ma_gateway
 
+纯碱 SA701（郑商所）1 分钟双均线策略（**Gateway 模式**，显式 `mode: gateway`）。本目录位于 [`examples/live/007_ctp_gateway`](../README.md)，对应直连版本位于 [`examples/live/007_ctp_direct/sa_dual_ma_direct`](../../007_ctp_direct/sa_dual_ma_direct/README.md)。
+
+- **策略类**：`DualMAStrategy`（[`sa_dual_ma_strategy.py`](./sa_dual_ma_strategy.py)）
+- **合约**：`SA701`（CZCE，tick=1.0，mult=20）
+- **行情输入**：`minutes` / compression=`1`
+- **装配方式**：由上级 [`gateway_client_runner.py`](../gateway_client_runner.py) 经单一组合根 `create_gateway_store` 装配 `GatewayBtApiStore` / `GatewayBtApiFeed` / `GatewayBtApiBroker`（强绑定 `LiveRunBinding(mode="gateway")` 与 `ProcessModeFence`，强制要求独立 Risk + Execution，禁止直连写路径回退）
+
+## 快速命令
+
+```bash
+# 离线配置校验（不读取密钥、不联网）
+python examples/live/007_ctp_gateway/sa_dual_ma_gateway/run.py --dry-run
+# 首次初始化本地身份（完成后停止，供运营在 Gateway / Risk / Execution 登记）
+python examples/live/007_ctp_gateway/sa_dual_ma_gateway/run.py --first-init
+# 升级本地状态（在运营完成登记后）
+python examples/live/007_ctp_gateway/sa_dual_ma_gateway/run.py --upgrade-state
+# 连接已启动并授权的独立 Gateway 五组件服务运行
+python examples/live/007_ctp_gateway/sa_dual_ma_gateway/run.py --run-seconds 600
+```
+
+## 目录文件
+
+| 文件 | 内容 |
+| --- | --- |
+| `sa_dual_ma_strategy.py` | `DualMAStrategy`；纯碱 1 分钟双均线策略（Gateway 策略账本版） |
+| `run.py` | 入口脚本，委托上级 `gateway_client_runner.py` 校验 `mode: gateway` 并经 `create_gateway_store` 启动 |
+| `config.yaml` | 公开占位配置（`mode: gateway`、`gateway_strategy` 绑定与 Risk/Execution 路由、合约规则、`calendars.root`、行情与策略参数） |
+
+## 验证状态（2026-11-23）
+
+- **离线 `--dry-run`（`PACKAGE` + `CLI_DRY_RUN`）**：**PASS**（已在仓库外 `C:\Windows\Temp`、无 `PYTHONPATH` 条件下验证退出码 `0`、`status=PASS`）。
+- **契约单测与仿真（`UNIT` + `INTEGRATION_SIM`）**：**PASS**（`mode: gateway` 校验、防直连绕过、五组件 readiness 与策略文件 `offset` 透传守卫均已通过）。
+- **SimNow / 真实账户（`REAL`）**：**NOT_RUN / NO-GO**（须先独立启动并授权 Gateway + Risk + Execution + Monitor + Runtime 五组件服务，并经运营逐项替换占位配置与签收后方可运行）。
+
+## 运行规则与安全约束
+
 本示例通过独立的账户级 Gateway 接收行情和提交订单。先启动并授权该 Gateway，再启动策略；不会在策略进程中创建 CTP 会话、Gateway 服务或读取 CTP 凭据。Gateway 不可用时不会回退到 direct。
 
 ## 配置与启动

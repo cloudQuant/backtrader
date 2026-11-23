@@ -416,8 +416,23 @@ Gateway 停止合同后应移入产品侧，不能据此宣称 Gateway 停止已
 
 ## 证据说明
 
-这些示例在 SimNow 上运行的记录见迭代 62 的验收文档；没有实际运行或没有触发交易的示例不能当作已验证。
-SimNow 的结果只说明模拟账户上的行为；真实账户使用同一套准入代码路径，但本迭代不提供真实账户证据。
+以下为 2026-11-23 拆分后全部 11 个 Direct 策略在 SimNow 模拟盘交易时段（14:30–14:52 CST，`trading_day=20261123`）的实测记录（证据级别：`SIMNOW_DEMO`；所有策略均经单一组合根 `create_direct_store` 装配 `DirectBtApiStore`/`DirectBtApiBroker`/`DirectBtApiFeed`，退出码均为 `0`、`outcome=STOPPED`，最终恢复空仓；逐策略详情见各子目录 `README.md`）：
+
+| 目录 | 合约 | 2026-11-23 SimNow 实测结果（`SIMNOW_DEMO`） |
+| --- | --- | --- |
+| [`sa_dual_ma_direct/`](./sa_dual_ma_direct/README.md) | `SA701` | **PASS**（`rebind --mode move` 后运行 80s，`SA701 -> LIVE`，实收 1 根 1 分钟 K 线 `O=942 H=943 L=942 C=942 V=240`） |
+| [`bbroker_5s_single_symbol_direct/`](./bbroker_5s_single_symbol_direct/README.md) | `rb2701` | **PASS**（自动闭环参数，买开 `3002.00` → 卖平今 `3001.00`，1 轮闭环空仓） |
+| [`bbroker_5s_pair_arbitrage_direct/`](./bbroker_5s_pair_arbitrage_direct/README.md) | `rb2701` / `hc2701` | **PASS**（自动闭环参数，双腿开仓 `3002.00`/`3118.00` → 双腿平今 `3003.00`/`3117.00`，1 轮闭环空仓） |
+| [`mixbroker_5s_single_symbol_direct/`](./mixbroker_5s_single_symbol_direct/README.md) | `rb2701` | **PASS**（自动闭环参数，买开 `3003.00` → 卖平今 `3002.00`，1 轮闭环空仓） |
+| [`mixbroker_5s_pair_arbitrage_direct/`](./mixbroker_5s_pair_arbitrage_direct/README.md) | `rb2701` / `hc2701` | **PASS**（含非空仓重启对账与全量平今：`rb2701` 买平今 1@`3003.00` + `hc2701` 卖平今 2@`3117.00`，恢复空仓） |
+| [`tickbroker_5s_single_symbol_direct/`](./tickbroker_5s_single_symbol_direct/README.md) | `rb2701` | **PASS**（自动闭环参数，买开 `3003.00` → 卖平今 `3002.00`，1 轮闭环空仓） |
+| [`tickbroker_5s_pair_arbitrage_direct/`](./tickbroker_5s_pair_arbitrage_direct/README.md) | `rb2701` / `hc2701` | **PASS**（自动闭环参数，`rb2701` 卖开 `3002.00` → 买平今 `3003.00`，`hc2701` 门禁保护，1 轮闭环空仓） |
+| [`mixbroker_single_symbol_direct/`](./mixbroker_single_symbol_direct/README.md) | `rb2701` | **PASS**（默认配置，买开 `3002.00` → 卖平今 `3001.00`，1 轮闭环空仓） |
+| [`mixbroker_pair_arbitrage_direct/`](./mixbroker_pair_arbitrage_direct/README.md) | `rb2701` / `hc2701` | **PASS**（默认配置，`rb2701` 卖开 `3001.00` → 买平今 `3002.00`，1 轮闭环空仓） |
+| [`tickbroker_single_symbol_direct/`](./tickbroker_single_symbol_direct/README.md) | `rb2701` | **PASS**（默认配置，买开 `3002.00` → 卖平今 `3001.00`，1 轮闭环空仓） |
+| [`tickbroker_pair_arbitrage_direct/`](./tickbroker_pair_arbitrage_direct/README.md) | `rb2701` / `hc2701` | **PASS**（默认配置，`rb2701` 卖开 `3001.00` → 买平今 `3002.00`，1 轮闭环空仓） |
+
+SimNow 的结果只说明模拟账户上的行为；真实账户使用同一套准入代码路径，但本迭代不提供真实账户证据（`REAL` 为 `NOT_RUN`）。更多历史记录见迭代 62 验收文档。
 
 ## Gateway 版本
 
