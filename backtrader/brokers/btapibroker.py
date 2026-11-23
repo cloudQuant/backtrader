@@ -15,6 +15,7 @@ from decimal import Decimal
 from typing import Any, DefaultDict, Dict, Optional
 
 from ..broker import BrokerBase
+from .base_btapi_broker import BaseBtApiBroker, SHARED_BTAPI_BROKER_PARAMS
 from ._btapi_recovery import ServiceRecoveryBrokerMixin
 from ._btapi_reconciliation import BrokerReconciliationMixin
 from ._btapi_owner_fence import AccountOwnerFenceBrokerMixin
@@ -186,7 +187,7 @@ class BtApiBroker(
     GatewayExecutionEventsBrokerMixin,
     ServiceRecoveryBrokerMixin,
     BrokerReconciliationMixin,
-    BrokerBase,
+    BaseBtApiBroker,
 ):
     """Broker implementation that routes live orders through BtApiStore."""
 
@@ -218,39 +219,7 @@ class BtApiBroker(
     # Remote order updates do not depend on the arrival of a market-data bar.
     next_without_bar = True
 
-    params = (
-        ("store", None),
-        ("cash", 0.0),
-        ("value", None),
-        ("account_refresh_interval", 1.0),
-        ("positions_refresh_interval", 1.0),
-        ("position_sync_policy", "periodic"),
-        ("position_audit_interval", 0.0),
-        ("open_orders_refresh_interval", 1.0),
-        ("cancel_wait_remote", False),
-        ("cancel_confirmation_timeout", 1.0),
-        ("cancel_retry_max_attempts", 3),
-        ("reconcile_retry_max_attempts", 3),
-        ("reconcile_retry_backoff", 0.05),
-        ("force_refresh_queries", True),
-        ("max_order_size", 0),
-        ("pending_trade_update_limit", 256),
-        ("position_mode", "net"),
-        ("sdk_preflight", True),
-        ("shutdown_timeout", 2.0),
-        ("flatten_on_stop", True),
-        # A read-only observation session may hydrate an account that already
-        # has exposure.  It must never route any order mutation, including a
-        # risk-reducing close or a cancellation during shutdown.
-        ("market_data_only", False),
-        # Optional, provider-neutral summary collected before the broker
-        # starts.  Observation shutdown reports its validation separately
-        # from any final remote reconciliation.
-        ("startup_account_state", None),
-        ("approval_expires_at_utc", None),
-        ("approval_max_order_count", None),
-        ("execution_recovery", None),
-    ) + direct_params()
+    params = SHARED_BTAPI_BROKER_PARAMS + direct_params()
 
     def __init__(self, **kwargs):
         """Initialize the broker, set up order/position state and freeze position mode.
@@ -267,7 +236,10 @@ class BtApiBroker(
                 :attr:`params` overrides the corresponding default; unknown
                 keys are forwarded to the :class:`BrokerBase` constructor.
         """
+        explicit_run_binding = kwargs.pop("run_binding", None)
         super().__init__(**kwargs)
+        if explicit_run_binding is not None:
+            self._run_binding = explicit_run_binding
         self.store = self.p.store
         self.notifs: collections.deque = collections.deque()
         self.orders = collections.OrderedDict()

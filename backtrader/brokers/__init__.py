@@ -31,6 +31,9 @@ if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() not in {
     "yes",
     "on",
 }:
+    from backtrader.brokers.base_btapi_broker import BaseBtApiBroker as BaseBtApiBroker
     from backtrader.brokers.btapibroker import BtApiBroker as BtApiBroker
+    from backtrader.brokers.direct_btapi_broker import DirectBtApiBroker as DirectBtApiBroker
+    from backtrader.brokers.gateway_btapi_broker import GatewayBtApiBroker as GatewayBtApiBroker
     from backtrader.brokers.mixbroker import MixBroker as MixBroker
     from backtrader.brokers.tickbroker import TickBroker as TickBroker

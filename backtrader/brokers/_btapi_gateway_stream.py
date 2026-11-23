@@ -748,6 +748,15 @@ class GatewayExecutionStreamBrokerMixin:
                 if type(routed) is not ExecutionRoutingResult:
                     raise ValueError("EXECUTION_RESULT_INVALID")
                 if routed.outcome is ExecutionRoutingOutcome.DIRECT_PATH:
+                    if getattr(self, "_strict_gateway_no_direct_path", False):
+                        # D62S-05 (Scheme A2): strict GatewayBtApiBroker forbids DIRECT_PATH bypass.
+                        order.reject(self)
+                        order.addinfo(
+                            execution_routing_outcome="EXECUTION_REJECTED",
+                            execution_rejection_code="GATEWAY_DIRECT_PATH_BYPASS_FORBIDDEN",
+                        )
+                        self._gateway_notify_local(binding, order)
+                        return order
                     if risk_routed:
                         contract = binding.api.risk_first_send_reserve_contract()
                         if (type(contract) is not tuple or len(contract) != 3

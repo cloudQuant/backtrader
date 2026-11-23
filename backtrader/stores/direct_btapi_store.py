@@ -124,6 +124,20 @@ class DirectBtApiStore(BtApiStore):
             self._direct_write_mode = False
             self._direct_write_routes = frozenset()
 
+    def getbroker(self, *args: Any, **kwargs: Any) -> Any:
+        """Return a DirectBtApiBroker bound to this Direct Store."""
+        from ..brokers.direct_btapi_broker import DirectBtApiBroker
+        from ..brokers.gateway_btapi_broker import GatewayBtApiBroker
+
+        broker_cls = kwargs.get("broker_cls", self.BrokerCls)
+        if broker_cls is None:
+            kwargs["broker_cls"] = DirectBtApiBroker
+        elif isinstance(broker_cls, type) and issubclass(broker_cls, GatewayBtApiBroker):
+            raise LiveCompositionError(
+                "RUN_BINDING_MISMATCH", detail="gateway_broker_on_direct_store"
+            )
+        return super().getbroker(*args, **kwargs)
+
     def getdata(self, *args: Any, **kwargs: Any) -> Any:
         """Return a DirectBtApiFeed bound to this Direct Store."""
         from ..feeds.direct_btapi_feed import DirectBtApiFeed

@@ -324,6 +324,7 @@ def validate_gateway_readiness_proof(
     expected_run_id: Optional[str] = None,
     now_ns: Optional[int] = None,
     require_ready_for_write: bool = True,
+    allow_cancel_during_outage: bool = False,
 ) -> GatewayReadinessProof:
     """Validate a GatewayReadinessProof with finite error classification (R62S-05, R62S-06).
 
@@ -392,7 +393,7 @@ def validate_gateway_readiness_proof(
             raise LiveCompositionError(
                 "GATEWAY_READINESS_AUTH_FAILED", detail=f"{comp_name}_auth_failed"
             )
-        if comp_state == "UNREACHABLE":
+        if comp_state == "UNREACHABLE" and not allow_cancel_during_outage:
             raise LiveCompositionError(
                 "GATEWAY_READINESS_UNREACHABLE", detail=f"{comp_name}_unreachable"
             )

@@ -147,6 +147,20 @@ class GatewayBtApiStore(BtApiStore):
             **kwargs,
         )
 
+    def getbroker(self, *args: Any, **kwargs: Any) -> Any:
+        """Return a GatewayBtApiBroker bound to this Gateway Store."""
+        from ..brokers.direct_btapi_broker import DirectBtApiBroker
+        from ..brokers.gateway_btapi_broker import GatewayBtApiBroker
+
+        broker_cls = kwargs.get("broker_cls", self.BrokerCls)
+        if broker_cls is None:
+            kwargs["broker_cls"] = GatewayBtApiBroker
+        elif isinstance(broker_cls, type) and issubclass(broker_cls, DirectBtApiBroker):
+            raise LiveCompositionError(
+                "RUN_BINDING_MISMATCH", detail="direct_broker_on_gateway_store"
+            )
+        return super().getbroker(*args, **kwargs)
+
     def getdata(self, *args: Any, **kwargs: Any) -> Any:
         """Return a GatewayBtApiFeed bound to this Gateway Store."""
         from ..feeds.direct_btapi_feed import DirectBtApiFeed
