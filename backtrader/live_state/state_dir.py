@@ -53,12 +53,21 @@ class StrategyStateDir:
     """
 
     def __init__(
-        self, strategy_dir: Any, *, check_host_path: bool = True, lock_timeout: float = 10.0
+        self,
+        strategy_dir: Any,
+        *,
+        check_host_path: bool = True,
+        lock_timeout: float = 10.0,
+        expected_mode: Optional[str] = None,
+        require_mode_stamp: bool = False,
     ) -> None:
         self.paths = StatePaths(strategy_dir)
         self.lock_timeout = lock_timeout
         self.identity: StrategyIdentity = load_identity(
-            self.paths.strategy_dir, check_host_path=check_host_path
+            self.paths.strategy_dir,
+            check_host_path=check_host_path,
+            expected_mode=expected_mode,
+            require_mode_stamp=require_mode_stamp,
         )
         root = self.paths.strategy_dir
         uuid = self.identity.strategy_uuid
@@ -70,10 +79,15 @@ class StrategyStateDir:
 
     @classmethod
     def initialize(
-        cls, strategy_dir: Any, *, account_binding: Optional[dict] = None, **kwargs: Any
+        cls,
+        strategy_dir: Any,
+        *,
+        account_binding: Optional[dict] = None,
+        mode: Optional[str] = None,
+        **kwargs: Any,
     ) -> "StrategyStateDir":
         """Explicit first initialization, then open the directory."""
-        initialize_identity(strategy_dir, account_binding=account_binding)
+        initialize_identity(strategy_dir, account_binding=account_binding, mode=mode)
         return cls(strategy_dir, **kwargs)
 
     @property

@@ -23,6 +23,7 @@ from .atomic import (
     LiveStateError,
     LiveStateIdentityMismatch,
     LiveStateLocked,
+    LiveStateModeMismatch,
     LiveStateNotInitialized,
     atomic_write_bytes,
     atomic_write_json,
@@ -31,12 +32,15 @@ from .atomic import (
 )
 from .audit import AuditLog, append_audit, read_audit
 from .identity import (
+    IDENTITY_MODES,
+    IDENTITY_MODE_VERSION,
     StrategyIdentity,
     bind_account,
     hash_account_id,
     initialize_identity,
     load_identity,
     rebind_identity,
+    stamp_identity_mode,
 )
 from .pending import (
     ACTIVE_STATUSES,
@@ -61,11 +65,14 @@ __all__ = (
     "BoundPreDispatchPort",
     "ERROR_CODES",
     "FileLock",
+    "IDENTITY_MODES",
+    "IDENTITY_MODE_VERSION",
     "LegacyPositions",
     "LiveStateCorrupt",
     "LiveStateError",
     "LiveStateIdentityMismatch",
     "LiveStateLocked",
+    "LiveStateModeMismatch",
     "LiveStateNotInitialized",
     "MANUAL_CONCLUSIONS",
     "PendingCommandStore",
@@ -92,4 +99,5 @@ __all__ = (
     "read_audit",
     "read_json",
     "rebind_identity",
+    "stamp_identity_mode",
 )

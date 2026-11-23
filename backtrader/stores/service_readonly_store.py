@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from ..store import Store
 from ._btapi_errors import LiveCompositionError
 from .btapi_composition import _is_service_read_proxy_instance
 from .livestore import LiveStoreBase
@@ -53,7 +54,7 @@ class ServiceReadOnlyStore(LiveStoreBase):
     def start(self, data: Any = None, broker: Any = None) -> None:
         if broker is not None:
             raise LiveCompositionError("NON_LIVE_TOOL_CONFLICT", detail="readonly_store_forbids_broker")
-        super().start(data=data, broker=None)
+        Store.start(self, data=data, broker=None)
         starter = getattr(self._read_proxy, "start", None)
         if callable(starter):
             starter()

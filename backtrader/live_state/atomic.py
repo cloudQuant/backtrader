@@ -32,6 +32,7 @@ __all__ = (
     "LiveStateError",
     "LiveStateIdentityMismatch",
     "LiveStateLocked",
+    "LiveStateModeMismatch",
     "LiveStateNotInitialized",
     "atomic_write_bytes",
     "atomic_write_json",
@@ -68,6 +69,10 @@ ERROR_CODES = frozenset(
         "account_binding_mismatch",
         "account_binding_invalid",
         "account_hash_invalid",
+        "mode_mismatch",
+        "mode_invalid",
+        "mode_upgrade_blocked_active_state",
+        "legacy_routing_export_failed",
         "rebind_invalid_mode",
         "rebind_not_required",
         "rebind_blocked_active_state",
@@ -169,6 +174,18 @@ class LiveStateIdentityMismatch(LiveStateError):
 
     def __reduce__(self):
         return (LiveStateIdentityMismatch, (self.code, self.detail))
+
+
+class LiveStateModeMismatch(LiveStateIdentityMismatch):
+    """Strategy directory identity mode disagrees with the requested live mode (R62S-11)."""
+
+    default_code = "mode_mismatch"
+
+    def __init__(self, reason: str = "mode_mismatch", detail: str = "") -> None:
+        super().__init__(reason, detail)
+
+    def __reduce__(self):
+        return (LiveStateModeMismatch, (self.code, self.detail))
 
 
 class LiveStateNotInitialized(LiveStateError):

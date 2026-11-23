@@ -43,6 +43,7 @@ from .atomic import (
     LiveStateError,
     LiveStateIdentityMismatch,
     LiveStateLocked,
+    LiveStateModeMismatch,
     LiveStateNotInitialized,
     atomic_write_json,
     dumps_json,
@@ -52,6 +53,8 @@ from .atomic import (
 from .audit import append_audit
 
 __all__ = (
+    "IDENTITY_MODES",
+    "IDENTITY_MODE_VERSION",
     "IDENTITY_VERSION",
     "REBIND_MODES",
     "StrategyIdentity",
@@ -61,17 +64,22 @@ __all__ = (
     "load_identity",
     "normalize_account_binding",
     "rebind_identity",
+    "stamp_identity_mode",
 )
 
 _log = get_logger(__name__)
 
 IDENTITY_VERSION = 1
+IDENTITY_MODE_VERSION = 2
+IDENTITY_MODES = frozenset({"direct", "gateway"})
 REBIND_MODES = frozenset({"move", "new_instance"})
 _BINDING_KEYS = frozenset({"exchange", "account_hash", "route"})
 _BINDING_REQUIRED = frozenset({"exchange", "account_hash"})
-_IDENTITY_KEYS = frozenset(
+_IDENTITY_KEYS_V1 = frozenset(
     {"version", "strategy_uuid", "created_at_utc", "hostname", "strategy_dir", "account_binding"}
 )
+_IDENTITY_KEYS_V2 = _IDENTITY_KEYS_V1 | frozenset({"mode"})
+_IDENTITY_KEYS = _IDENTITY_KEYS_V1
 
 
 def hash_account_id(account_id: str) -> str:
@@ -122,6 +130,7 @@ class StrategyIdentity:
     strategy_dir: str
     account_binding: Optional[Dict[str, str]] = None
     version: int = IDENTITY_VERSION
+    mode: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not is_uuid4(self.strategy_uuid):
@@ -132,8 +141,17 @@ class StrategyIdentity:
             raise ValueError("hostname")
         if not is_text(self.strategy_dir, max_len=4096) or not os.path.isabs(self.strategy_dir):
             raise ValueError("strategy_dir")
-        if not is_strict_int(self.version) or self.version != IDENTITY_VERSION:
+        if not is_strict_int(self.version) or self.version not in (
+            IDENTITY_VERSION,
+            IDENTITY_MODE_VERSION,
+        ):
             raise ValueError("version")
+        if self.version == IDENTITY_VERSION:
+            if self.mode is not None:
+                raise ValueError("mode")
+        else:
+            if type(self.mode) is not str or self.mode not in IDENTITY_MODES:
+                raise ValueError("mode")
         try:
             binding = normalize_account_binding(self.account_binding)
         except LiveStateError:
@@ -141,7 +159,7 @@ class StrategyIdentity:
         object.__setattr__(self, "account_binding", binding)
 
     def to_dict(self) -> dict:
-        return {
+        out = {
             "version": self.version,
             "strategy_uuid": self.strategy_uuid,
             "created_at_utc": self.created_at_utc,
@@ -149,19 +167,40 @@ class StrategyIdentity:
             "strategy_dir": self.strategy_dir,
             "account_binding": None if self.account_binding is None else dict(self.account_binding),
         }
+        if self.version == IDENTITY_MODE_VERSION:
+            out["mode"] = self.mode
+        return out
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any]) -> "StrategyIdentity":
-        if not isinstance(raw, Mapping) or set(raw) != _IDENTITY_KEYS:
+        if not isinstance(raw, Mapping):
             raise ValueError("keys")
-        return cls(
-            strategy_uuid=raw["strategy_uuid"],
-            created_at_utc=raw["created_at_utc"],
-            hostname=raw["hostname"],
-            strategy_dir=raw["strategy_dir"],
-            account_binding=raw["account_binding"],
-            version=raw["version"],
-        )
+        version = raw.get("version")
+        if type(version) is int and version == IDENTITY_VERSION:
+            if set(raw) != _IDENTITY_KEYS_V1:
+                raise ValueError("keys")
+            return cls(
+                strategy_uuid=raw["strategy_uuid"],
+                created_at_utc=raw["created_at_utc"],
+                hostname=raw["hostname"],
+                strategy_dir=raw["strategy_dir"],
+                account_binding=raw["account_binding"],
+                version=version,
+                mode=None,
+            )
+        if type(version) is int and version == IDENTITY_MODE_VERSION:
+            if set(raw) != _IDENTITY_KEYS_V2:
+                raise ValueError("keys")
+            return cls(
+                strategy_uuid=raw["strategy_uuid"],
+                created_at_utc=raw["created_at_utc"],
+                hostname=raw["hostname"],
+                strategy_dir=raw["strategy_dir"],
+                account_binding=raw["account_binding"],
+                version=version,
+                mode=raw["mode"],
+            )
+        raise ValueError("version")
 
 
 def _identity_from_file(path: str) -> StrategyIdentity:
@@ -171,7 +210,10 @@ def _identity_from_file(path: str) -> StrategyIdentity:
         raise LiveStateNotInitialized(path) from None
     if not isinstance(raw, dict):
         raise LiveStateCorrupt(path, "not_a_mapping")
-    if raw.get("version") != IDENTITY_VERSION or type(raw.get("version")) is not int:
+    if (
+        type(raw.get("version")) is not int
+        or raw.get("version") not in (IDENTITY_VERSION, IDENTITY_MODE_VERSION)
+    ):
         raise LiveStateCorrupt(path, "version_unsupported")
     try:
         return StrategyIdentity.from_dict(raw)
@@ -186,18 +228,49 @@ def _check_host_path(identity: StrategyIdentity, root: str) -> None:
         raise LiveStateIdentityMismatch("strategy_dir_mismatch")
 
 
-def load_identity(strategy_dir: Any, *, check_host_path: bool = True) -> StrategyIdentity:
+def _check_pending_mode_compatibility(paths: StatePaths, expected_mode: str) -> None:
+    if expected_mode != "direct" or not os.path.lexists(paths.pending):
+        return
+    try:
+        raw_pending = read_json(paths.pending)
+    except Exception:
+        return
+    if isinstance(raw_pending, dict):
+        ver = raw_pending.get("version")
+        if type(ver) is int and ver in (2, 3, 4, 5, 6, 7, 8):
+            raise LiveStateModeMismatch("mode_mismatch", "gateway_pending_in_direct_mode")
+
+
+def load_identity(
+    strategy_dir: Any,
+    *,
+    check_host_path: bool = True,
+    expected_mode: Optional[str] = None,
+    require_mode_stamp: bool = False,
+) -> StrategyIdentity:
     """Load ``state/identity.json``.
 
     Raises :class:`LiveStateNotInitialized` if missing, :class:`LiveStateCorrupt`
-    if invalid, and (when ``check_host_path``) :class:`LiveStateIdentityMismatch`
-    with ``hostname_mismatch`` / ``strategy_dir_mismatch`` for a copied or
-    moved directory.
+    if invalid, :class:`LiveStateIdentityMismatch` for host/path mismatch, and
+    :class:`LiveStateModeMismatch` if ``expected_mode`` conflicts with the
+    stored immutable ``mode`` stamp or pending journal version.
     """
+    if expected_mode is not None and (
+        type(expected_mode) is not str or expected_mode not in IDENTITY_MODES
+    ):
+        raise LiveStateError("mode_invalid", str(expected_mode))
     paths = StatePaths(strategy_dir)
     identity = _identity_from_file(paths.identity)
     if check_host_path:
         _check_host_path(identity, paths.strategy_dir)
+    if expected_mode is not None:
+        if identity.mode is not None and identity.mode != expected_mode:
+            raise LiveStateModeMismatch(
+                "mode_mismatch", f"stored={identity.mode},expected={expected_mode}"
+            )
+        if identity.mode is None and require_mode_stamp:
+            raise LiveStateModeMismatch("mode_mismatch", "legacy_unmodeled_requires_upgrade")
+        _check_pending_mode_compatibility(paths, expected_mode)
     return identity
 
 
@@ -229,7 +302,12 @@ def _create_exclusive(path: str, text: str) -> None:
         os.close(fd)
 
 
-def _initialize_locked(paths: StatePaths, binding: Optional[Dict[str, str]]) -> StrategyIdentity:
+def _initialize_locked(
+    paths: StatePaths,
+    binding: Optional[Dict[str, str]],
+    *,
+    mode: Optional[str] = None,
+) -> StrategyIdentity:
     """Create a fresh identity; caller holds ``identity.lock`` of ``paths``."""
     if os.path.lexists(paths.identity):
         raise LiveStateError("identity_already_initialized")
@@ -245,12 +323,15 @@ def _initialize_locked(paths: StatePaths, binding: Optional[Dict[str, str]]) -> 
             raise LiveStateError("state_dir_not_empty", os.path.basename(path))
     if os.path.lexists(paths.audit) and os.path.getsize(paths.audit) > 0:
         raise LiveStateError("state_dir_not_empty", os.path.basename(paths.audit))
+    version = IDENTITY_MODE_VERSION if mode is not None else IDENTITY_VERSION
     identity = StrategyIdentity(
         strategy_uuid=new_uuid4(),
         created_at_utc=utc_now_iso(),
         hostname=current_hostname(),
         strategy_dir=paths.strategy_dir,
         account_binding=binding,
+        version=version,
+        mode=mode,
     )
     for path, initial, _is_pristine in companions:
         atomic_write_json(path, initial(identity.strategy_uuid))
@@ -288,14 +369,22 @@ def _create_state_dir(path: str, *, exist_ok: bool) -> bool:
     return True
 
 
-def initialize_identity(strategy_dir: Any, *, account_binding: Any = None) -> StrategyIdentity:
+def initialize_identity(
+    strategy_dir: Any,
+    *,
+    account_binding: Any = None,
+    mode: Optional[str] = None,
+) -> StrategyIdentity:
     """Explicit first initialization of a strategy directory.
 
     ``strategy_dir`` must already exist.  Creates ``state/`` and the initial
     state files; raises ``LiveStateError("identity_already_initialized")`` if
     an identity exists and ``("state_dir_not_empty")`` if non-pristine state
-    without an identity is present.
+    without an identity is present.  When ``mode`` (``"direct"`` or
+    ``"gateway"``) is supplied, writes immutable identity version 2.
     """
+    if mode is not None and (type(mode) is not str or mode not in IDENTITY_MODES):
+        raise LiveStateError("mode_invalid", str(mode))
     root = resolve_strategy_dir(strategy_dir)
     if not os.path.isdir(root):
         raise LiveStateError("strategy_dir_missing")
@@ -307,16 +396,71 @@ def initialize_identity(strategy_dir: Any, *, account_binding: Any = None) -> St
     from .coordination import coordinated
 
     with coordinated(paths), FileLock(paths.identity_lock):
-        identity = _initialize_locked(paths, binding)
-    _audit_best_effort(
-        root,
-        {
-            "event": "identity_initialized",
-            "strategy_uuid": identity.strategy_uuid,
-            "account_bound": binding is not None,
-        },
-    )
+        identity = _initialize_locked(paths, binding, mode=mode)
+    audit_payload: Dict[str, Any] = {
+        "event": "identity_initialized",
+        "strategy_uuid": identity.strategy_uuid,
+        "account_bound": binding is not None,
+    }
+    if mode is not None:
+        audit_payload["mode"] = mode
+    _audit_best_effort(root, audit_payload)
     return identity
+
+
+def stamp_identity_mode(
+    strategy_dir: Any,
+    *,
+    mode: str,
+    operator: str,
+    reason: str,
+) -> StrategyIdentity:
+    """Explicit, audited one-way upgrade stamping immutable ``mode`` on a v1 identity."""
+    if type(mode) is not str or mode not in IDENTITY_MODES:
+        raise LiveStateError("mode_invalid", str(mode))
+    if not is_text(operator, max_len=200):
+        raise LiveStateError("operator_required")
+    if not is_text(reason, max_len=2000):
+        raise LiveStateError("reason_required")
+    paths = StatePaths(strategy_dir)
+    from .coordination import coordinated
+
+    with coordinated(paths):
+        run_lock = FileLock(paths.run_lock, timeout=0)
+        if not run_lock.try_acquire():
+            raise LiveStateLocked(paths.run_lock, "live_run_active")
+        try:
+            with FileLock(paths.identity_lock):
+                identity = load_identity(paths.strategy_dir, check_host_path=True)
+                if identity.mode == mode:
+                    return identity
+                if identity.mode is not None:
+                    raise LiveStateModeMismatch(
+                        "mode_mismatch", f"immutable_mode={identity.mode},requested={mode}"
+                    )
+                try:
+                    _check_pending_mode_compatibility(paths, mode)
+                except LiveStateModeMismatch as exc:
+                    raise LiveStateError("mode_upgrade_blocked_active_state", exc.detail) from None
+                updated = dataclasses.replace(
+                    identity,
+                    version=IDENTITY_MODE_VERSION,
+                    mode=mode,
+                )
+                append_audit(
+                    paths.strategy_dir,
+                    {
+                        "event": "identity_mode_stamped",
+                        "strategy_uuid": identity.strategy_uuid,
+                        "mode": mode,
+                        "operator": operator,
+                        "reason": reason,
+                    },
+                )
+                atomic_write_json(paths.identity, updated.to_dict())
+                return updated
+        finally:
+            run_lock.release()
 
 
 def bind_account(strategy_dir: Any, account_binding: Mapping[str, str]) -> StrategyIdentity:

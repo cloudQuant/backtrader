@@ -7,6 +7,7 @@ never treat a replay feed as a live tradable feed.
 
 from __future__ import annotations
 
+import datetime as _dt
 from typing import Any, Optional
 
 from ..stores._btapi_errors import LiveCompositionError
@@ -49,7 +50,7 @@ class ReplayBtApiFeed(LiveFeedBase):
             self.p.replay_market_tick_port,
             self._dataname,
         )
-        self._started = False
+        self._replay_started = False
         self._last_tick: Optional[Any] = None
 
     def islive(self) -> bool:
@@ -66,25 +67,19 @@ class ReplayBtApiFeed(LiveFeedBase):
             )
         super().start()
         self._replay_tick_adapter.start()
-        self._started = True
+        self._replay_started = True
 
     def stop(self) -> None:
         try:
             super().stop()
         finally:
-            self._started = False
+            self._replay_started = False
             self._replay_tick_adapter.close()
 
     def _load(self) -> bool:
-        if not self._started:
+        if not self._replay_started:
             return False
-        poll = self._replay_tick_adapter.poll_tick()
-        if poll is None:
-            return False
-        status = getattr(poll, "status", None)
-        if status == "exhausted" or self._replay_tick_adapter.exhausted:
-            return False
-        tick = getattr(poll, "tick", None)
+        tick = self._replay_tick_adapter.poll()
         if tick is None:
             return False
         self._last_tick = tick
@@ -92,6 +87,8 @@ class ReplayBtApiFeed(LiveFeedBase):
         volume = float(getattr(tick, "volume", 0.0) or 0.0)
         ts = getattr(tick, "event_time_utc", None) or getattr(tick, "timestamp", None)
         if ts is not None:
+            if isinstance(ts, (int, float)):
+                ts = _dt.datetime.fromtimestamp(float(ts), tz=_dt.timezone.utc)
             self.lines.datetime[0] = date2num(ts)
         self.lines.open[0] = price
         self.lines.high[0] = price

@@ -111,6 +111,24 @@ class GatewayBtApiStore(BtApiStore):
         # does not misclassify Gateway read-only rehearsal as Direct execution config.
         cfg_copy.pop("market_data_only", None)
 
+        # R62S-11: fail closed if the host's strategy directory is stamped for Direct mode.
+        host_store = getattr(gateway_host, "_store", None)
+        host_paths = getattr(host_store, "paths", None)
+        if host_paths is not None and getattr(host_paths, "strategy_dir", None):
+            from ..live_state.atomic import LiveStateModeMismatch
+            from ..live_state.identity import load_identity
+
+            try:
+                load_identity(
+                    host_paths.strategy_dir,
+                    check_host_path=False,
+                    expected_mode="gateway",
+                )
+            except LiveStateModeMismatch:
+                raise LiveCompositionError(
+                    "LIVE_STATE_MODE_MISMATCH", detail="direct_dir_in_gateway_store"
+                ) from None
+
         self._gateway_api_factory = gateway_api_factory
         super().__init__(
             provider="btapi",
