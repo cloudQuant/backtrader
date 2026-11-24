@@ -1845,7 +1845,10 @@ class GatewayExecutionStreamBrokerMixin:
                 if _bt_terminal(order):
                     continue
                 # Query the original intent only. Missing records and NOT_FOUND
-                # never establish that a parent was not sent.
+                # never establish that a parent was not sent; only an
+                # authoritative REJECTED execution_state from the bound
+                # Execution parent record finalizes the local order.
+                rejected_code = None
                 try:
                     if (binding.api.execution_selected is True
                             and binding.api.execution_configuration_id == execution_route.configuration_id):
@@ -1859,8 +1862,17 @@ class GatewayExecutionStreamBrokerMixin:
                                      or status.request_sha256 != execution_route.request_sha256
                                      or status.parent_ref != execution_route.parent_ref)):
                             raise ValueError("EXECUTION_STATUS_MISMATCH")
+                        if (execution_route.kind == "EXECUTION_PARENT" and status.routed
+                                and status.execution_state == "REJECTED"
+                                and order.status == order.Submitted
+                                and order.executed.size == 0):
+                            rejected_code = status.code or "EXECUTION_PARENT_REJECTED"
                 except Exception:
                     pass
+                if rejected_code is not None:
+                    self._gateway_finalize_rejection(binding, order, key, rejected_code)
+                    binding.state = "WAITING_NOTIFICATIONS"
+                    return
                 risk_recovery_state = "EXECUTION_RECOVERY_PENDING"
                 continue
             is_risk = (
