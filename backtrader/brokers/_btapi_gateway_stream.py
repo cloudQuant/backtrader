@@ -88,10 +88,12 @@ _STREAM_EVENT_SCAN_LIMIT = 10000
 # broker hundreds of times per second, and one step reads the durable local
 # state several times and asks the Gateway for events: a single idle strategy
 # kept one core busy, starved its own SDK threads and loaded the Gateway enough
-# to delay every strategy's market data (SimNow 2026-11-10). A step that
-# delivered an event, a local submit and a local cancel are followed by the
-# next step at once; while the Gateway is unreachable the wait is paced too.
-_IDLE_READ_INTERVAL_SECONDS = 0.2
+# to delay every strategy's market data (SimNow 2026-11-10), and 11 concurrent
+# strategies at 0.2s still generated 55 empty polls/sec (SimNow 2026-11-24). A
+# step that delivered an event, a local submit and a local cancel are followed
+# by the next step at once; while the Gateway is unreachable the wait is paced
+# too.
+_IDLE_READ_INTERVAL_SECONDS = 1.0
 
 # A reserve whose reply was lost may still be waiting for the Gateway's owner
 # thread. This long after the attempt it can no longer be committed: the

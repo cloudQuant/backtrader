@@ -457,18 +457,45 @@ def _ps_identity(pid: int) -> Optional[Dict[str, Any]]:
     }
 
 
+def _windows_identity(pid: int) -> Optional[Dict[str, Any]]:
+    if os.name != "nt":
+        return None
+    try:
+        import psutil
+    except ImportError:
+        return None
+    try:
+        process = psutil.Process(pid)
+        create_time = "{:.6f}".format(process.create_time())
+        argv = process.cmdline()
+    except Exception:
+        return None
+    return {
+        "pid": pid,
+        "create_time": "win:{}".format(create_time),
+        "boot_id": "windows-boot-unavailable",
+        "command_digest": _command_digest(argv),
+        "source": "windows_psutil",
+    }
+
+
 def read_process_identity(pid: Optional[int] = None) -> Dict[str, Any]:
     """Best-effort ``ProcessIdentityRef`` fields of this (or ``pid``) process.
 
     The four fields ``pid``/``create_time``/``boot_id``/``command_digest`` are
-    produced by the same procedures as ``bt_api_runtime.supervision.posix`` so
-    that a summary written here can equal the runtime's own reference.  When
-    the OS cannot supply them, the values are ``"unavailable"`` (never
-    invented): the runtime then reports UNKNOWN instead of a clean stop, which
-    is the intended fail-closed result.  ``source`` records which procedure
-    ran; it is BT-side evidence and is not part of the summary document.
+    produced by the same procedures as ``bt_api_runtime.supervision.posix`` (or
+    ``bt_api_runtime.supervision.windows`` on Windows) so that a summary
+    written here can equal the runtime's own reference.  When the OS cannot
+    supply them, the values are ``"unavailable"`` (never invented): the runtime
+    then reports UNKNOWN instead of a clean stop, which is the intended
+    fail-closed result.  ``source`` records which procedure ran; it is BT-side
+    evidence and is not part of the summary document.
     """
     target = os.getpid() if pid is None else int(pid)
+    if os.name == "nt":
+        identity = _windows_identity(target)
+        if identity is not None:
+            return identity
     if sys.platform.startswith("linux"):
         identity = _linux_identity(target)
         if identity is not None:
