@@ -67,6 +67,7 @@ class _StreamBinding:
     # was still RESERVED, with the monotonic time of the next status read
     # (see _DISPATCH_RECHECK_SECONDS).
     dispatch_recheck: dict = field(default_factory=dict)
+    execution_status_recheck: dict = field(default_factory=dict)
     execution_cancel_attempted: set = field(default_factory=set)
     # Earliest monotonic time of the next step after one that found nothing to
     # do (see _IDLE_READ_INTERVAL_SECONDS); a local submit or cancel clears it.
@@ -105,6 +106,12 @@ _RESERVE_ABSENT_AFTER_SECONDS = 20.0
 # command RESERVED, and nothing reports that to the strategy (I63-E136). While a
 # dispatched order is still RESERVED its status is read this often.
 _DISPATCH_RECHECK_SECONDS = 2.0
+
+# Paced recheck intervals for unresolved EXECUTION_PARENT status queries so a
+# long-lived working or UNKNOWN parent does not exhaust the strict-connection
+# message-ID budget of the strategy's Execution parent session while still
+# detecting rapid denials promptly (SimNow 2026-11-24).
+_EXECUTION_STATUS_RECHECK_BACKOFF = (1.0, 2.0, 5.0, 10.0, 15.0)
 
 
 def _bt_terminal(order):
@@ -1381,6 +1388,7 @@ class GatewayExecutionStreamBrokerMixin:
         binding.api, binding.stream = api, stream
         binding.dispatched.clear()
         binding.reserve_unknown.clear()  # requests of the old connection cannot arrive any more
+        binding.execution_status_recheck.clear()
         self._reset_gateway_trade_facts(binding)
 
     def _gateway_stream_check(self, binding, *, connected_required=True):
@@ -1842,34 +1850,52 @@ class GatewayExecutionStreamBrokerMixin:
             else:
                 execution_route = binding.host.load_execution_route(key)
             if execution_route is not None and execution_route.kind in ("PENDING", "EXECUTION_PARENT"):
+                recheck_map = getattr(binding, "execution_status_recheck", None)
                 if _bt_terminal(order):
+                    if isinstance(recheck_map, dict):
+                        recheck_map.pop(key, None)
                     continue
                 # Query the original intent only. Missing records and NOT_FOUND
                 # never establish that a parent was not sent; only an
                 # authoritative REJECTED execution_state from the bound
                 # Execution parent record finalizes the local order.
+                now = time.monotonic()
+                should_query = True
+                if isinstance(recheck_map, dict):
+                    entry = recheck_map.get(key)
+                    if entry is not None and now < entry[0]:
+                        should_query = False
+                    else:
+                        attempt = 0 if entry is None else entry[1]
+                        delay = _EXECUTION_STATUS_RECHECK_BACKOFF[
+                            min(attempt, len(_EXECUTION_STATUS_RECHECK_BACKOFF) - 1)
+                        ]
+                        recheck_map[key] = (now + delay, attempt + 1)
                 rejected_code = None
-                try:
-                    if (binding.api.execution_selected is True
-                            and binding.api.execution_configuration_id == execution_route.configuration_id):
-                        from bt_api_py.execution_routing import ExecutionRoutingStatus
-                        status = binding.api.execution_order_status(
-                            binding.policy.route, binding.host.load_intent(key))
-                        if type(status) is not ExecutionRoutingStatus:
-                            raise ValueError("EXECUTION_STATUS_INVALID")
-                        if (execution_route.kind == "EXECUTION_PARENT" and status.routed
-                                and (status.request_id != execution_route.request_id
-                                     or status.request_sha256 != execution_route.request_sha256
-                                     or status.parent_ref != execution_route.parent_ref)):
-                            raise ValueError("EXECUTION_STATUS_MISMATCH")
-                        if (execution_route.kind == "EXECUTION_PARENT" and status.routed
-                                and status.execution_state == "REJECTED"
-                                and order.status == order.Submitted
-                                and order.executed.size == 0):
-                            rejected_code = status.code or "EXECUTION_PARENT_REJECTED"
-                except Exception:
-                    pass
+                if should_query:
+                    try:
+                        if (binding.api.execution_selected is True
+                                and binding.api.execution_configuration_id == execution_route.configuration_id):
+                            from bt_api_py.execution_routing import ExecutionRoutingStatus
+                            status = binding.api.execution_order_status(
+                                binding.policy.route, binding.host.load_intent(key))
+                            if type(status) is not ExecutionRoutingStatus:
+                                raise ValueError("EXECUTION_STATUS_INVALID")
+                            if (execution_route.kind == "EXECUTION_PARENT" and status.routed
+                                    and (status.request_id != execution_route.request_id
+                                         or status.request_sha256 != execution_route.request_sha256
+                                         or status.parent_ref != execution_route.parent_ref)):
+                                raise ValueError("EXECUTION_STATUS_MISMATCH")
+                            if (execution_route.kind == "EXECUTION_PARENT" and status.routed
+                                    and status.execution_state == "REJECTED"
+                                    and order.status == order.Submitted
+                                    and order.executed.size == 0):
+                                rejected_code = status.code or "EXECUTION_PARENT_REJECTED"
+                    except Exception:
+                        pass
                 if rejected_code is not None:
+                    if isinstance(recheck_map, dict):
+                        recheck_map.pop(key, None)
                     self._gateway_finalize_rejection(binding, order, key, rejected_code)
                     binding.state = "WAITING_NOTIFICATIONS"
                     return
