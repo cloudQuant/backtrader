@@ -573,6 +573,8 @@ class GatewayExecutionStreamBrokerMixin:
         binding = self._gateway_stream_binding
         if binding is None:
             _fail("FEED_NOT_READY")
+        if any(len(data) < 1 for data in binding.feeds.values()):
+            _fail("FEED_NOT_READY")
         binding.next_idle_read = 0.0  # local work: the next step runs at once
         self._gateway_stream_check(binding)
         notice = self._gateway_binding(binding.strategy, required=True)
@@ -1789,6 +1791,14 @@ class GatewayExecutionStreamBrokerMixin:
             checkpoint = binding.host.record_execution_ack(result.progress)
         if notice.armed is not None or notice.receipt is not None:
             binding.state = "WAITING_NOTIFICATIONS"
+            return
+        if any(len(data) < 1 for data in binding.feeds.values()):
+            # Multi-feed live Cerebro can temporarily rewind a secondary feed
+            # on bar 1 (di.rewind() -> len(data) == 0). Defer local/stream
+            # notifications until every bound feed holds at least one bar so
+            # capture_framework_state() sees valid feed snapshots.
+            binding.next_idle_read = 0.0
+            binding.state = "WAITING_FEEDS"
             return
         if binding.local_deferred:
             self.notifs.extend(binding.local_deferred)

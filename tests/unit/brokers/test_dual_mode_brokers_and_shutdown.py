@@ -489,3 +489,57 @@ def test_gateway_auto_bind_uses_identity_check_on_empty_multi_symbol_feeds(tmp_p
     strategy_dup = SimpleNamespace(broker=g_broker, datas=[feed_a])
     with pytest.raises(GatewayExecutionStreamError, match="GATEWAY_STREAM_INSTRUMENT_SCOPE"):
         g_broker._gateway_auto_bind(strategy_dup)
+
+
+def test_gateway_stream_next_and_submit_defer_when_secondary_feed_rewound_to_zero(tmp_path):
+    """Regression: multi-feed Cerebro di.rewind() on bar 1 can temporarily make len(data)==0."""
+    from backtrader.brokers._btapi_gateway_stream import GatewayExecutionStreamError
+
+    class _DynamicFeed:
+        def __init__(self, symbol: str, bars: int) -> None:
+            self._name = symbol
+            self.bars = bars
+            self.p = SimpleNamespace(dataname=symbol)
+
+        def __len__(self) -> int:
+            return self.bars
+
+    g_store, _ = _make_gateway_store(tmp_path)
+    g_broker = g_store.getbroker()
+    feed_a = _DynamicFeed("rb2701", 1)
+    feed_b = _DynamicFeed("hc2701", 0)  # simulated Cerebro bar-1 di.rewind()
+    strategy = SimpleNamespace(broker=g_broker, datas=[feed_a, feed_b])
+    notice = SimpleNamespace(restored=None, fault=None, armed=None, receipt=None, orders={})
+    checkpoint = SimpleNamespace(applied_sequence=0, acknowledged_sequence=0, stored_sequence=8)
+    host = SimpleNamespace(
+        load_execution_checkpoint=lambda: checkpoint,
+        local_order_notifications=lambda: pytest.fail("must defer before touching notifications"),
+    )
+    stream = SimpleNamespace(
+        read_after=lambda *_a, **_k: pytest.fail("must defer stream read while a feed has len==0"),
+    )
+    binding = SimpleNamespace(
+        strategy=strategy,
+        feeds={"rb2701": feed_a, "hc2701": feed_b},
+        host=host,
+        stream=stream,
+        state="ACTIVE",
+        next_idle_read=99.0,
+        local_deferred=[],
+        timeout=1.0,
+    )
+    g_broker._gateway_stream_binding = binding
+    g_broker._gateway_unreachable = lambda reconnect=False: False
+    g_broker._gateway_session_stale = lambda _b: False
+    g_broker._gateway_stream_check = lambda _b: None
+    g_broker._gateway_binding = lambda _s, required=False: notice
+
+    # _gateway_stream_next must cleanly defer to WAITING_FEEDS without arming or crashing.
+    g_broker._gateway_stream_next()
+    assert binding.state == "WAITING_FEEDS"
+    assert binding.next_idle_read == 0.0
+
+    # _gateway_submit_order must fail cleanly with FEED_NOT_READY without poisoning RESTART_REQUIRED.
+    with pytest.raises(GatewayExecutionStreamError, match="GATEWAY_STREAM_FEED_NOT_READY"):
+        g_broker._gateway_submit_order(SimpleNamespace())
+    assert binding.state == "WAITING_FEEDS"

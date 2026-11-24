@@ -230,7 +230,7 @@ def resume_gateway_market_session_drain(drain, *, deadline=None):
 class GatewayMarketAdapter:
     """Own a single feed cursor; never create a provider or a market source."""
 
-    def __init__(self, store, symbol, feed, *, timeout_seconds=1.0, clock_verification=None):
+    def __init__(self, store, symbol, feed, *, timeout_seconds=3.0, clock_verification=None):
         config = store.gateway_strategy_config
         settings = config.market_settings
         if settings is None or type(symbol) is not str or not symbol:
