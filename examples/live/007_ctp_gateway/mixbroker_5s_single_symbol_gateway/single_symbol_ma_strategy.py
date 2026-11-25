@@ -126,6 +126,7 @@ BASE_FUTURES_STRATEGY_PARAMS = (
     ("price_tick", 1.0),
     ("slippage_ticks", 2),
     ("reject_backoff_seconds", 3.0),
+    ("position_read_backoff_seconds", 3.0),
 )
 
 
@@ -212,6 +213,13 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             self.placeholder_data[symbol] = data
         return data
 
+    def _position_read_backoff(self):
+        """Per-symbol monotonic time until which failed position reads back off."""
+        backoff = getattr(self, "_position_read_backoff_until", None)
+        if backoff is None:
+            backoff = self._position_read_backoff_until = {}
+        return backoff
+
     def _refresh_position(self, symbol):
         """Refresh and cache position size for symbol.
 
@@ -230,13 +238,18 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             position = self.get_strategy_position(data)
             size = float(getattr(position, "size", 0.0) or 0.0)
             self._unreadable_positions().discard(symbol)
+            self._position_read_backoff().pop(symbol, None)
         except Exception:
             # Not readable right now. The cached value is kept only so that the
             # numeric comparisons keep working; the symbol is marked and no
             # order is sent for it until a read has succeeded again. An unknown
-            # position is not a flat one.
+            # position is not a flat one. Back off before retrying so tick-driven
+            # callbacks never stall behind synchronous Gateway RPCs (Iter 73.07).
             size = float(self.position_cache.get(symbol, 0.0))
             self._unreadable_positions().add(symbol)
+            delay = float(getattr(self.p, "position_read_backoff_seconds", 3.0) or 0.0)
+            if delay > 0:
+                self._position_read_backoff()[symbol] = time.monotonic() + delay
         self.position_cache[symbol] = size
         return size
 
@@ -254,11 +267,14 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             Cached position size.
         """
         symbol = str(symbol)
-        if symbol not in self.position_cache or symbol in self._unreadable_positions():
-            # A value kept from a failed read is not a position: read again, so that a
-            # decision never rests on it (an unreadable position at start-up used to stay
-            # cached as 0 until an order attempt re-read it).
+        if symbol not in self.position_cache:
             return self._refresh_position(symbol)
+        if symbol in self._unreadable_positions():
+            # A value kept from a failed read is not a position: retry once
+            # backoff expires so a decision never rests on stale data without
+            # stalling tick ingestion on every tick during a Gateway ledger gap.
+            if time.monotonic() >= self._position_read_backoff().get(symbol, 0.0):
+                return self._refresh_position(symbol)
         return float(self.position_cache[symbol])
 
     def start(self):
@@ -382,9 +398,11 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             return None
         if str(symbol) in self._unreadable_positions():
             # The decision behind this order used a position that could not be
-            # read. Read it again and let the next signal decide on real data.
-            self._refresh_position(str(symbol))
-            self.log(f"{signal_tag}: own position of {symbol} was not readable, no order on stale data")
+            # read. Retry only once backoff expires so tick callbacks never stall
+            # behind synchronous Gateway RPCs; fail closed until a read succeeds.
+            if time.monotonic() >= self._position_read_backoff().get(str(symbol), 0.0):
+                self._refresh_position(str(symbol))
+                self.log(f"{signal_tag}: own position of {symbol} was not readable, no order on stale data")
             return None
         backoff = self._refusal_backoff().get(str(symbol), 0.0) - time.monotonic()
         if backoff > 0:
