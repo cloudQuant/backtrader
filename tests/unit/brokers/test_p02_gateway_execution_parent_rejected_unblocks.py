@@ -360,3 +360,13 @@ def test_real_v8_host_persists_and_reloads_execution_parent_rejection_with_risk_
     assert reloaded.load_execution_route("bt-k-1").kind == "EXECUTION_PARENT"
     assert reloaded.load_execution_route("bt-k-2").kind == "EXECUTION_PARENT"
 
+    # 6. Cross-process restart: restored order gets a new bt_ref (e.g. 1 != original 13),
+    #    and finalizing its EXECUTION_PARENT rejection must still persist & reload cleanly.
+    notice3 = reloaded.save_rejected_order_notification(
+        "bt-k-3", bt_ref=1, snapshot=make_snapshot("bt-k-3", 1, 8), code="EXECUTION_PARENT_REJECTED"
+    )
+    assert notice3["bt_ref"] == 1
+    reloaded2 = GatewayPendingHost(strat_dir, state.strategy_uuid, binding)
+    assert reloaded2.local_order_notifications()["reject:bt-k-3"]["bt_ref"] == 1
+    assert reloaded2.load_execution_route("bt-k-3").kind == "EXECUTION_PARENT"
+

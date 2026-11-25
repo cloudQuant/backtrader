@@ -77,10 +77,7 @@ def validate_routes(state, binding):
                 raise ValueError("GATEWAY_EXECUTION_ROUTE_CONFLICT")
         elif kind == "EXECUTION_PARENT":
             if (any(entry[name] is not None for name in ("record", "marker_id", "release"))
-                    or delegated or "cancel:" + key in gateway["local_notifications"]
-                    or ("reject:" + key in gateway["local_notifications"]
-                        and gateway["local_notifications"]["reject:" + key].get("bt_ref")
-                            != gateway["order_snapshots"][key]["bt_ref"])):
+                    or delegated or "cancel:" + key in gateway["local_notifications"]):
                 raise ValueError("GATEWAY_EXECUTION_ROUTE_CONFLICT")
         elif kind == "EXECUTION_REJECTED":
             if (any(entry[name] is not None for name in ("record", "marker_id", "release"))
