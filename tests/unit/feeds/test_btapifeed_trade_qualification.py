@@ -238,6 +238,41 @@ def test_admitted_unqualified_ticks_are_never_execution_eligible(latency, overri
     assert tick.bar_eligible is True
 
 
+def test_freshness_unverified_preserves_data_and_fails_trade_qualification(harness):
+    feed, store, clock = harness
+    event = _event(
+        8,
+        10,
+        freshness_status=typed.MarketFreshnessStatus.UNAVAILABLE,
+        freshness_reason_codes=("SOURCE_CLOCK_CALIBRATION_NOT_PROVIDED",),
+        execution_eligible=False,
+    )
+    result = ingest_market_tick_event(event, event_time_max_age=2.0)
+    assert result.error_code is None
+
+    tick = result.tick
+    prepared_feed = BtApiFeed(
+        dataname="SA609",
+        store=None,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+        price_tick=1.0,
+        clock=_Clock(_receipt_ns(10)),
+    )
+    prepared_feed._prepare_tick(tick)
+    assert "FRESHNESS_UNVERIFIED" in tick.quality_flags
+    assert tick.data_quality == "GOOD"
+    assert tick.execution_eligible is False
+    assert tick.bar_eligible is True
+
+    _feed_ticks(feed, store, clock, event)
+    verdict = feed.trade_qualification()
+    assert _statuses(feed) == [feed.LIVE]
+    assert verdict.live is True
+    assert verdict.ok is False
+    assert "FRESHNESS_UNAVAILABLE" in verdict.reasons
+
+
 @pytest.mark.parametrize(
     "overrides, source",
     [({}, "market_tick"), (UNQUALIFIED, "market_tick_unqualified")],
