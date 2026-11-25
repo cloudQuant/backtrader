@@ -356,9 +356,9 @@ def _cancel_notice_id(state, key, bt_ref, snapshot):
 
 
 def _REJECT_CODE(code):
-    # A Gateway request-denial code: short upper-case ASCII identifier.
+    # A Gateway/Risk/Execution request-denial code: short ASCII identifier.
     return (0 < len(code) <= 64 and code.isascii() and code == code.strip()
-            and all(ch.isupper() or ch.isdigit() or ch == "_" for ch in code))
+            and all(ch.isalnum() or ch == "_" for ch in code))
 
 
 def _reject_notice_id(state, key, bt_ref, snapshot, code):
@@ -551,8 +551,8 @@ def save_rejected_notification(host, request_key, *, bt_ref, snapshot, code):
         if state["version"] not in (6, 7, 8):
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
         gateway = state["gateway"]
-        from .gateway_execution_route import require_route
-        require_route(state, request_key, {"GATEWAY", "RISK"})
+        from .gateway_execution_route import require_route, validate_routes
+        require_route(state, request_key, {"GATEWAY", "RISK", "EXECUTION_PARENT"})
         entry = entries.get(request_key)
         if (entry is None or request_key not in gateway["local_notifications"]
                 or any(entry[name] is not None for name in ("record", "marker_id", "release"))
@@ -572,6 +572,8 @@ def save_rejected_notification(host, request_key, *, bt_ref, snapshot, code):
             return copy.deepcopy(old)
         gateway["local_notifications"][key] = notice
         validate_order_state(state)
+        if state["version"] == 8:
+            validate_routes(state, host._binding)
         host._store._store(state, trim_history=False)
         return copy.deepcopy(notice)
 

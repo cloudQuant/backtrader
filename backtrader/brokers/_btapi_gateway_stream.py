@@ -998,6 +998,10 @@ class GatewayExecutionStreamBrokerMixin:
         route = binding.host.load_execution_route(key)
         if route is not None and route.kind == "EXECUTION_REJECTED":
             return order
+        if route is not None and route.kind == "EXECUTION_PARENT" and (
+                order.status == order.Rejected
+                or "reject:" + key in binding.host.local_order_notifications()):
+            return order
         if route is not None and route.kind in ("PENDING", "EXECUTION_PARENT"):
             if route.kind == "EXECUTION_PARENT":
                 try:
@@ -1851,7 +1855,7 @@ class GatewayExecutionStreamBrokerMixin:
                 execution_route = binding.host.load_execution_route(key)
             if execution_route is not None and execution_route.kind in ("PENDING", "EXECUTION_PARENT"):
                 recheck_map = getattr(binding, "execution_status_recheck", None)
-                if _bt_terminal(order):
+                if _bt_terminal(order) or "reject:" + key in local_notice_keys:
                     if isinstance(recheck_map, dict):
                         recheck_map.pop(key, None)
                     continue
@@ -2104,7 +2108,7 @@ class GatewayExecutionStreamBrokerMixin:
             binding.state = "EXECUTION_EVENT_UNBOUND"
             return
         if route is not None and route.kind == "EXECUTION_PARENT":
-            if parent_key is None:
+            if parent_key is None or "reject:" + order_key in local_notice_keys:
                 binding.state = "EXECUTION_EVENT_UNBOUND"
                 return
             request = self._gateway_execution_parent_event_binding(

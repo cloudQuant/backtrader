@@ -217,3 +217,146 @@ def test_definitively_rejected_execution_parent_finalizes_and_unblocks():
     binding.next_idle_read = 0.0
     broker._gateway_stream_next()
     assert binding.state == "ACTIVE"
+
+
+def test_real_v8_host_persists_and_reloads_execution_parent_rejection_with_risk_codes(tmp_path):
+    """Real GatewayPendingHost v8 must persist & reload EXECUTION_PARENT rejections
+    (including lowercase Risk codes like risk_self_trade), while still rejecting
+    PENDING routes and malformed codes fail-closed."""
+    from decimal import Decimal
+
+    import pytest
+    from bt_api_base.gateway_direct_protocol import GatewayCommandBinding
+    from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
+    from bt_api_py._contracts.models import OrderRequest, OrderType, Side
+    from bt_api_py.execution_routing import ExecutionPreparedRoute
+    from bt_api_py.gateway_direct_client import GatewayClientRoute, build_gateway_order_intent
+
+    from backtrader.live_state import StrategyStateDir
+    from backtrader.live_state.gateway_pending import GatewayPendingHost
+
+    strat_dir = tmp_path / "strat"
+    strat_dir.mkdir()
+    state = StrategyStateDir.initialize(strat_dir)
+    binding = GatewayCommandBinding("journal-1", "account-1", "strategy-1", "principal-1")
+    route = GatewayClientRoute(
+        "broker.direct_write",
+        "service-1",
+        "instance-1",
+        "scope-1",
+        WireScope("simnow:sim", account_ref="account-1", strategy_ref="strategy-1", run_id="run-1"),
+        WireIdentity(WireRole.STRATEGY_CLIENT, "principal-1", "strategy-1"),
+    )
+
+    host = GatewayPendingHost.upgrade_for_gateway(strat_dir, state.strategy_uuid, binding)
+    host = GatewayPendingHost.upgrade_for_cancellation(strat_dir, state.strategy_uuid, binding)
+    host = GatewayPendingHost.upgrade_for_execution(
+        strat_dir, state.strategy_uuid, binding, consumer_ref="gexec:" + "a" * 64
+    )
+    host = GatewayPendingHost.upgrade_for_order_state(
+        strat_dir, state.strategy_uuid, binding, max_order_snapshot_bytes=1024 * 1024, lock_timeout=5.0
+    )
+    host.upgrade_for_local_notifications()
+    host.upgrade_for_risk_routing()
+    host.upgrade_for_execution_routing()
+
+    def make_snapshot(req_key: str, bt_ref: int, status: int) -> dict:
+        return {
+            "schema_version": 1,
+            "state": {
+                "codec": 1,
+                "feeds": {},
+                "orders": {req_key: {"ref": bt_ref, "status": status}},
+                "positions": {},
+                "trades": {},
+                "groups": {},
+            },
+        }
+
+    def save_bound_parent(req_key: str, local_seq: int, bt_ref: int):
+        req = OrderRequest(
+            symbol="rb2701",
+            side=Side.BUY,
+            order_type=OrderType.LIMIT,
+            quantity=Decimal("1"),
+            account_id="account-1",
+            client_order_id=req_key,
+            price=Decimal("3050"),
+            idempotency_key=req_key,
+        )
+        intent = build_gateway_order_intent(binding, route, req, ttl_seconds=30)
+        host.save_execution_routing_intent(
+            intent,
+            local_seq=local_seq,
+            bt_ref=bt_ref,
+            snapshot=make_snapshot(req_key, bt_ref, 1),
+            configuration_id="cfg-exec-1",
+        )
+        prepared = ExecutionPreparedRoute(
+            account=intent.binding.account_scope,
+            strategy=intent.binding.strategy_scope,
+            request_key=req_key,
+            intent_digest=intent.digest,
+            request_id=f"req-{local_seq}",
+            request_sha256="b" * 64,
+            configuration_id="cfg-exec-1",
+            execution_domain_ref=intent.route.scope.execution_domain_ref,
+            parent_ref=f"parent-{local_seq}",
+        )
+        assert host.bind_execution_parent_route(req_key, prepared) is True
+        return intent
+
+    # 1. Lowercase Risk refusal code ("risk_self_trade") persists and reloads cleanly
+    save_bound_parent("bt-k-1", local_seq=1, bt_ref=11)
+    notice1 = host.save_rejected_order_notification(
+        "bt-k-1", bt_ref=11, snapshot=make_snapshot("bt-k-1", 11, 8), code="risk_self_trade"
+    )
+    assert notice1["status"] == "pending"
+    assert notice1["code"] == "risk_self_trade"
+
+    # 2. Uppercase Execution refusal code ("EXECUTION_PARENT_REJECTED") also persists cleanly
+    save_bound_parent("bt-k-2", local_seq=2, bt_ref=12)
+    notice2 = host.save_rejected_order_notification(
+        "bt-k-2", bt_ref=12, snapshot=make_snapshot("bt-k-2", 12, 8), code="EXECUTION_PARENT_REJECTED"
+    )
+    assert notice2["code"] == "EXECUTION_PARENT_REJECTED"
+
+    # 3. Malformed rejection codes remain strictly rejected
+    save_bound_parent("bt-k-3", local_seq=3, bt_ref=13)
+    with pytest.raises(ValueError, match="GATEWAY_LOCAL_NOTIFICATION_INVALID"):
+        host.save_rejected_order_notification(
+            "bt-k-3", bt_ref=13, snapshot=make_snapshot("bt-k-3", 13, 8), code="bad code!"
+        )
+
+    # 4. Unbound PENDING route still fails closed (must use reject_execution_before_submit)
+    req4 = OrderRequest(
+        symbol="rb2701",
+        side=Side.BUY,
+        order_type=OrderType.LIMIT,
+        quantity=Decimal("1"),
+        account_id="account-1",
+        client_order_id="bt-k-4",
+        price=Decimal("3050"),
+        idempotency_key="bt-k-4",
+    )
+    intent4 = build_gateway_order_intent(binding, route, req4, ttl_seconds=30)
+    host.save_execution_routing_intent(
+        intent4,
+        local_seq=4,
+        bt_ref=14,
+        snapshot=make_snapshot("bt-k-4", 14, 1),
+        configuration_id="cfg-exec-1",
+    )
+    with pytest.raises(ValueError, match="GATEWAY_EXECUTION_ROUTE_NOT_ALLOWED"):
+        host.save_rejected_order_notification(
+            "bt-k-4", bt_ref=14, snapshot=make_snapshot("bt-k-4", 14, 8), code="risk_self_trade"
+        )
+
+    # 5. Fresh host reload from disk validates v8 order_state + execution_routes cleanly
+    reloaded = GatewayPendingHost(strat_dir, state.strategy_uuid, binding)
+    notices = reloaded.local_order_notifications()
+    assert notices["reject:bt-k-1"]["code"] == "risk_self_trade"
+    assert notices["reject:bt-k-2"]["code"] == "EXECUTION_PARENT_REJECTED"
+    assert reloaded.load_execution_route("bt-k-1").kind == "EXECUTION_PARENT"
+    assert reloaded.load_execution_route("bt-k-2").kind == "EXECUTION_PARENT"
+
