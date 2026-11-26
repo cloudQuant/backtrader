@@ -231,3 +231,45 @@ def test_uncertain_close_blocks_next_runtime_without_clearing_retained_session(
     assert len(created_sessions) == 1
     assert retained == [created_sessions[0]]
     assert tuple((run_root / "market-only").iterdir()) == run_dirs_before
+
+
+def test_market_hub_feed_defaults_to_ticks_and_disables_forced_tick_params():
+    import backtrader as bt
+
+    tick_strategy_cls = market_only._guarded_strategy("tickbroker_single_symbol_gateway")
+    kwargs = market_only._strategy_kwargs(tick_strategy_cls)
+    assert kwargs["enable_trading"] is False
+    assert kwargs["force_entry_after_ticks"] == 0
+    assert kwargs["force_exit_after_ticks"] == 0
+
+    bar_strategy_cls = market_only._guarded_strategy("bbroker_5s_single_symbol_gateway")
+    bar_kwargs = market_only._strategy_kwargs(bar_strategy_cls)
+    assert bar_kwargs["enable_trading"] is False
+    assert bar_kwargs["force_entry_after_bars"] == 0
+    assert bar_kwargs["force_exit_after_bars"] == 0
+    assert bar_kwargs["force_entry_after_ticks"] == 0
+    assert bar_kwargs["force_exit_after_ticks"] == 0
+
+    class _EmptyReader:
+        finished = True
+
+        def start(self):
+            return None
+
+        def poll(self):
+            return None
+
+    tick_cerebro = market_only._create_cerebro(
+        "tickbroker_single_symbol_gateway",
+        lambda symbol, venue: _EmptyReader(),
+    )
+    assert tick_cerebro.datas[0]._timeframe == bt.TimeFrame.Ticks
+    assert tick_cerebro.datas[0]._compression == 1
+
+    resampled_cerebro = market_only._create_cerebro(
+        "bbroker_5s_single_symbol_gateway",
+        lambda symbol, venue: _EmptyReader(),
+    )
+    assert resampled_cerebro.datas[0]._timeframe == bt.TimeFrame.Seconds
+    assert resampled_cerebro.datas[0]._compression == 5
+

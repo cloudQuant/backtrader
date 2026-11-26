@@ -367,7 +367,14 @@ class MarketOnlyBroker(BackBroker):
 class MarketHubFeed(LiveFeedBase):
     """A history-free line feed over one exact MarketHub subscription."""
 
-    params = (("reader", None), ("symbol", None), ("deadline", None), ("receipt_sink", None))
+    params = (
+        ("reader", None),
+        ("symbol", None),
+        ("deadline", None),
+        ("receipt_sink", None),
+        ("timeframe", bt.TimeFrame.Ticks),
+        ("compression", 1),
+    )
 
     def __init__(self):
         super().__init__()
@@ -525,7 +532,14 @@ def _strategy_kwargs(strategy_class: type) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     if "enable_trading" in names:
         kwargs["enable_trading"] = False
-    for name in ("force_entry_after_bars", "force_exit_after_bars", "force_entry_tick", "force_exit_tick"):
+    for name in (
+        "force_entry_after_bars",
+        "force_exit_after_bars",
+        "force_entry_after_ticks",
+        "force_exit_after_ticks",
+        "force_entry_tick",
+        "force_exit_tick",
+    ):
         if name in names:
             kwargs[name] = 0
     if "bar_source" in names:
