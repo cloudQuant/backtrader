@@ -29,7 +29,8 @@ class MarketOnlyResourceError(RuntimeError):
         super().__init__(code)
 
 
-_GENERATION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+_GENERATION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+_RUN_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 _ENDPOINT_RE = re.compile(r"^tcp://127\.0\.0\.1:([0-9]{1,5})$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _MAX_CONNECTION_BYTES = 8192
@@ -390,7 +391,7 @@ class GlobalMarketIdentityLease:
             or type(generation_id) is not str
             or not _GENERATION_RE.fullmatch(generation_id)
             or type(run_id) is not str
-            or not _GENERATION_RE.fullmatch(run_id)
+            or not _RUN_ID_RE.fullmatch(run_id)
         ):
             raise MarketOnlyResourceError("MARKET_IDENTITY_LEASE_INVALID")
         self._assert_lock_identity()
@@ -530,7 +531,7 @@ class MarketOnlyReceiptSink:
             type(generation_id) is not str
             or not _GENERATION_RE.fullmatch(generation_id)
             or type(run_id) is not str
-            or not _GENERATION_RE.fullmatch(run_id)
+            or not _RUN_ID_RE.fullmatch(run_id)
             or type(connection_json_sha256) is not str
             or not _SHA256_RE.fullmatch(connection_json_sha256)
         ):

@@ -167,6 +167,30 @@ def test_loader_rejects_noncanonical_or_traversing_resource_root(tmp_path):
         resources._canonical_resource_root(parent / "unused" / ".." / "generation-test")
 
 
+def test_generation_root_accepts_79_chars_and_rejects_long_or_unsafe_names(tmp_path):
+    accepted_name = "g" + "x" * 78
+    accepted_root = tmp_path / accepted_name
+    accepted_root.mkdir()
+    assert resources._canonical_resource_root(accepted_root)[1] == accepted_name
+
+    too_long_name = "g" + "x" * 128
+    assert len(too_long_name) == 129
+    assert resources._GENERATION_RE.fullmatch(too_long_name) is None
+
+    invalid_character = tmp_path / "generation.test"
+    invalid_character.mkdir()
+    with pytest.raises(resources.MarketOnlyResourceError, match="RESOURCE_ROOT_INVALID"):
+        resources._canonical_resource_root(invalid_character)
+
+
+@pytest.mark.parametrize("run_id", ["A" * 32, "a" * 31, "a" * 33, "run-test"])
+def test_identity_lease_rejects_run_ids_outside_32_lowercase_hex(tmp_path, run_id):
+    lease = resources.GlobalMarketIdentityLease(tmp_path)
+    lease._lock = SimpleNamespace(held=True, _fd=0)
+    with pytest.raises(resources.MarketOnlyResourceError, match="MARKET_IDENTITY_LEASE_INVALID"):
+        lease.mark_active(generation_id="generation-test", run_id=run_id)
+
+
 def test_cli_rejects_group_or_repeated_strategy_before_resource_read(tmp_path):
     reads = []
     lease_calls = []
@@ -285,12 +309,12 @@ def test_receipt_aggregates_ticks_without_prices_or_keys(tmp_path, monkeypatch):
     sink = resources.MarketOnlyReceiptSink(
         path,
         generation_id="generation-test",
-        run_id="run-test",
+        run_id="a" * 32,
         connection_json_sha256="b" * 64,
     )
     sink.record_start(
         generation_id="generation-test",
-        run_id="run-test",
+        run_id="a" * 32,
         strategy="sa_dual_ma_gateway",
         instruments=[("SA701", "CZCE")],
     )
@@ -408,7 +432,7 @@ def test_global_lease_serializes_and_uncertain_marker_blocks_later_process(tmp_p
     with pytest.raises(resources.MarketOnlyResourceError, match="MARKET_IDENTITY_ALREADY_LOCKED"):
         second.acquire()
 
-    first.mark_active(generation_id="generation-test", run_id="run-test")
+    first.mark_active(generation_id="generation-test", run_id="a" * 32)
     first.mark_uncertain()
     assert first.held and first.retained
     assert json.loads(first.marker_path.read_text(encoding="utf-8"))["status"] == "uncertain"
@@ -424,7 +448,7 @@ def test_global_lease_serializes_and_uncertain_marker_blocks_later_process(tmp_p
     race_root.mkdir()
     raced = resources.GlobalMarketIdentityLease(race_root)
     raced.acquire()
-    raced.mark_active(generation_id="generation-test", run_id="run-race")
+    raced.mark_active(generation_id="generation-test", run_id="b" * 32)
     raced_marker_identity = raced._marker_identity
     replacement = raced.marker_path.with_name("replacement.json")
     replacement.write_text('{"foreign":true}', encoding="utf-8")
@@ -439,7 +463,7 @@ def test_global_lease_serializes_and_uncertain_marker_blocks_later_process(tmp_p
     clean_root.mkdir()
     clean = resources.GlobalMarketIdentityLease(clean_root)
     clean.acquire()
-    clean.mark_active(generation_id="generation-test", run_id="run-clean")
+    clean.mark_active(generation_id="generation-test", run_id="c" * 32)
     clean.clear_active_marker()
     clean.release_clean()
     assert not clean.marker_path.exists()
