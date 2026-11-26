@@ -615,3 +615,64 @@ def test_close_failure_keeps_original_failure_if_marker_update_raises(tmp_path, 
     assert retained[-2] is not None
     assert retained[-1] is guard
     assert receipt.cleanup == ["uncertain"]
+
+
+def test_windows_lease_handles_absent_reparse_error_and_narrows_created_files(
+    tmp_path, monkeypatch
+):
+    narrowed = []
+    dacl_checked = []
+
+    class WinSecurityLike:
+        @staticmethod
+        def ensure_directory_chain(path, create=False):
+            if create:
+                Path(path).mkdir(parents=True, exist_ok=True)
+
+        @staticmethod
+        def inspect_owner(_path):
+            return SimpleNamespace(is_current_user=True, others_writable=False)
+
+        @staticmethod
+        def is_reparse_point(path):
+            if not Path(path).exists():
+                raise RuntimeError("NOFOLLOW_UNAVAILABLE")
+            return False
+
+        @staticmethod
+        def _set_owner_only_acl(path):
+            narrowed.append(Path(path).name)
+
+    monkeypatch.setattr(resources, "_windows_supported", lambda: True)
+    monkeypatch.setattr(resources, "_windows_security", lambda: WinSecurityLike())
+    monkeypatch.setattr(
+        resources,
+        "_local_resource_module",
+        lambda: SimpleNamespace(
+            _assert_private_dacl_windows=lambda path: dacl_checked.append(Path(path).name)
+        ),
+    )
+
+    state_root = tmp_path / "lease-state"
+    lease = resources.GlobalMarketIdentityLease(state_root)
+    lease.acquire()
+    lease.mark_active(generation_id="gen-win-1", run_id="a" * 32)
+    lease.clear_active_marker()
+    lease.release_clean()
+
+    assert "identity.lock" in narrowed
+    assert "cleanup-marker.json" in narrowed
+    assert "identity.lock" in dacl_checked
+    assert "cleanup-marker.json" in dacl_checked
+
+    receipt_path = tmp_path / "receipt.json"
+    sink = resources.MarketOnlyReceiptSink(
+        receipt_path,
+        generation_id="gen-win-1",
+        run_id="a" * 32,
+        connection_json_sha256="b" * 64,
+    )
+    sink.record_cleanup(status="clean")
+    assert "receipt.json" in narrowed
+    assert "receipt.json" in dacl_checked
+

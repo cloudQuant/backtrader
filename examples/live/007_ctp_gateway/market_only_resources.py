@@ -84,6 +84,33 @@ def _windows_security():
     return _win32_security
 
 
+def _path_is_reparse_point_or_absent(path: Path, security: Any) -> bool:
+    """Return True if path is a reparse point; treat genuinely absent paths as False.
+
+    On Windows, ``bt_api_py._win32_security.is_reparse_point`` raises
+    ``Win32SecurityUnavailable`` when ``GetFileAttributesW`` returns
+    ``INVALID_FILE_ATTRIBUTES`` for a path that does not exist yet. Confirm
+    absence via ``lstat()`` (which still succeeds for dangling symlinks/junctions)
+    and re-raise on any present entry or non-ENOENT error (fail-closed).
+    """
+    try:
+        return bool(security.is_reparse_point(path))
+    except Exception:
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            return False
+        raise
+
+
+def _narrow_private_acl_windows(path: Path, security: Any | None = None) -> None:
+    """Narrow a freshly created local file/directory to owner-only DACL before verification."""
+    sec = security if security is not None else _windows_security()
+    narrow = getattr(sec, "_set_owner_only_acl", None)
+    if callable(narrow):
+        narrow(path)
+
+
 def _secure_windows_directory(path: Path, *, create: bool = False) -> None:
     security = _windows_security()
     try:
@@ -96,6 +123,20 @@ def _secure_windows_directory(path: Path, *, create: bool = False) -> None:
         raise
     except Exception:
         raise MarketOnlyResourceError("RESOURCE_DIRECTORY_UNTRUSTED") from None
+
+
+def _secure_created_windows_directory(path: Path) -> None:
+    """Narrow and verify a freshly created directory on Windows."""
+    security = _windows_security()
+    try:
+        if security.is_reparse_point(path):
+            raise MarketOnlyResourceError("RESOURCE_DIRECTORY_UNTRUSTED")
+        _narrow_private_acl_windows(path, security)
+    except MarketOnlyResourceError:
+        raise
+    except Exception:
+        raise MarketOnlyResourceError("RESOURCE_DIRECTORY_UNTRUSTED") from None
+    _secure_windows_directory(path)
 
 
 def _canonical_resource_root(value: str | os.PathLike[str]) -> tuple[Path, str]:
@@ -308,7 +349,7 @@ class GlobalMarketIdentityLease:
         _secure_windows_directory(self.state_root, create=True)
         security = _windows_security()
         try:
-            if security.is_reparse_point(self.lock_path):
+            if _path_is_reparse_point_or_absent(self.lock_path, security):
                 raise ValueError
             if not self.lock_path.exists():
                 flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
@@ -318,6 +359,7 @@ class GlobalMarketIdentityLease:
                     os.fsync(fd)
                 finally:
                     os.close(fd)
+                _narrow_private_acl_windows(self.lock_path, security)
             details = self.lock_path.lstat()
             if (
                 not stat.S_ISREG(details.st_mode)
@@ -343,7 +385,7 @@ class GlobalMarketIdentityLease:
             ):
                 raise ValueError
             _local_resource_module()._assert_private_dacl_windows(self.lock_path)
-            if self.marker_path.exists() or security.is_reparse_point(self.marker_path):
+            if self.marker_path.exists() or _path_is_reparse_point_or_absent(self.marker_path, security):
                 self._validate_marker_path()
                 self.release_unstarted()
                 raise MarketOnlyResourceError("MARKET_IDENTITY_CLEANUP_UNCERTAIN")
@@ -411,6 +453,7 @@ class GlobalMarketIdentityLease:
                 opened = os.fstat(fd)
             finally:
                 os.close(fd)
+            _narrow_private_acl_windows(self.marker_path)
             _local_resource_module()._assert_private_dacl_windows(self.marker_path)
             details = self.marker_path.lstat()
             if (
@@ -438,6 +481,7 @@ class GlobalMarketIdentityLease:
             ):
                 raise MarketOnlyResourceError("MARKET_IDENTITY_MARKER_UNTRUSTED")
             atomic_write_bytes(self.marker_path, payload)
+            _narrow_private_acl_windows(self.marker_path)
             after = self.marker_path.lstat()
             if (
                 (before.st_dev, before.st_ino) == (after.st_dev, after.st_ino)
@@ -455,6 +499,7 @@ class GlobalMarketIdentityLease:
                 opened = os.fstat(fd)
             finally:
                 os.close(fd)
+            _narrow_private_acl_windows(self.marker_path)
             _local_resource_module()._assert_private_dacl_windows(self.marker_path)
             details = self.marker_path.lstat()
             if (
@@ -483,7 +528,9 @@ class GlobalMarketIdentityLease:
                 if self._marker_identity != (details.st_dev, details.st_ino):
                     raise ValueError
                 self.marker_path.unlink()
-                if self.marker_path.exists() or _windows_security().is_reparse_point(self.marker_path):
+                if self.marker_path.exists() or _path_is_reparse_point_or_absent(
+                    self.marker_path, _windows_security()
+                ):
                     raise ValueError
                 fsync_directory(self.state_root)
                 self.active = False
@@ -558,6 +605,7 @@ class MarketOnlyReceiptSink:
             raise MarketOnlyResourceError("RECEIPT_LIMIT_EXCEEDED")
         atomic_write_bytes(self.receipt_path, raw)
         if _windows_supported():
+            _narrow_private_acl_windows(self.receipt_path)
             _local_resource_module()._assert_private_dacl_windows(self.receipt_path)
 
     def record_start(self, *, generation_id: str, run_id: str, strategy: str, instruments: list):

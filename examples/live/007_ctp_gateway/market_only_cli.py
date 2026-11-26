@@ -102,7 +102,7 @@ def main(
         identity = strategy_runner.create_market_only_run_identity(
             loaded.resource_root, bucket="strategies-market-only"
         )
-        resources._secure_windows_directory(identity.run_root)
+        resources._secure_created_windows_directory(identity.run_root)
         receipt = receipt_factory(
             identity.run_root / "receipt.json",
             generation_id=loaded.generation_id,
