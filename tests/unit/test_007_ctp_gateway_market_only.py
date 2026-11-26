@@ -120,6 +120,10 @@ def test_unknown_position_and_sa_order_paths_fail_closed():
 
     strategy_class = market_only._guarded_strategy("sa_dual_ma_gateway")
     guard = object.__new__(strategy_class)
+    guard.market_only_order_attempts = 0
+    guard.market_only_order_rejections = 0
+    guard.market_only_cancel_attempts = 0
+    guard.market_only_cancel_rejections = 0
     with pytest.raises(market_only.MarketOnlyOrderRejected, match="MARKET_ONLY_ORDER_REJECTED"):
         guard.buy(None)
     with pytest.raises(market_only.MarketOnlyOrderRejected, match="MARKET_ONLY_CANCEL_REJECTED"):

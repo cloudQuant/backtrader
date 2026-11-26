@@ -10,8 +10,8 @@ rejected locally before they can reach a remote client.
 This is an observation runner, not an authorization to trade. It never reads
 old run directories or stop markers, and every invocation gets a fresh run ID.
 The current SDK CTP composition uses one fixed strategy reference, so runs using
-that identity are serial only. A process-local lock rejects overlapping calls;
-the caller must also ensure that only one process uses this connection at a time.
+that identity are serial only. Direct callers must provide cross-process
+serialization; ``market_only_cli`` supplies the per-user global lease.
 """
 from __future__ import annotations
 
@@ -35,6 +35,16 @@ from backtrader.utils import date2num
 
 class MarketOnlyError(RuntimeError):
     """Finite, value-free failure of the market-only boundary."""
+
+    def __init__(self, code: str):
+        if (
+            type(code) is not str
+            or not code.isascii()
+            or not code.replace("_", "").isalnum()
+        ):
+            code = "MARKET_ONLY_FAILED"
+        self.code = code
+        super().__init__(code)
 
 
 class MarketOnlyPositionUnknown(MarketOnlyError):
@@ -99,13 +109,15 @@ class MarketOnlyRunIdentity:
     run_root: Path
 
 
-def create_market_only_run_identity(run_root: str | Path) -> MarketOnlyRunIdentity:
+def create_market_only_run_identity(
+    run_root: str | Path, *, bucket: str = "market-only"
+) -> MarketOnlyRunIdentity:
     """Create a new run directory without opening or enumerating old state."""
     base = Path(run_root)
-    if not base.is_absolute():
+    if not base.is_absolute() or bucket not in {"market-only", "strategies-market-only"}:
         raise MarketOnlyError("RUN_ROOT_MUST_BE_ABSOLUTE")
     run_id = uuid.uuid4().hex
-    current = base / "market-only" / run_id
+    current = base / bucket / run_id
     current.mkdir(parents=True, exist_ok=False)
     return MarketOnlyRunIdentity(run_id, current)
 
@@ -301,38 +313,61 @@ _RUN_LOCK = threading.Lock()
 class MarketOnlyBroker(BackBroker):
     """Local Cerebro guard; it has no provider/Gateway connection or account state."""
 
+    def __init__(self, *args, **kwargs):
+        self.market_only_order_attempts = 0
+        self.market_only_order_rejections = 0
+        self.market_only_cancel_attempts = 0
+        self.market_only_cancel_rejections = 0
+        self.market_only_account_read_attempts = 0
+        super().__init__(*args, **kwargs)
+
+    def _reject_order(self):
+        self.market_only_order_attempts += 1
+        self.market_only_order_rejections += 1
+        raise MarketOnlyOrderRejected("MARKET_ONLY_ORDER_REJECTED")
+
+    def _reject_cancel(self):
+        self.market_only_cancel_attempts += 1
+        self.market_only_cancel_rejections += 1
+        raise MarketOnlyOrderRejected("MARKET_ONLY_CANCEL_REJECTED")
+
     def get_strategy_position(self, strategy, data, side=None):
+        self.market_only_account_read_attempts += 1
         raise MarketOnlyPositionUnknown("POSITION_UNKNOWN")
 
     def getposition(self, data, side=None):
+        self.market_only_account_read_attempts += 1
         raise MarketOnlyPositionUnknown("POSITION_UNKNOWN")
 
     def get_closable(self, data, side):
+        self.market_only_account_read_attempts += 1
         raise MarketOnlyPositionUnknown("POSITION_UNKNOWN")
 
     def getcash(self):
+        self.market_only_account_read_attempts += 1
         raise MarketOnlyPositionUnknown("ACCOUNT_CASH_UNKNOWN")
 
     def getvalue(self, datas=None):
+        self.market_only_account_read_attempts += 1
         raise MarketOnlyPositionUnknown("ACCOUNT_VALUE_UNKNOWN")
 
     def buy(self, *args, **kwargs):
-        raise MarketOnlyOrderRejected("MARKET_ONLY_ORDER_REJECTED")
+        self._reject_order()
 
     def sell(self, *args, **kwargs):
-        raise MarketOnlyOrderRejected("MARKET_ONLY_ORDER_REJECTED")
+        self._reject_order()
 
     def submit(self, *args, **kwargs):
-        raise MarketOnlyOrderRejected("MARKET_ONLY_ORDER_REJECTED")
+        self._reject_order()
 
     def cancel(self, *args, **kwargs):
-        raise MarketOnlyOrderRejected("MARKET_ONLY_CANCEL_REJECTED")
+        self._reject_cancel()
 
 
 class MarketHubFeed(LiveFeedBase):
     """A history-free line feed over one exact MarketHub subscription."""
 
-    params = (("reader", None), ("symbol", None), ("deadline", None))
+    params = (("reader", None), ("symbol", None), ("deadline", None), ("receipt_sink", None))
 
     def __init__(self):
         super().__init__()
@@ -362,6 +397,8 @@ class MarketHubFeed(LiveFeedBase):
         self.lines.volume[0] = tick.volume
         self.lines.openinterest[0] = tick.open_interest
         self._observed_ticks += 1
+        if self.p.receipt_sink is not None:
+            self.p.receipt_sink.record_tick(tick)
         event = Event(
             timestamp=tick.event_time.timestamp(),
             priority=EventPriority.TICK,
@@ -382,6 +419,10 @@ class MarketOnlyStrategyGuard:
     def __init__(self, *args, **kwargs):
         self.market_only_started = False
         self.market_only_tick_count = 0
+        self.market_only_order_attempts = 0
+        self.market_only_order_rejections = 0
+        self.market_only_cancel_attempts = 0
+        self.market_only_cancel_rejections = 0
         super().__init__(*args, **kwargs)
 
     def start(self):
@@ -421,12 +462,18 @@ class MarketOnlyStrategyGuard:
         return {}
 
     def buy(self, *args, **kwargs):
+        self.market_only_order_attempts += 1
+        self.market_only_order_rejections += 1
         raise MarketOnlyOrderRejected("MARKET_ONLY_ORDER_REJECTED")
 
     def sell(self, *args, **kwargs):
+        self.market_only_order_attempts += 1
+        self.market_only_order_rejections += 1
         raise MarketOnlyOrderRejected("MARKET_ONLY_ORDER_REJECTED")
 
     def cancel(self, *args, **kwargs):
+        self.market_only_cancel_attempts += 1
+        self.market_only_cancel_rejections += 1
         raise MarketOnlyOrderRejected("MARKET_ONLY_CANCEL_REJECTED")
 
 
@@ -491,6 +538,7 @@ def _create_cerebro(
     reader_factory: Callable[[str, str], Any],
     *,
     deadline: float | None = None,
+    receipt_sink: Any = None,
 ) -> bt.Cerebro:
     spec = STRATEGIES[strategy_name]
     cerebro = bt.Cerebro(stdstats=False)
@@ -501,7 +549,12 @@ def _create_cerebro(
         raise MarketOnlyError("TRADING_FLAG_NOT_DISABLED")
     cerebro.addstrategy(strategy_class, **kwargs)
     for symbol, venue in spec.instruments:
-        data = MarketHubFeed(reader=reader_factory(symbol, venue), symbol=symbol, deadline=deadline)
+        data = MarketHubFeed(
+            reader=reader_factory(symbol, venue),
+            symbol=symbol,
+            deadline=deadline,
+            receipt_sink=receipt_sink,
+        )
         if spec.resample_seconds:
             timeframe = bt.TimeFrame.Minutes if spec.resample_seconds == 60 else bt.TimeFrame.Seconds
             compression = 1 if spec.resample_seconds == 60 else spec.resample_seconds
@@ -510,12 +563,46 @@ def _create_cerebro(
     return cerebro
 
 
+def _write_receipt_scope(receipt_sink: Any, cerebro: bt.Cerebro | None, results: list[Any] | None) -> None:
+    if receipt_sink is None:
+        return
+    broker = None if cerebro is None else cerebro.getbroker()
+    strategies = list(results or ())
+    if not strategies and cerebro is not None:
+        strategies = list(getattr(cerebro, "runningstrats", ()) or ())
+    metrics = {
+        "market_operation_allowlist": [
+            "market.subscribe",
+            "market.unsubscribe",
+            "market.snapshot",
+            "market.head",
+            "market.read_after",
+        ],
+        "market_operation_counts_instrumented": False,
+        "strategy_order_attempts": sum(getattr(s, "market_only_order_attempts", 0) for s in strategies),
+        "strategy_order_rejections": sum(getattr(s, "market_only_order_rejections", 0) for s in strategies),
+        "strategy_cancel_attempts": sum(getattr(s, "market_only_cancel_attempts", 0) for s in strategies),
+        "strategy_cancel_rejections": sum(getattr(s, "market_only_cancel_rejections", 0) for s in strategies),
+        "broker_order_attempts": getattr(broker, "market_only_order_attempts", 0),
+        "broker_order_rejections": getattr(broker, "market_only_order_rejections", 0),
+        "broker_cancel_attempts": getattr(broker, "market_only_cancel_attempts", 0),
+        "broker_cancel_rejections": getattr(broker, "market_only_cancel_rejections", 0),
+        "account_read_attempts": getattr(broker, "market_only_account_read_attempts", 0),
+        "global_zero_write_claim": False,
+    }
+    receipt_sink.record_zero_write_scope(metrics)
+
+
 def run_market_only(
     strategy_name: str,
     *,
     connection: Any,
     run_root: str | Path,
     run_seconds: float | None = None,
+    generation_id: str | None = None,
+    run_identity: MarketOnlyRunIdentity | None = None,
+    receipt_sink: Any = None,
+    identity_guard: Any = None,
 ) -> tuple[MarketOnlyRunIdentity, list[Any]]:
     """Run one observer using only a trusted in-memory Gateway market connection.
 
@@ -538,20 +625,89 @@ def run_market_only(
             # registration/MarketHub ownership uncertain. Do not start another
             # runtime in this process and do not try to clean the old one here.
             raise MarketOnlyError("MARKET_ONLY_UNCERTAIN_SESSION_RETAINED")
-        identity = create_market_only_run_identity(run_root)
+        identity = run_identity or create_market_only_run_identity(
+            run_root,
+            bucket="strategies-market-only" if receipt_sink is not None else "market-only",
+        )
+        if type(identity) is not MarketOnlyRunIdentity or identity.run_root.parent.parent != Path(run_root):
+            raise MarketOnlyError("RUN_IDENTITY_INVALID")
         session = CtpGatewayMarketOnlySession(connection)
         deadline = None if run_seconds is None else time.monotonic() + float(run_seconds)
+        cerebro = None
+        results = None
         try:
+            if receipt_sink is not None:
+                receipt_sink.record_start(
+                    generation_id=generation_id,
+                    run_id=identity.run_id,
+                    strategy=strategy_name,
+                    instruments=list(STRATEGIES[strategy_name].instruments),
+                )
+            if identity_guard is not None:
+                identity_guard.mark_active(generation_id=generation_id, run_id=identity.run_id)
             session.start()
-            cerebro = _create_cerebro(strategy_name, session.new_reader, deadline=deadline)
+            cerebro = _create_cerebro(
+                strategy_name, session.new_reader, deadline=deadline, receipt_sink=receipt_sink
+            )
             results = cerebro.run(runonce=False, preload=False, exactbars=1)
             return identity, results
         finally:
             try:
                 session.close()
             except Exception:
-                # Keep references alive when unsubscribe/runtime close is uncertain.
-                _UNCERTAIN_SESSIONS.append(session)
+                try:
+                    _write_receipt_scope(receipt_sink, cerebro, results)
+                except Exception:
+                    pass
+                try:
+                    if receipt_sink is not None:
+                        receipt_sink.record_cleanup(status="uncertain")
+                except Exception:
+                    pass
+                if identity_guard is not None:
+                    try:
+                        identity_guard.mark_uncertain()
+                    except Exception:
+                        # Preserve the original close failure. The active
+                        # marker still blocks a later invocation if rewriting
+                        # it to UNCERTAIN also fails.
+                        pass
+                # Keep references and the process/global identity lease alive.
+                if session not in _UNCERTAIN_SESSIONS:
+                    _UNCERTAIN_SESSIONS.append(session)
+                if identity_guard is not None:
+                    if identity_guard not in _UNCERTAIN_SESSIONS:
+                        _UNCERTAIN_SESSIONS.append(identity_guard)
                 raise MarketOnlyError("MARKET_SESSION_CLOSE_UNCERTAIN") from None
+            try:
+                if identity_guard is not None and identity_guard.retained:
+                    raise MarketOnlyError("MARKET_IDENTITY_CLEANUP_UNCERTAIN")
+                _write_receipt_scope(receipt_sink, cerebro, results)
+                if receipt_sink is not None:
+                    receipt_sink.record_cleanup(status="clean")
+                if identity_guard is not None:
+                    identity_guard.clear_active_marker()
+                    identity_guard.release_clean()
+            except Exception:
+                if identity_guard is not None:
+                    try:
+                        identity_guard.mark_uncertain()
+                    except Exception:
+                        pass
+                try:
+                    _write_receipt_scope(receipt_sink, cerebro, results)
+                except Exception:
+                    pass
+                try:
+                    if receipt_sink is not None:
+                        receipt_sink.record_cleanup(status="uncertain")
+                except Exception:
+                    pass
+                if session not in _UNCERTAIN_SESSIONS:
+                    _UNCERTAIN_SESSIONS.append(session)
+                if identity_guard is not None:
+                    if identity_guard not in _UNCERTAIN_SESSIONS:
+                        _UNCERTAIN_SESSIONS.append(identity_guard)
+                raise MarketOnlyError("MARKET_ONLY_FINALIZATION_UNCERTAIN") from None
     finally:
         _RUN_LOCK.release()
