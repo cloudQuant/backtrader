@@ -96,3 +96,12 @@
 - **长稳自愈指标**：**4 路 1800s 自动续期**（`risk`、`gateway`、`portfolio_risk`、`portfolio_gateway`）与 **2 路 Risk 4096 主动轮换**（`14:26:21` market、`14:35:29` account_facts `READY`）全部实盘成功；全部核心服务日志 0 `ERROR` / 0 `TIMEOUT` / 0 `QUERY_BUDGET_EXCEEDED`。
 - **Web 同库重启隔离与时延**：PID #1（`26528`）协作停机期间 11 策略与 19 底层进程零中断；PID #2（`15600`）复用同一 `accounts.sqlite3` 2.78s 复原，5 样本实测 `/api/v1/dashboard p50=250.0ms`、`/api/v1/portfolio p50=313.0ms`，随后自有 `.stop` 退出 `exit=0`。
 - **宿主机抖动观察（如实记录）**：`14:32:33.964 → 14:32:36.812` 宿主机出现 `2.848s` OS/磁盘停顿（策略 `tick.log` 毫秒记录），触发 `AtomicIntakeService` 既定 `2.0s` fail-closed watchdog（此时 SQLite 5s writer lease 尚余 2.5s），11 个 Execution 进程按迭代 65 合同同步 fail-closed 并在策略状态中即时标出 `execution_unavailable`（未放宽该 `2.0s` 门禁）。
+
+### 5.1 盘后全量回归加固追加修复（`2026-11-27 17:48+08:00`，`UNIT/FAKE` + `LOCAL_LOOPBACK / INTEGRATION_SIM`）
+- **`bt_api_py@76babfce`**：
+  1. 修复 `RiskServiceHost` 在 `9b9a1409` 提升 `request_timeout_ms` 后的 8 处 `runtime.close()` 单倍超时回归（新增 `_runtime_close_timeout()`），恢复同 PID Gateway 重启零误锁 `_cleanup_uncertain`。
+  2. 优化 `ServiceClientRuntime._unregister` 对已断连 `strict_single_connection`（`RECONNECT_IVL=-1, IMMEDIATE=1`）socket 的 50ms `POLLOUT` 识别，避免空等 5–10s 后才切一次性认证注销通道（实测 `r05_cut` 端到端收敛由 `6.2s–10.3s` 降至 `1.47s–4.73s`）。
+  3. 去重 `ServiceHost._refresh_registry_readiness()` 空闲期重复 `_atomic_intake_fence_state()` 检查并将空闲 `ParentServiceHost.serve_once` 由 100ms 调至 200ms（约降 4× 空闲 CPU/DACL 校验开销，不放宽任何安全门禁）。
+  4. 消除 `test_iter72_05` / `test_iter72_risk_same_pid_gateway_restart_recovery` 关机前未等账本水位 ACK 造成的 `pending=2` 竞态，并更新 3 处旧断言/stub。
+- **`bt_api_web@0e6f485`**：补齐 `SyntheticSupervisor` 的 `lifecycle_lock` 与 `cooperative_only=False`，真实 `bt_api_runtime` 运行控制集成测试零跳测全通。
+- **回归结果**：`bt_api_py` `25 + 166 + 315 = 506 passed (0 failed)` + `bt_api_web` `171 + 1 = 172 passed (0 skipped, 0 failed)`，合计 **`678 passed, 0 failed`**（仅本地 `dev` 提交，未推远端）。
