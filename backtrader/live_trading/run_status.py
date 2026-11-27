@@ -743,6 +743,123 @@ def direct_run_facts(broker: Any) -> RunFacts:
             lock.release()
 
 
+def gateway_run_facts(broker: Any) -> RunFacts:
+    """Read a Gateway-mode Broker's publishable facts without blocking the heartbeat.
+
+    Reads only in-memory Store/Broker state (never performs RPC, SQLite, or
+    file I/O).  Before the Gateway store has started or after it has closed,
+    returns an all-``None`` :class:`RunFacts` (UNKNOWN), never a fabricated
+    empty block list or zero count.
+    """
+    try:
+        store = getattr(broker, "store", None)
+        if store is None or not bool(getattr(store, "_gateway_mode", False)):
+            return RunFacts()
+        if not bool(getattr(store, "_gateway_start_attempted", False)):
+            return RunFacts()
+        if bool(getattr(store, "_gateway_closed", False)):
+            return RunFacts()
+
+        reasons = []
+        run_binding = getattr(broker, "_run_binding", None)
+        params = getattr(broker, "p", None)
+        if bool(getattr(params, "market_data_only", False)) or (
+            run_binding is not None and bool(getattr(run_binding, "market_data_only", False))
+        ):
+            reasons.append("market_data_only")
+        if bool(getattr(store, "_gateway_composition_uncertain", False)):
+            reasons.append("gateway_composition_uncertain")
+        broker_dict = getattr(broker, "__dict__", {})
+        if not bool(getattr(store, "is_connected", False)) or bool(
+            broker_dict.get("_gateway_waiting_for_session")
+        ):
+            reasons.append("gateway_unavailable")
+
+        gw_cfg = getattr(store, "gateway_strategy_config", None)
+        api = getattr(store, "gateway_api", None)
+        risk_selected = bool(
+            getattr(gw_cfg, "risk_selection", None) is not None
+            or (api is not None and getattr(api, "risk_selected", False) is True)
+        )
+        if risk_selected:
+            risk_avail = getattr(api, "risk_available", None) if api is not None else None
+            if risk_avail is False:
+                reasons.append("risk_unavailable")
+            elif risk_avail is not True:
+                reasons.append("risk_status_unknown")
+
+        exec_selected = bool(
+            getattr(gw_cfg, "execution_selection", None) is not None
+            or (api is not None and getattr(api, "execution_selected", False) is True)
+        )
+        if exec_selected:
+            exec_avail = getattr(api, "execution_available", None) if api is not None else None
+            if exec_avail is False:
+                reasons.append("execution_unavailable")
+            elif exec_avail is not True:
+                reasons.append("execution_status_unknown")
+
+        proof = getattr(store, "gateway_readiness_proof", None)
+        if proof is not None and bool(getattr(proof, "monitor_stop_new_active", False)):
+            reasons.append("monitor_stop_new_active")
+
+        # Inspect execution stream binding in memory only; never call
+        # _gateway_stream_check(), which is thread-affine to the strategy thread.
+        stream_binding = broker_dict.get("_gateway_stream_binding")
+        if stream_binding is None:
+            if bool(broker_dict.get("_gateway_waiting_for_feed")):
+                reasons.append("waiting_feed")
+            elif not reasons:
+                reasons.append("stream_unbound")
+        else:
+            state = getattr(stream_binding, "state", None)
+            if state != "ACTIVE":
+                state_code = (
+                    state.strip().lower()
+                    if isinstance(state, str) and state.strip()
+                    else "stream_not_active"
+                )
+                reasons.append(state_code)
+
+        orders_map = getattr(broker, "orders", None)
+        orders = list(orders_map.values()) if isinstance(orders_map, Mapping) else []
+        active = sum(1 for order in orders if order.alive())
+        unknown = 0
+        for order in orders:
+            info = getattr(order, "info", None)
+            if isinstance(info, Mapping) and (
+                bool(info.get("execution_unknown", False))
+                or bool(info.get("cancel_execution_unknown", False))
+            ):
+                unknown += 1
+        if stream_binding is not None:
+            reserve_unknown = getattr(stream_binding, "reserve_unknown", None)
+            if isinstance(reserve_unknown, Mapping):
+                unknown += len(list(reserve_unknown))
+
+        return RunFacts(
+            write_block_reasons=_codes_from(reasons),
+            unknown_unresolved_count=int(unknown),
+            active_order_count=int(active),
+            last_error_code=None,
+        )
+    except Exception:  # a status read is never allowed to break the heartbeat
+        return RunFacts()
+
+
+def broker_run_facts(broker: Any) -> RunFacts:
+    """Dispatch non-blocking status facts to Direct or Gateway Broker readers."""
+    if bool(getattr(broker, "_direct_active", lambda: False)()):
+        return direct_run_facts(broker)
+    store = getattr(broker, "store", None)
+    binding = getattr(broker, "_run_binding", None)
+    if bool(getattr(store, "_gateway_mode", False)) or (
+        binding is not None and getattr(binding, "mode", None) == "gateway"
+    ):
+        return gateway_run_facts(broker)
+    return direct_run_facts(broker)
+
+
 def _validate_facts(facts: Any) -> RunFacts:
     """Normalize any provider result; unusable fields become UNKNOWN."""
     if isinstance(facts, RunFacts):
@@ -832,7 +949,7 @@ class RunStatusWriter:
         self._clock = clock or (lambda: _dt.datetime.now(_dt.timezone.utc))
         self._facts_provider = facts_provider
         if self._facts_provider is None and broker is not None:
-            self._facts_provider = lambda: direct_run_facts(broker)
+            self._facts_provider = lambda: broker_run_facts(broker)
         if feeds is None and broker is not None:
             store = getattr(broker, "store", None)
             feeds = getattr(store, "_data_feeds", None)

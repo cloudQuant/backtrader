@@ -13,11 +13,13 @@ from .run_status import (
     RunFacts,
     RunStatusError,
     RunStatusWriter,
+    broker_run_facts,
     compute_stop_budget,
     derive_outcome,
     direct_run_facts,
     direct_stop_budget,
     exit_code_for,
+    gateway_run_facts,
     read_run_status,
 )
 from .stop_request_file import (
@@ -59,7 +61,9 @@ __all__ = [
     "RunStatusError",
     "compute_stop_budget",
     "direct_stop_budget",
+    "broker_run_facts",
     "direct_run_facts",
+    "gateway_run_facts",
     "derive_outcome",
     "exit_code_for",
     "read_run_status",
