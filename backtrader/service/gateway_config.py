@@ -8,18 +8,82 @@ from __future__ import annotations
 
 import math
 import os
+import socket
 import stat
 import time
 from collections.abc import Mapping
 from copy import deepcopy
+from urllib.parse import urlsplit
 
 from ..utils.log_message import get_logger
 
 _LOG = get_logger(__name__)
 # Seconds between attempts to register a new session after one was lost.
-_RECONNECT_BACKOFF = (0.0, 1.0, 2.0, 5.0, 10.0, 30.0)
+_RECONNECT_BACKOFF = (0.0, 1.0, 2.0, 5.0, 5.0, 10.0)
+_DEFAULT_GATEWAY_STOP_TIMEOUT = 5.0
+_DEFAULT_GATEWAY_RECONNECT_MIN_TIMEOUT = 10.0
 _EXECUTION_DB_FILENAME = "gateway_execution_routing.sqlite"
 _MARKET_SESSION_DRAIN_CANCELLED = object()
+
+
+def _gateway_client_request_timeout_seconds(store) -> float:
+    """Return the configured Gateway client RPC timeout in seconds, or 0.0."""
+    try:
+        cfg = getattr(store, "_gateway_strategy_config", None)
+        client_cfg = getattr(cfg, "client_config", None)
+        clients = client_cfg.clients if hasattr(client_cfg, "clients") else None
+        if not isinstance(clients, Mapping):
+            return 0.0
+        gw = clients.get("gateway")
+        settings = gw.get("settings") if isinstance(gw, Mapping) else None
+        options = settings.get("options") if isinstance(settings, Mapping) else None
+        timeout_ms = options.get("request_timeout_ms") if isinstance(options, Mapping) else None
+        if type(timeout_ms) in (int, float) and math.isfinite(timeout_ms) and timeout_ms > 0:
+            return float(timeout_ms) / 1000.0
+    except Exception:
+        pass
+    return 0.0
+
+
+def _gateway_rpc_endpoint_listening(store, api, *, timeout: float = 0.25) -> bool:
+    """Non-mutating TCP reachability probe before creating a new real-ZMQ session.
+
+    Only probes when the existing API uses a real ``ZmqTransportFactory`` and a
+    ``tcp://host:port`` RPC endpoint; fake/in-memory transports return True.
+    """
+    try:
+        from bt_api_py.gateway_api import GatewayBtApi
+
+        if type(api) is not GatewayBtApi:
+            return True
+        cfg = getattr(store, "_gateway_strategy_config", None)
+        client_cfg = getattr(cfg, "client_config", None)
+        comm = getattr(client_cfg, "communication", None)
+        profiles = comm.get("profiles") if isinstance(comm, Mapping) else None
+        if not isinstance(profiles, Mapping):
+            return True
+        endpoint = None
+        for prof in profiles.values():
+            if not isinstance(prof, Mapping) or prof.get("backend") != "zmq":
+                continue
+            eps = prof.get("endpoints")
+            cand = eps.get("rpc_connect") if isinstance(eps, Mapping) else None
+            if isinstance(cand, str) and cand.startswith("tcp://"):
+                endpoint = cand
+                break
+        if not endpoint:
+            return True
+        parsed = urlsplit(endpoint)
+        host = parsed.hostname
+        port = parsed.port
+        if not host or port is None:
+            return True
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+    except Exception:
+        return True
 
 
 def _gateway_state_dir_trusted(directory):
@@ -509,8 +573,13 @@ def reconnect_gateway_store(store, *, timeout=None):
     """
     if not gateway_session_recoverable(store):
         return False
+    explicit_timeout = timeout is not None
     if timeout is None:
-        timeout = store._command_shutdown_timeout
+        rpc_timeout = _gateway_client_request_timeout_seconds(store)
+        timeout = max(
+            float(store._command_shutdown_timeout),
+            rpc_timeout + 2.0 if rpc_timeout > 0 else _DEFAULT_GATEWAY_RECONNECT_MIN_TIMEOUT,
+        )
     deadline = time.monotonic() + float(timeout)
     state = store.gateway_session_state()
     if state == "CONNECTED":
@@ -579,7 +648,8 @@ def reconnect_gateway_store(store, *, timeout=None):
         return waiting("MARKET_LEASE_DRAIN_UNCONFIRMED")
     try:
         result = _reconnect_gateway_store_after_drain(
-            store, api, run_lock, timeout, deadline, attempt, waiting
+            store, api, run_lock, timeout, deadline, attempt, waiting,
+            explicit_timeout=explicit_timeout,
         )
     finally:
         end_gateway_market_session_drain(drain)
@@ -601,13 +671,17 @@ def reconnect_gateway_store(store, *, timeout=None):
 
 
 def _reconnect_gateway_store_after_drain(
-        store, api, run_lock, timeout, deadline, attempt, waiting):
+        store, api, run_lock, timeout, deadline, attempt, waiting,
+        *, explicit_timeout=False):
     """Close and replace a Store API after all exact BT leases were drained."""
     if (store._api is not api or store._gateway_run_lock is not run_lock
             or not gateway_session_recoverable(store)):
         return waiting("OLD_SESSION_BINDING_CHANGED")
     if store.gateway_session_state() != "LOST":
         return _MARKET_SESSION_DRAIN_CANCELLED
+    if (not _gateway_facade_cleanup_confirmed(api)
+            and not _gateway_rpc_endpoint_listening(store, api)):
+        return waiting("GATEWAY_ENDPOINT_UNREACHABLE")
     remaining = max(0.0, deadline - time.monotonic())
     if remaining <= 0:
         return waiting("MARKET_LEASE_DRAIN_TIMEOUT")
@@ -626,11 +700,16 @@ def _reconnect_gateway_store_after_drain(
     if (store._api is not api or store._gateway_run_lock is not run_lock
             or not gateway_session_recoverable(store)):
         return waiting("OLD_SESSION_BINDING_CHANGED")
+    if not _gateway_rpc_endpoint_listening(store, api):
+        return waiting("GATEWAY_ENDPOINT_UNREACHABLE")
     # Its counters now only say what the old Gateway side could not be told
     # (unregister, unsubscribe): that registration ends with its lease or
     # with its Gateway and is not a reason to keep the strategy waiting.
     unresolved = (closed.cleanup_failures, closed.unregister_uncertainties,
                   closed.owner_cleanup_uncertainties)
+    start_remaining = max(0.0, deadline - time.monotonic()) if explicit_timeout else float(timeout)
+    if start_remaining <= 0:
+        return waiting("REGISTRATION_TIMEOUT")
     try:
         api = _create_gateway_api(store)
     except Exception as error:
@@ -640,7 +719,7 @@ def _reconnect_gateway_store_after_drain(
     store._api = api
     try:
         _verify_gateway_execution_parents(store, api)
-        remaining = max(0.0, deadline - time.monotonic())
+        remaining = max(0.0, deadline - time.monotonic()) if explicit_timeout else start_remaining
         if remaining <= 0:
             return waiting("REGISTRATION_TIMEOUT")
         started = api.start(timeout_seconds=remaining)
@@ -683,7 +762,7 @@ def stop_gateway_store(store, *, timeout):
     if store._gateway_pid != os.getpid():
         raise RuntimeError("GATEWAY_WRONG_PROCESS")
     if timeout is None:
-        timeout = store._command_shutdown_timeout
+        timeout = max(float(store._command_shutdown_timeout), _DEFAULT_GATEWAY_STOP_TIMEOUT)
     if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout < 0:
         raise ValueError("invalid Gateway stop timeout")
     deadline = time.monotonic() + float(timeout)

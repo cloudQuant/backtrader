@@ -1777,7 +1777,20 @@ class GatewayExecutionStreamBrokerMixin:
             if binding.state == "RESTART_REQUIRED":
                 _fail("RESTART_REQUIRED")
             self._gateway_rebind_session(binding)
-        self._gateway_stream_check(binding)
+        try:
+            self._gateway_stream_check(binding)
+        except GatewayExecutionStreamError as exc:
+            if str(exc) == "GATEWAY_STREAM_GATEWAY_UNAVAILABLE":
+                # A Gateway runtime thread can transition to LOST in the brief
+                # window between _gateway_unreachable() above and this check.
+                # Wait cleanly on the per-step path instead of crashing Cerebro.
+                self._gateway_stream_check(binding, connected_required=False)
+                if binding.state == "RESTART_REQUIRED":
+                    _fail("RESTART_REQUIRED")
+                binding.state = "GATEWAY_UNAVAILABLE"
+                binding.next_idle_read = time.monotonic() + _IDLE_READ_INTERVAL_SECONDS
+                return
+            raise
         if binding.state == "RESTART_REQUIRED":
             _fail("RESTART_REQUIRED")
         notice = self._gateway_binding(binding.strategy, required=True)

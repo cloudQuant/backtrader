@@ -120,6 +120,39 @@ def _market_lease_acquirer(api):
     return acquire if callable(acquire) else None
 
 
+def _session_runtime_terminated_after_failure(api) -> bool:
+    """Return True only when ``api``'s non-strict SDK runtime failed and exited.
+
+    A non-strict ``GatewayBtApi`` worker thread closes its ``GatewayMarketOwner``
+    (including every local ``ServiceMarketClient`` and ZMQ SUB socket) and all
+    RPC transports before exiting in ``state="failed"`` (otherwise the worker
+    stays alive in ``close_failed``). Once exited, calling
+    ``submit_owner("market.<name>.release")`` on that dead runtime can only fail
+    with ``NOT_READY`` forever.
+    """
+    if api is None or getattr(api, "_gateway_strict_cleanup", False) is True:
+        return False
+    status_fn = getattr(api, "status", None)
+    if not callable(status_fn):
+        return False
+    try:
+        snap = status_fn()
+    except Exception:
+        return False
+    from bt_api_py.service_runtime_thread import RuntimeSnapshot
+
+    if type(snap) is not RuntimeSnapshot:
+        return False
+    return (
+        snap.state == "failed"
+        and snap.thread_alive is False
+        and snap.strict_unregister_ack is not True
+        and snap.identity is not None
+        and snap.error_code in ("MAINTENANCE_FAILED", "START_FAILED", "START_TIMEOUT")
+        and getattr(snap, "open_transport_count", 0) in (None, 0)
+    )
+
+
 def _acquire_failed_without_lease(exc):
     """Recognize only SDK outcomes that prove no market lease was created."""
     if isinstance(exc, OwnerOperationError):
@@ -267,6 +300,7 @@ class GatewayMarketAdapter:
         self._lease_candidate_api = None
         self._lease_acquire_state = "idle"
         self._lease_release_confirmed = False
+        self._lease_retired_on_dead_session_api = None
         self._lease_drain_pending = False
         self._lifecycle_lock = threading.RLock()
         self._closing = False
@@ -514,7 +548,9 @@ class GatewayMarketAdapter:
                 return
             raise RuntimeError("GATEWAY_MARKET_LEASE_UNCONFIRMED") from exc
 
-    def _release_sdk_leases(self, *, timeout_seconds=None, deadline=None):
+    def _release_sdk_leases(
+        self, *, timeout_seconds=None, deadline=None, allow_terminated_session=False
+    ):
         lease_timeout = self._timeout_seconds if timeout_seconds is None else timeout_seconds
 
         def remaining_timeout():
@@ -522,10 +558,21 @@ class GatewayMarketAdapter:
                 return lease_timeout
             return max(0.0, min(lease_timeout, deadline - time.monotonic()))
 
+        retired_dead_api = None
         if self._lease_client is None and self._lease_acquire_state == "unknown":
-            self._resolve_unreturned_lease(
-                self._lease_candidate_api, timeout_seconds=remaining_timeout()
-            )
+            try:
+                self._resolve_unreturned_lease(
+                    self._lease_candidate_api, timeout_seconds=remaining_timeout()
+                )
+            except Exception:
+                if not (
+                    allow_terminated_session
+                    and _session_runtime_terminated_after_failure(self._lease_candidate_api)
+                ):
+                    raise
+                retired_dead_api = self._lease_candidate_api
+                self._lease_candidate_api = None
+                self._lease_acquire_state = "none"
         entries = list(self._retired_leases)
         if self._lease_client is not None:
             entries.insert(0, (self._lease_api, self._lease_client))
@@ -533,15 +580,27 @@ class GatewayMarketAdapter:
             if self._lease_acquire_state == "unknown":
                 raise RuntimeError("GATEWAY_MARKET_LEASE_UNCONFIRMED")
             self._lease_acquire_state = "none"
-            self._lease_release_confirmed = True
+            if retired_dead_api is not None:
+                self._lease_release_confirmed = False
+                self._lease_retired_on_dead_session_api = retired_dead_api
+            else:
+                self._lease_release_confirmed = True
             return
         for api, client in entries:
             close = getattr(client, "close", None)
             if not callable(close):
                 raise RuntimeError("GATEWAY_MARKET_LEASE_UNCONFIRMED")
             close_timeout = remaining_timeout()
-            if close_timeout <= 0 or close(timeout_seconds=close_timeout) is not True:
-                raise RuntimeError("GATEWAY_MARKET_LEASE_UNCONFIRMED")
+            try:
+                if close_timeout <= 0 or close(timeout_seconds=close_timeout) is not True:
+                    raise RuntimeError("GATEWAY_MARKET_LEASE_UNCONFIRMED")
+            except Exception:
+                if not (
+                    allow_terminated_session
+                    and _session_runtime_terminated_after_failure(api)
+                ):
+                    raise
+                retired_dead_api = api
             if self._lease_client is client and self._lease_api is api:
                 self._lease_client = None
                 self._lease_api = None
@@ -551,7 +610,11 @@ class GatewayMarketAdapter:
                 for old_api, old_client in self._retired_leases
                 if not (old_api is api and old_client is client)
             ]
-        self._lease_release_confirmed = True
+        if retired_dead_api is not None:
+            self._lease_release_confirmed = False
+            self._lease_retired_on_dead_session_api = retired_dead_api
+        else:
+            self._lease_release_confirmed = True
 
     def _owns_claim(self):
         with self._claim_lock:
@@ -717,8 +780,13 @@ class GatewayMarketAdapter:
             return False
         if self._session_is_draining() or (
                 self._lease_drain_pending
-                and (self._lease_client is not None
-                     or not self._lease_release_confirmed)):
+                and (
+                    self._lease_client is not None
+                    or not (
+                        self._lease_release_confirmed
+                        or self._lease_retired_on_dead_session_api is self._api
+                    )
+                )):
             return False
         store = self._store
         if not store.is_connected:
@@ -777,6 +845,7 @@ class GatewayMarketAdapter:
         self._config = config
         self._session_generation = generation
         self._lease_drain_pending = False
+        self._lease_retired_on_dead_session_api = None
         self._reason, self._pending_operation = "STARTING", "start"
         self._attempt, self._next_retry = 0, 0.0
         if self._clock_owned and not self._clock_started:
@@ -828,7 +897,10 @@ class GatewayMarketAdapter:
                     return False
                 self._clock_started = False
             try:
-                self._release_sdk_leases(deadline=deadline)
+                self._release_sdk_leases(
+                    deadline=deadline,
+                    allow_terminated_session=_session_runtime_terminated_after_failure(api),
+                )
             except Exception:
                 self._reason = "GATEWAY_MARKET_LEASE_DRAIN_UNCONFIRMED"
                 return False
@@ -942,8 +1014,13 @@ class GatewayMarketAdapter:
                         self._last_event = self._last_receipt = None
                         self._latest_event = self._latest_receipt = None
                         return None
-                elif (self._lease_client is not None
-                      or not self._lease_release_confirmed):
+                elif (
+                    self._lease_client is not None
+                    or not (
+                        self._lease_release_confirmed
+                        or self._lease_retired_on_dead_session_api is self._api
+                    )
+                ):
                     self._last_event = self._last_receipt = None
                     self._latest_event = self._latest_receipt = None
                     self._reason = "GATEWAY_MARKET_SESSION_RECONNECTING"
@@ -1160,7 +1237,9 @@ class GatewayMarketAdapter:
             self._clock_started = False
         if (self._lease_mode or self._lease_client is not None
                 or self._retired_leases or self._lease_attempted):
-            self._release_sdk_leases()
+            self._release_sdk_leases(
+                allow_terminated_session=_session_runtime_terminated_after_failure(self._api),
+            )
         with self._claim_lock:
             self._closed = True
             self._reason = "GATEWAY_MARKET_ADAPTER_CLOSED"

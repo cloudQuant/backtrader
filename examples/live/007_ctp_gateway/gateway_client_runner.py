@@ -212,6 +212,11 @@ def configure_run_logging(config, run_dir):
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(other.upper())
     logging.getLogger("bt_api_ctp").setLevel(level.upper())
+    # backtrader's library root logger sets propagate=False by default; attach the
+    # same redacting handler so gateway reconnect/lifecycle warnings are visible.
+    bt_logger = logging.getLogger("backtrader")
+    bt_logger.addHandler(handler)
+    bt_logger.setLevel(other.upper())
 
 
 def resolve_resources(name, *, config, run_dir, first_init, upgrade_state, security_files):
@@ -471,6 +476,18 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
                 cerebro.run()
         except BaseException as exc:
             failure = exc
+            try:
+                import logging
+
+                exc_code = getattr(exc, "code", None)
+                logging.getLogger("bt_api_ctp").warning(
+                    "gateway runner failed: stage=%s exc=%s code=%s",
+                    stage,
+                    type(exc).__name__,
+                    exc_code if type(exc_code) is str and len(exc_code) <= 64 else None,
+                )
+            except BaseException:
+                pass
             diagnostic({"status": "CRASHED" if stage == "run" else "BLOCKED",
                         "stage": stage, "error_code": error_code})
         finally:
