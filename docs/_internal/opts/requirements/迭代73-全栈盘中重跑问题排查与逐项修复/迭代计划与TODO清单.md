@@ -2,7 +2,7 @@
 
 **文档状态：`REVIEW_PENDING`（`73.01`–`73.10` 全部修复完成并经三轮 SimNow 第一套全栈实盘验证——含 `20:52–21:31` 夜盘活跃行情终验 Run #3，`19/19` 进程全部 `exit 0`、零核心服务告警；按用户 2026-11-25 拍板，SimNow 模拟账户默认即作为目标真实资金账户口径，跑通 SimNow 全栈即满足实盘验收要求，待用户最终签收）**
 **创建时间**：`2026-11-25 13:08 +08:00`
-**最新更新**：`2026-11-25 21:33 +08:00`
+**最新更新**：`2026-11-27 14:48 +08:00`（补充 2026-11-27 午盘真实 `SessionSupervisor` 四轮复验 Run #4a–#4d、4 项新暴露实盘缺陷修复及 43 分钟长稳闭环证据，详见 §5）
 **前序基线**：迭代 72 验收文档（[验收文档.md](../迭代72-全栈实盘与Web联调修复/验收文档.md)）、`bt_api_py@0ff8bc96`、`backtrader@02a797392`、`bt_api_web@38541a7a`
 **重跑窗口**：
 - **下午首轮（Run #1）**：`2026-11-25 13:10:40–14:17:02 +08:00`（66 分钟，`trading_day=20261125`，`D:\temp\007_ctp_gateway_iter73_20261125_pm`）
@@ -77,3 +77,22 @@
    - `risk` 卡片维持诚实 `degraded`、母单在 `risk.parent.reserve` 返回 `risk_parent_unavailable`，属于**迭代 64（`bt_api_risk`）**既有未收口 GAP（按 fail-closed 合同诚实暴露，未绕过）；
    - 浏览器子代理此前调用 `flash` 触发 `429 RESOURCE_EXHAUSTED` 配额错误，未擅自切换模型重试；全量 HTTP API（`/api/v1/dashboard`）已完成实时核验。
 3. **Git 推送**：所有跨仓提交均停留在本地 `dev`（均未执行 `git push`，所有既有无关 dirty 文件均完整保留），待用户审阅确认后再决定是否推送。
+
+---
+
+## 5. 2026-11-27 午盘真实 `SessionSupervisor` 全栈联动复验与新增 4 项实盘修复（Run #4a–#4d）
+
+在迭代 72 正式 `SessionSupervisor` 与迭代 74 组合监控接入后的 2026-11-27 午盘（`13:26–14:45 +08:00`，SimNow 第一套 `trading_day=20261127`），连续执行 4 轮全栈实盘复验，并逐项修复暴露的 4 个真实生产缺陷（全部保持 fail-closed、仅提交本地 `dev`、未 `git push`）：
+
+| 序号 | 捕获轮次 | 实盘暴露缺陷 | 根因修复与本地 `dev` 提交 | 回归与实盘复验结果 |
+| --- | --- | --- | --- | --- |
+| **1** | 盘前审计 | `RunStatusWriter` 对 `GatewayBtApiBroker` 输出 `write_block_reasons: null`，无法真实透出就绪/降级原因 | `backtrader@945010ffd`：新增零 RPC 非阻塞 `gateway_run_facts()` / `broker_run_facts()` 接入 `RunStatusWriter` | `80 + 13 passed`；Run #4d 11/11 策略健康期全部发布 `write_block_reasons: []`，异常时精准发布 `["execution_unavailable"]` |
+| **2** | Run #4a (`pm_sup`) | Windows 下 `LocalComponentProcessPort` 对 `stdout_path == stderr_path` 打开双 `"ab"` 句柄，stderr 告警覆盖 stdout stop-file 标记 | `bt_api_py@9c42b30e`：同路径时改用 `stderr=subprocess.STDOUT` | `59 passed`；Run #4b/4c/4d 19/19 组件启动与 `.stop` 解析零损坏 |
+| **3** | Run #4b (`pm_sup2`) | `bt_api_runtime` `CONTROL_CODES` 漏列 `"running"`，导致所有 `RUNNING` 策略 `code` 被折叠为 `"status_unknown"`、`SessionSupervisor.status()` 始终失败 | `bt_api_runtime@74472eb`（gitlink 随 `bt_api_py@d97183a6` 更新）：补全 `"running"` 有限状态码 | `98 passed, 2 skipped`；Run #4d 实盘达成 **`[SUPERVISOR_STATUS] exit_code=0 code=session_running phase=RUNNING`** |
+| **4** | Run #4b (`pm_sup2`) + Run #4c (`pm_sup3`) | Execution `ParentServiceHost` 的 `atomic-intake-lease` 每 0.5s 续租持 `journal._lock` 触发 `_parent_retry_unready`，拒绝策略 `service.renew`（Run #4b 7/11 断会话）及启动 `service.register`（Run #4c 1/11 漏注册） | `bt_api_py@d97183a6` + `bt_api_py@a4f9af10`：`_parent_retry_unready` 时 `service.renew` 返回瞬态 `UNAVAILABLE` 且策略端未超 `lease_deadline` 前重试（硬故障与业务调用继续 fail-closed）；`_dispatch_request` 对瞬态 `_parent_retry_unready` 有界等待重试（上限 250ms、10ms 步进，硬故障 0ms 立即拒绝） | `117 passed` + `11 passed` + `98 passed`；Run #4d 11/11 策略一次注册成功且连续 **29m43s**（`14:02:51–14:32:34`）保持 `11/11 sessions=1`、`write_block_reasons=[]` |
+
+### Run #4d（`D:\temp\007_ctp_gateway_iter72_73_20261127_pm_sup4`，`14:02:04–14:45:00`，42m56s）终验要点
+- **编排与全量收口**：`SessionSupervisor` `preflight(exit=0)` → `start_session(exit=0)` → `all_11_live=True` → `status(exit=0, session_running)` → `stop_session(exit=0, session_stopped, 11s)`；`supervisor_receipt.jsonl` 全部 **90 条 100% `APPLIED`**；`direct_control_intent_generation_chain` 完整 `SEALED`（`seq=1, start_revision=13, end_revision=192, history_enabled_at_start=1`）；停机后 **0 残留 Python 进程**。
+- **长稳自愈指标**：**4 路 1800s 自动续期**（`risk`、`gateway`、`portfolio_risk`、`portfolio_gateway`）与 **2 路 Risk 4096 主动轮换**（`14:26:21` market、`14:35:29` account_facts `READY`）全部实盘成功；全部核心服务日志 0 `ERROR` / 0 `TIMEOUT` / 0 `QUERY_BUDGET_EXCEEDED`。
+- **Web 同库重启隔离与时延**：PID #1（`26528`）协作停机期间 11 策略与 19 底层进程零中断；PID #2（`15600`）复用同一 `accounts.sqlite3` 2.78s 复原，5 样本实测 `/api/v1/dashboard p50=250.0ms`、`/api/v1/portfolio p50=313.0ms`，随后自有 `.stop` 退出 `exit=0`。
+- **宿主机抖动观察（如实记录）**：`14:32:33.964 → 14:32:36.812` 宿主机出现 `2.848s` OS/磁盘停顿（策略 `tick.log` 毫秒记录），触发 `AtomicIntakeService` 既定 `2.0s` fail-closed watchdog（此时 SQLite 5s writer lease 尚余 2.5s），11 个 Execution 进程按迭代 65 合同同步 fail-closed 并在策略状态中即时标出 `execution_unavailable`（未放宽该 `2.0s` 门禁）。
